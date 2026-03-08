@@ -1,0 +1,28 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+    -   id: check-yaml
+        args: [--allow-multiple-documents]
+    -   id: end-of-file-fixer
+        exclude: (^tests/fixtures/)
+    -   id: trailing-whitespace
+# Enforce code style
+-   repo: https://github.com/psf/black
+    rev: 26.3.0
+    hooks:
+    -   id: black
+    args: ["--target-version=py313"]
+# Linting
+-   repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+    -   id: flake8
+# Static type checking
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+    -   id: mypy
+        additional_dependencies:
+        -    PyYAML
+        args: ["--explicit-package-bases", "--ignore-missing-imports"]

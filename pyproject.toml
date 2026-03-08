@@ -1,0 +1,25 @@
+[project]
+name = "python-neural-network"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Jim Narey",email = "jimnarey@me.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pre-commit (>=4.5.1,<5.0.0)",
+    "numpy (>=2.4.2,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ipdb (>=0.13.13,<0.14.0)",
+    "ipython (>=9.11.0,<10.0.0)"
+]
