@@ -1,6 +1,9 @@
 # python-neural-network
 
-A proof of concept neural network written in Python.
+A work-in-progress proof of concept neural network written in Python. This follows the book 'Neural Networks from Scratch in Python', adopting a more robust design and with the ultimate aim of extending the resulting model. In particular, the aim is to expose more of the underlying
+formulae and where possible improve performance.
+
+## Notes
 
 Some important things I learned as part of this project which are not obviously expressed by the code/comments:
 
@@ -61,6 +64,6 @@ Some important things I learned as part of this project which are not obviously 
   |        /
   |______./________________ x
 
-- If we keep adding neurons we increase the complexity of the function (i.e. line) we can describe with the network.
+- If we keep adding neurons we increase the complexity of the function (i.e. curve) we can describe with the network.
 
-- Area of effect refers to the region of input space which, given the neuron's weights and bias, results in the neuron activating (outputs something other than zero). Different neurons have different areas of effect. When these are combined, we get the function described by the network.
+- 'Area of effect' refers to the region of input space which, given the neuron's weights and bias, results in the neuron activating (outputs something other than zero). Different neurons have different areas of effect. When these are combined, we get the function described by the network.
