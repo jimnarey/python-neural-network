@@ -12,7 +12,7 @@ repos:
     rev: 26.3.0
     hooks:
     -   id: black
-    args: ["--target-version=py313"]
+        args: ["--target-version=py313"]
 # Linting
 -   repo: https://github.com/PyCQA/flake8
     rev: 7.3.0
