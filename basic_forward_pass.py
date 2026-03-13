@@ -7,7 +7,7 @@
 from src import layer, activations
 
 try:
-    from src import spiral
+    from src.sample_data import spiral
     from src.tensors import NumpyBackend
 except (ModuleNotFoundError, RuntimeError) as exc:
     if isinstance(exc, ModuleNotFoundError) and exc.name != "numpy":
@@ -17,7 +17,7 @@ except (ModuleNotFoundError, RuntimeError) as exc:
         "generator and the NumPy tensor backend."
     ) from exc
 
-X, y = spiral.spiral_data(points=100, classes=3)
+X, y = spiral.generate_numpy(points=100, classes=3)
 backend = NumpyBackend(seed=0)
 
 layer_1 = layer.DenseLayer(backend, 2, 3)
