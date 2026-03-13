@@ -1,3 +1,11 @@
+"""
+The reference implementation for the tensor backend
+
+numpy features heavily in teaching resources about neural networks,
+including the NNfSiP book making it easy to write effective tests
+for this implementation.
+"""
+
 import numpy as np
 
 from src.tensors.backend import Tensor

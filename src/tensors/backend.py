@@ -1,3 +1,21 @@
+"""Interface for various tensor backends
+
+This allows us to swap out different backends without altering the code
+for the layers and wider model. The numpy backend is the reference version.
+
+Protocol classes were chosen over ABCs because the type and behaviour of
+the tensors used in each are too different. numpy uses ndarray where the
+Python implementation uses lists of lists. These are not interchangeable.
+What matters is that the tensor implementation is always hidden from the
+rest of the program;  we stick to one backend for each network; and that
+each of the methods in a given backend returns/expects the same tensor
+type.
+
+The price for the flexibility this approach provides is that we need
+additional testing to pin down the interface's contract, since we can't
+rely on static, nominal typing to do this for us.
+"""
+
 from typing import Any, Protocol, runtime_checkable
 
 # A placeholder for specific tensor implementations, which will be added later
@@ -64,7 +82,8 @@ class TensorBackend(Protocol):
 
     def matmul(self, a: Tensor, b: Tensor) -> Tensor:
         # Matmul behaves the same as a numpy dot product on 2D arrays but not if one
-        # is a 1D array so some care needs to be taken with the interface
+        # is a 1D array so some care needs to be taken when relying on guides and docs
+        # which are based on numpy (a lot are)
         """
         Performs matrix multiplication between two tensors.
         The number of columns in the first tensor must match the number of rows in the second tensor.

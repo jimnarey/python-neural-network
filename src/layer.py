@@ -34,7 +34,11 @@ class DenseLayer:
 
     def forward(self, inputs: Tensor) -> Tensor:
         pre_act = self.backend.add(
-            self.backend.matmul(inputs, self.weights), self.biases
+            # Matmul is used here whereas in NNfSiP and other sources numpy's dot product
+            # method is used. As long as we're dealing with 2D arrays they behave the same
+            # but they treat 1D and higher-dim arrays differently
+            self.backend.matmul(inputs, self.weights),
+            self.biases,
         )
         # We check we're not getting a dead network by monitoring the output
         # for too many zeros. We can mitigate this by setting the biases to non-zero
