@@ -14,8 +14,11 @@ class ReLU(Activation):
 
 
 class Softmax(Activation):
+    def __init__(self, axis: int = -1):
+        self.axis = axis
+
     def forward(self, backend: TensorBackend, x: Tensor) -> Tensor:
-        safe_x = backend.subtract(x, backend.max(x, axis=1, keepdims=True))
+        safe_x = backend.subtract(x, backend.max(x, axis=self.axis, keepdims=True))
         exp_values = backend.exp(safe_x)
-        norm_base = backend.sum(exp_values, axis=1, keepdims=True)
+        norm_base = backend.sum(exp_values, axis=self.axis, keepdims=True)
         return backend.divide(exp_values, norm_base)

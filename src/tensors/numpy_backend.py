@@ -21,6 +21,15 @@ class NumpyBackend:
     def zeros(self, shape: tuple[int, ...]) -> Tensor:
         return np.zeros(shape)
 
+    def shape(self, x: Tensor) -> tuple[int, ...]:
+        return x.shape
+
+    def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
+        return np.reshape(x, shape)
+
+    def transpose(self, x: Tensor, axes: tuple[int, ...] | None = None) -> Tensor:
+        return np.transpose(x, axes=axes)
+
     def add(self, a: Tensor, b: Tensor | float | int) -> Tensor:
         return np.add(a, b)
 
@@ -42,8 +51,18 @@ class NumpyBackend:
     def exp(self, x: Tensor) -> Tensor:
         return np.exp(x)
 
-    def sum(self, x: Tensor, axis: int | None = None, keepdims: bool = False) -> Tensor:
+    def sum(
+        self,
+        x: Tensor,
+        axis: int | tuple[int, ...] | None = None,
+        keepdims: bool = False,
+    ) -> Tensor:
         return np.sum(x, axis=axis, keepdims=keepdims)
 
-    def max(self, x: Tensor, axis: int | None = None, keepdims: bool = False) -> Tensor:
+    def max(
+        self,
+        x: Tensor,
+        axis: int | tuple[int, ...] | None = None,
+        keepdims: bool = False,
+    ) -> Tensor:
         return np.max(x, axis=axis, keepdims=keepdims)
