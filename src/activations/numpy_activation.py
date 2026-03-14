@@ -4,7 +4,7 @@ Numpy was chosen as the reference for the same reason it is used
 as such for the tensor backends.
 """
 
-from src.activations.base import Activation
+from src.activations.activation import Activation
 from src.tensors import Tensor, TensorBackend
 
 

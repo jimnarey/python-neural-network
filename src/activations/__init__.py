@@ -1,4 +1,4 @@
-from src.activations.base import Activation
-from src.activations.numpy import ReLU, Softmax
+from src.activations.activation import Activation
+from src.activations.numpy_activation import ReLU, Softmax
 
 __all__ = ["Activation", "ReLU", "Softmax"]
