@@ -112,9 +112,12 @@ class TensorBackend(Protocol):
     def matmul(self, a: Tensor, b: Tensor) -> Tensor:
         # These docstrings were added early to ensure each of the tensor
         # operations were completely understood. This was the hardest
-        # to understand by far. Specifically, the need to match NumPy's
-        # 'trailing axis matmul' feature which needs to be replicated
-        # across all implementations for consistency
+        # operation to understand by far. Specifically, the need to match
+        # NumPy's 'trailing axis matmul' feature which needs to be replicated
+        # across all implementations for consistency.
+        # This is the only non-trivial docstring in the project which was
+        # substantially written using an LLM (GPT-5.4). It has been improved
+        # and simplified a lot but still needs more work
         """
         Perform matrix multiplication between two tensors.
 
