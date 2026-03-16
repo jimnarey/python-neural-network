@@ -1,13 +1,13 @@
 import importlib.util
 import unittest
 
-from tests.tensors.backend_contract import BackendContractMixin
+from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
-class TestNumpyBackend(BackendContractMixin, unittest.TestCase):
+class TestNumpyBackend(BackendContractMatmulMixin, unittest.TestCase):
     def make_backend(self):
         from src.tensors import NumpyBackend
 
