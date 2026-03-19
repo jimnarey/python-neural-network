@@ -20,12 +20,33 @@ How inheritance for backend test classes works:
   and *all of* the method mixins (BackendContractMatmulMixin, BackendContractRandnMixin etc).
 - This is a bit more complex than is ideal but it separates concerns while ensuring the
   requirement to implement make_backend is enforced even in every mixin that uses it.
+- Having the mixins NOT inherit from TestCase means that they are not picked up during test
+  discovery, which would cause an exception because they don't have a concrete make_backend
+
+One consequence of this approach is that have test methods in classes (the mixins) which
+do not inherit from TestCase. The 'if TYPE_CHECKING' block enables the type checker to
+recognise when we are calling methods inherited from TestCase and treat them properly.
+It also has the highly desirable effect of making IntelliSense work properly in VSCode.
 """
+
+from typing import TYPE_CHECKING
 
 from src.tensors.backend import TensorBackend
 
+if TYPE_CHECKING:
+    import unittest
 
-class BackendContractBase:
+    class _BackendTestCase(unittest.TestCase):
+        def make_backend(self, seed: int | None = None):
+            raise NotImplementedError
+
+else:
+
+    class _BackendTestCase:
+        pass
+
+
+class BackendContractBase(_BackendTestCase):
     def make_backend(self, seed: int | None = None):
         raise NotImplementedError
 
@@ -35,9 +56,9 @@ class BackendConstructionContractMixin(BackendContractBase):
         try:
             return self.make_backend(seed=seed)
         except Exception as exc:
-            # This mixin only makes any sense if it is inherited by a class
-            # which also inherits from unittest.TestCase
-            self.fail(f"{message}: {exc}")  # type: ignore
+            # The following line is an example of why the 'if TYPE_CHECKING' block is
+            # helpful. Without the latter this line will fail type checking.
+            self.fail(f"{message}: {exc}")
 
     def test_backend_can_be_constructed_without_seed(self):
         backend = self._construct_backend(
