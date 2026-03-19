@@ -18,7 +18,7 @@ additional testing to pin down the interface's contract, since we can't
 rely on static, nominal typing to do this for us.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 # A placeholder for specific tensor implementations, which will be added later
 type Tensor = Any
@@ -43,6 +43,55 @@ class TensorBackend(Protocol):
         Example:
         zeros((2, 3)) -> [[0, 0, 0],
                           [0, 0, 0]]
+        """
+
+    def zeros_like(self, x: Tensor) -> Tensor:
+        """
+        Create a tensor of zeros with the same shape as ``x``.
+
+        Example:
+        zeros_like([[1, 2], [3, 4]]) -> [[0, 0], [0, 0]]
+        """
+
+    def ones(self, shape: tuple[int, ...]) -> Tensor:
+        """
+        Create a tensor with the given shape, filled with ones.
+
+        Example:
+        ones((2, 3)) -> [[1, 1, 1], [1, 1, 1]]
+        """
+
+    def ones_like(self, x: Tensor) -> Tensor:
+        """
+        Create a tensor of ones with the same shape as ``x``.
+
+        Example:
+        ones_like([[1, 2], [3, 4]]) -> [[1, 1], [1, 1]]
+        """
+
+    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
+        """
+        Create a tensor with the given shape, filled with ``fill_value``.
+        """
+
+    def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
+        """
+        Create a tensor with the same shape as ``x``, filled with ``fill_value``.
+        """
+
+    def empty(self, shape: tuple[int, ...]) -> Tensor:
+        """
+        Create an uninitialised tensor with the given shape.
+        """
+
+    def empty_like(self, x: Tensor) -> Tensor:
+        """
+        Create an uninitialised tensor with the same shape as ``x``.
+        """
+
+    def copy(self, x: Tensor) -> Tensor:
+        """
+        Return a copy of ``x``.
         """
 
     def shape(self, x: Tensor) -> tuple[int, ...]:
@@ -172,6 +221,20 @@ class TensorBackend(Protocol):
                                          [4, 4]]
         """
 
+    def minimum(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+        """
+        Compute the element-wise minimum of two tensors, or the minimum
+        between each element of a tensor and a scalar.
+        """
+
+    def argmax(self, x: Tensor, axis: int | None = None) -> Tensor:
+        """
+        Return the indices of the maximum values in ``x``.
+
+        Example:
+        argmax([[1, 4], [3, 2]], axis=1) -> [1, 0]
+        """
+
     def exp(self, x: Tensor) -> Tensor:
         """
         Compute the exponential (e^x) of each element in the tensor.
@@ -179,6 +242,31 @@ class TensorBackend(Protocol):
         Example:
         exp([[0, 1], [2, 3]]) -> [[1, 2.718],  # e^0 = 1, e^1 ≈ 2.718
                                   [7.389, 20.085]]  # e^2 ≈ 7.389, e^3 ≈ 20.085
+        """
+
+    def log(self, x: Tensor) -> Tensor:
+        """
+        Compute the natural logarithm of each element in the tensor.
+        """
+
+    def sqrt(self, x: Tensor) -> Tensor:
+        """
+        Compute the square root of each element in the tensor.
+        """
+
+    def absolute(self, x: Tensor) -> Tensor:
+        """
+        Compute the absolute value of each element in the tensor.
+        """
+
+    def sign(self, x: Tensor) -> Tensor:
+        """
+        Return the sign of each element in the tensor.
+        """
+
+    def clip(self, x: Tensor, min_value: float | int, max_value: float | int) -> Tensor:
+        """
+        Clip tensor values so they lie between ``min_value`` and ``max_value``.
         """
 
     def sum(
@@ -197,6 +285,16 @@ class TensorBackend(Protocol):
         sum([[1, 2], [3, 4]], axis=0) -> [4, 6]  # Column-wise sum
         """
 
+    def mean(
+        self,
+        x: Tensor,
+        axis: int | tuple[int, ...] | None = None,
+        keepdims: bool = False,
+    ) -> Tensor:
+        """
+        Compute the mean of all elements in the tensor, or along one or more axes.
+        """
+
     def max(
         self,
         x: Tensor,
@@ -211,4 +309,56 @@ class TensorBackend(Protocol):
         Example:
         max([[1, 2], [3, 4]]) -> 4  # Maximum value
         max([[1, 2], [3, 4]], axis=1) -> [2, 4]  # Row-wise maximum
+        """
+
+    def min(
+        self,
+        x: Tensor,
+        axis: int | tuple[int, ...] | None = None,
+        keepdims: bool = False,
+    ) -> Tensor:
+        """
+        Compute the minimum value of all elements in the tensor, or along one
+        or more specific axes.
+        """
+
+    def std(
+        self,
+        x: Tensor,
+        axis: int | tuple[int, ...] | None = None,
+        keepdims: bool = False,
+    ) -> Tensor:
+        """
+        Compute the standard deviation of the tensor, or along one or more axes.
+        """
+
+    def stack(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
+        """
+        Stack tensors along a new axis.
+
+        Example:
+        stack(([1, 2], [3, 4]), axis=0) -> [[1, 2], [3, 4]]
+        """
+
+    def concatenate(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
+        """
+        Join tensors along an existing axis.
+        """
+
+    def vstack(self, xs: Sequence[Tensor]) -> Tensor:
+        """
+        Stack tensors vertically.
+        """
+
+    def hstack(self, xs: Sequence[Tensor]) -> Tensor:
+        """
+        Stack tensors horizontally.
+        """
+
+    def eye(self, n: int, m: int | None = None) -> Tensor:
+        """
+        Create a 2D identity matrix.
+
+        Example:
+        eye(3) -> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
         """
