@@ -27,7 +27,6 @@ from typing import Protocol, Sequence, runtime_checkable
 # backend implementations is clearer.
 type Tensor = object
 type Scalar = float | int
-type NonEmptyShape = tuple[int, *tuple[int, ...]]
 
 
 @runtime_checkable
@@ -65,7 +64,7 @@ class TensorBackend(Protocol):
         Convert a native tensor representation to a (nested) list.
         """
 
-    def randn(self, shape: NonEmptyShape) -> Tensor:
+    def randn(self, shape: tuple[int, ...]) -> Tensor:
         """
         Generate a tensor with the given shape, filled with random numbers
         drawn from a standard normal distribution and as floats. Use of
@@ -76,7 +75,7 @@ class TensorBackend(Protocol):
                           [ 0.8, -1.1, 0.0]]
         """
 
-    def zeros(self, shape: NonEmptyShape) -> Tensor:
+    def zeros(self, shape: tuple[int, ...]) -> Tensor:
         """
         Create a tensor with the given shape, filled with 0.0 values.
         Use of floats has to be enforced at the implementation level.
@@ -95,7 +94,7 @@ class TensorBackend(Protocol):
         zeros_like([[1, 2], [3, 4]]) -> [[0, 0], [0, 0]]
         """
 
-    def ones(self, shape: NonEmptyShape) -> Tensor:
+    def ones(self, shape: tuple[int, ...]) -> Tensor:
         """
         Create a tensor with the given shape, filled with 1.0 values.
         Use of floats has to be enforced at the implementation level.
@@ -120,7 +119,7 @@ class TensorBackend(Protocol):
     # failed to meet the contract and would fail if mypy were to be run with
     # --check-untyped-defs or the test method were given a type annotation
     # for its return value.
-    def full(self, shape: NonEmptyShape, fill_value: float | int) -> Tensor:
+    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
         """
         Create a float-valued tensor with the given shape, filled with
         ``fill_value``. Use of floats has to be enforced at the
@@ -134,7 +133,7 @@ class TensorBackend(Protocol):
         implementation level.
         """
 
-    def empty(self, shape: NonEmptyShape) -> Tensor:
+    def empty(self, shape: tuple[int, ...]) -> Tensor:
         """
         Create an uninitialised tensor with the given shape.
         """

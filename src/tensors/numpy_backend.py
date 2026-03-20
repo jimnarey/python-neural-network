@@ -9,7 +9,7 @@ for this implementation.
 import numpy as np
 from typing import Sequence
 
-from src.tensors.tensor_backend import NonEmptyShape, Scalar, Tensor
+from src.tensors.tensor_backend import Scalar, Tensor
 
 
 class NumpyBackend:
@@ -102,15 +102,15 @@ class NumpyBackend:
         )  # Remove this once we've properly tackled typing of tensors
         return tensor.tolist()
 
-    def randn(self, shape: NonEmptyShape) -> Tensor:
+    def randn(self, shape: tuple[int, ...]) -> Tensor:
         self._validate_non_empty_shape(shape)
         return self._random.standard_normal(size=shape)
 
-    def zeros(self, shape: NonEmptyShape) -> Tensor:
+    def zeros(self, shape: tuple[int, ...]) -> Tensor:
         self._validate_non_empty_shape(shape)
         return np.zeros(shape, dtype=float)
 
-    def ones(self, shape: NonEmptyShape) -> Tensor:
+    def ones(self, shape: tuple[int, ...]) -> Tensor:
         self._validate_non_empty_shape(shape)
         return np.ones(shape, dtype=float)
 
@@ -122,7 +122,7 @@ class NumpyBackend:
         self._validate_not_rank_0(x)
         return np.zeros_like(x, dtype=float)
 
-    def full(self, shape: NonEmptyShape, fill_value: float | int) -> Tensor:
+    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
         self._validate_non_empty_shape(shape)
         return np.full(shape, fill_value, dtype=float)
 
@@ -130,7 +130,7 @@ class NumpyBackend:
         self._validate_not_rank_0(x)
         return np.full_like(x, fill_value, dtype=float)
 
-    def empty(self, shape: NonEmptyShape) -> Tensor:
+    def empty(self, shape: tuple[int, ...]) -> Tensor:
         self._validate_non_empty_shape(shape)
         return np.empty(shape, dtype=float)
 
