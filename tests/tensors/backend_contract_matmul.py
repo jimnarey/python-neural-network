@@ -1,5 +1,5 @@
 from tests.tensors.backend_contract import BackendContractBase
-from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.tensor_assertions import to_python, assert_nested_close
 
 
 class BackendContractMatmulMixin(BackendContractBase):
@@ -171,8 +171,10 @@ class BackendContractMatmulMixin(BackendContractBase):
         result = backend.matmul(a, b)
 
         expected = 32.0
-        self.assertEqual(backend.shape(result), ())
-        assert_nested_close(result, expected)
+        python_result = to_python(result)
+        self.assertNotIsInstance(python_result, (list, tuple))
+        self.assertIsInstance(python_result, (int, float))
+        self.assertEqual(python_result, expected)
 
     def test_matmul_multiplies_3D_array_and_2D_matrix(self):
         """

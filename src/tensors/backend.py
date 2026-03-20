@@ -18,15 +18,32 @@ additional testing to pin down the interface's contract, since we can't
 rely on static, nominal typing to do this for us.
 """
 
-from typing import Any, Protocol, Sequence, runtime_checkable
+from typing import Protocol, Sequence, runtime_checkable
 
-# A placeholder for specific tensor implementations, which will be added later
-type Tensor = Any
+# A placeholder for specific tensor implementations. This is an improvement
+# over Tensor = Any because the type checker will still catch attempts to use
+# methods which are not on object. But it's loose and it may make sense to
+# change it to a TypeVar-based approach later, when the design of the TBC
+# backend implementations is clearer.
+type Tensor = object
+type Scalar = float | int
+type NonEmptyShape = tuple[int, *tuple[int, ...]]
 
 
 @runtime_checkable
 class TensorBackend(Protocol):
-    def randn(self, shape: tuple[int, ...]) -> Tensor:
+    """
+    The interface/contract is designed to eliminate, as far as possible,
+    the use of arrays with rank 0, which are possible with NumPy. This
+    is the purpose of preventing empty shapes being passed to tensor
+    creation methods.
+
+    Creation of an empty array (inc. a vector) is still  possible by
+    passing a shape containing zeros to randn, zeros etc in which case
+    they each function identically.
+    """
+
+    def randn(self, shape: NonEmptyShape) -> Tensor:
         """
         Generate a tensor with the given shape, filled with random numbers
         drawn from a standard normal distribution.
@@ -36,7 +53,7 @@ class TensorBackend(Protocol):
                           [ 0.8, -1.1, 0.0]]
         """
 
-    def zeros(self, shape: tuple[int, ...]) -> Tensor:
+    def zeros(self, shape: NonEmptyShape) -> Tensor:
         """
         Create a tensor with the given shape, filled with zeros.
 
@@ -53,7 +70,7 @@ class TensorBackend(Protocol):
         zeros_like([[1, 2], [3, 4]]) -> [[0, 0], [0, 0]]
         """
 
-    def ones(self, shape: tuple[int, ...]) -> Tensor:
+    def ones(self, shape: NonEmptyShape) -> Tensor:
         """
         Create a tensor with the given shape, filled with ones.
 
@@ -69,7 +86,7 @@ class TensorBackend(Protocol):
         ones_like([[1, 2], [3, 4]]) -> [[1, 1], [1, 1]]
         """
 
-    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
+    def full(self, shape: NonEmptyShape, fill_value: float | int) -> Tensor:
         """
         Create a tensor with the given shape, filled with ``fill_value``.
         """
@@ -79,7 +96,7 @@ class TensorBackend(Protocol):
         Create a tensor with the same shape as ``x``, filled with ``fill_value``.
         """
 
-    def empty(self, shape: tuple[int, ...]) -> Tensor:
+    def empty(self, shape: NonEmptyShape) -> Tensor:
         """
         Create an uninitialised tensor with the given shape.
         """
@@ -227,7 +244,7 @@ class TensorBackend(Protocol):
         between each element of a tensor and a scalar.
         """
 
-    def argmax(self, x: Tensor, axis: int | None = None) -> Tensor:
+    def argmax(self, x: Tensor, axis: int | None = None) -> Tensor | int:
         """
         Return the indices of the maximum values in ``x``.
 
@@ -274,7 +291,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | Scalar:
         """
         Compute the sum of all elements in the tensor, or along one or more
         specific axes.
@@ -290,7 +307,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | Scalar:
         """
         Compute the mean of all elements in the tensor, or along one or more axes.
         """
@@ -300,7 +317,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | Scalar:
         """
         Compute the maximum value of all elements in the tensor, or along one
         or more specific axes.
@@ -316,7 +333,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | Scalar:
         """
         Compute the minimum value of all elements in the tensor, or along one
         or more specific axes.
@@ -327,7 +344,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
+    ) -> Tensor | Scalar:
         """
         Compute the standard deviation of the tensor, or along one or more axes.
         """

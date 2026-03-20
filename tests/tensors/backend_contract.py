@@ -29,6 +29,17 @@ recognise when we are calling methods inherited from TestCase and treat them pro
 It also has the highly desirable effect of making IntelliSense work properly in VSCode.
 """
 
+# The NumPy backend tests currently check that methods which accept an existing tensor
+# reject NumPy rank 0 arrays and NumPy scalar values. This is reasonably safe for now,
+# because rank 0 values are, so far, a NumPy concern in this project and we will not be
+# mixing backends within the same network instance. It is also unclear how shared tests
+# for this rule could be written without importing NumPy. There is still an argument that
+# these tests should eventually move here if rejecting rank 0 tensors becomes part of the
+# shared backend contract. This is not the case with the other tests designed to stop
+# rank 0 values leaking into the application, since those tests are specifically about
+# values produced by the NumPy backend and therefore properly belong in the NumPy-specific
+# tests.
+
 from typing import TYPE_CHECKING
 
 from src.tensors.backend import TensorBackend
@@ -51,7 +62,7 @@ class BackendContractBase(_BackendTestCase):
         raise NotImplementedError
 
 
-class BackendConstructionContractMixin(BackendContractBase):
+class BackendContractConstructionMixin(BackendContractBase):
     def _construct_backend(self, message: str, seed: int | None = None):
         try:
             return self.make_backend(seed=seed)
@@ -90,3 +101,33 @@ class BackendConstructionContractMixin(BackendContractBase):
         first_backend = self.make_backend()
         second_backend = self.make_backend()
         self.assertIsNot(first_backend, second_backend)
+
+
+class BackendContractCreationMixin(BackendContractBase):
+    def test_creation_methods_reject_empty_shape(self):
+        backend = self.make_backend()
+
+        creation_methods = [
+            ("randn", lambda: backend.randn(())),
+            ("zeros", lambda: backend.zeros(())),
+            ("ones", lambda: backend.ones(())),
+            ("full", lambda: backend.full((), 7)),
+            ("empty", lambda: backend.empty(())),
+        ]
+
+        for method_name, call in creation_methods:
+            with self.subTest(method=method_name):
+                with self.assertRaises(
+                    ValueError,
+                    msg=f"{method_name} accepted an empty shape when it should reject it",
+                ):
+                    call()
+
+    def test_reshape_rejects_empty_shape(self):
+        backend = self.make_backend()
+
+        with self.assertRaises(
+            ValueError,
+            msg="reshape accepted an empty shape when it should reject it",
+        ):
+            backend.reshape([1.0], ())
