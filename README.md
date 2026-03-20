@@ -4,6 +4,12 @@ A work-in-progress proof of concept neural network written in Python. This follo
 
 The final code from the NNfSiP book, which encompasses all the concepts taught in the book, can be found [here](https://github.com/Sentdex/nnfs_book/blob/main/Chapter_22/Ch22_Final.py).
 
+## Python compatibility
+
+This project requires Python 3.13 or newer. It is designed with the at least the option of using free-threaded Python in mind. That aside, it uses typing features only available in 3.11+, e.g. `*tuple[int, ...]` to require a tuple with one `int` as a minimum.
+
+> NB this project currently uses poetry which doesn't yet support free-threaded Python, so will be transitioned to uv in due course.
+
 ## Approach to developing the tensor backends
 
 NNfSiP and a lot of other Python-based resources on neural networks make heavy use of NumPy for tensor operations. I wanted to fully understand how tensors work and therefore write my own implementations, starting with one in pure Python (NNfSiP does a little of this at the beginning to explain weights before moving on to NumPy).
@@ -18,7 +24,7 @@ There are a lot. In some cases these represent my description of what a function
 
 ## Use of AI to complete this project
 
-A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs to write much code. AI, specifically GitHub Co-pilot and OpenAI Codex were used to:
+A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs to write much code. AI, specifically GitHub Co-pilot and OpenAI Codex, were used to:
 
 - Fix small, tedious problems e.g. headaches with the pre-commit hooks
 - Answer many hundreds of questions, especially about:
@@ -26,11 +32,12 @@ A chief purpose of this project was to learn how neural networks really work. Th
      - whether design decisions were likely to cause headaches later when I came to implementing concepts I didn't yet understand
      - whether my comments and docstrings were accurate
      - what needed to be tested, especially with more complex matmul calculations
+- Lay down boilerpate code, e.g. method stubs which I could then work through one-by-one
 - Quickly produce things like arrays for tests and make close copies of existing tests, especially in the backend contract tests where the reference implementation (NumPy) was certain and the purpose of the tests was to fully describe its behaviour
-> Codex did remarkably well at producing both input and output arrays for these tests. I had assumed I would have to ask it to quickly knock up some input arrays then e.g. run `np.matmul` in REPL to get the expected results but often it was able to produce the results as well. That said, I can't stress enough how much of a bad idea doing this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends).
+> Codex did remarkably well at producing both input and output arrays for these tests. I had assumed I would have to ask it to quickly knock up some input arrays then run (e.g.) `np.matmul` in REPL to get the expected results but it was often able to produce the results as well. That said, I can't stress enough how much of a bad idea this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends).
 - Carry out simple but laborious refactoring, e.g. splitting code out into different modules as the project grew and I became more sure of the design.
-- Parse the source from the NNfSiP book to help answer questions about the code needed to be adapted. E.g. NNfSiP makes a lot of use of dot product which isn't implemented in the backends.
-- Write new logic or edit existing logic very sparingly and only when I was sure what it was doing
+- Parse the source from the NNfSiP book to help answer questions about the code needed to be adapted. E.g. NNfSiP makes a lot of use of dot product which I decided not to implement in the backend, in favour of the more generic `matmul`.
+- Write new logic or edit existing logic very sparingly, in very small steps, and only when I was sure what it was doing.
 
 ## References
 
@@ -112,3 +119,20 @@ Some important things I learned as part of this project which are not obviously 
 - If we keep adding neurons we increase the complexity of the function (i.e. curve) we can describe with the network.
 
 - 'Area of effect' refers to the region of input space which, given the neuron's weights and bias, results in the neuron activating (outputs something other than zero). Different neurons have different areas of effect. When these are combined, we get the function described by the network.
+
+## Backend planning
+
+I haven't got to writing the custom backends yet but the following outlines some design choices I have made (at least for the time being) to act as a reference as I progress.
+
+### Python
+
+- Use nested lists as the main tensor representation and plain Python scalars for rank 0 values.
+- Do not introduce a custom Python array/tensor type unless a later need clearly justifies it.
+
+### C
+
+- Do not represent tensors as nested C arrays in the general case.
+- Use a flat contiguous block of memory plus shape metadata as the core tensor representation.
+- Keep the scalar type configurable in one place so the same core code can be built around `float` or `double` as needed.
+- Keep the low-level maths code as pure and dependency-light as possible so it can be reused from a CPython wrapper, a MicroPython wrapper, and later backends.
+- Treat the C backend as the performance-oriented implementation; the Python backend does not need to mirror its internal representation exactly.
