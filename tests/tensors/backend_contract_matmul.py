@@ -3,6 +3,11 @@ from tests.helpers.tensor_assertions import to_python, assert_nested_close
 
 
 class BackendContractMatmulMixin(BackendContractBase):
+    # It is really only the 2D * 1D and 2D * 2D tests below which
+    # cover functionality used in the NNfSiP book but the rest were
+    # added early to ensure backed implementations are general enough
+    # that they can be extended reasonably straightforwardly when
+    # needed
     """
     This test class tries to cover the various ways in which we
     might go wrong with the backend implementations without trying
