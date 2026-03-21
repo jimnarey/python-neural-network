@@ -34,9 +34,19 @@ type NonEmptyShape = tuple[int, *tuple[int, ...]]
 class TensorBackend(Protocol):
     """
     The interface/contract is designed to eliminate, as far as possible,
-    the use of arrays with rank 0, which are possible with NumPy. This
+    the use of tensors with rank 0, which are possible with NumPy. This
     is the purpose of preventing empty shapes being passed to tensor
     creation methods.
+
+    We want backends to use floats for values within tensors, even
+    internally. This means backends behave the same way, it is easier
+    to think about and prevents differences in behaviour affecting
+    the common tests. Arithmatic should be uniform across backends
+    (other than small rounding differences).
+
+    Methods which return a scalar value must return a plain Python
+    float, except where the value is an index, in which case they
+    should return an int.
 
     Creation of an empty array (inc. a vector) is still  possible by
     passing a shape containing zeros to randn, zeros etc in which case
@@ -46,7 +56,8 @@ class TensorBackend(Protocol):
     def randn(self, shape: NonEmptyShape) -> Tensor:
         """
         Generate a tensor with the given shape, filled with random numbers
-        drawn from a standard normal distribution.
+        drawn from a standard normal distribution and as floats. Use of
+        floats has to be enforced at the implementation level.
 
         Example:
         randn((2, 3)) -> [[-0.5, 1.2, 0.3],
@@ -56,12 +67,14 @@ class TensorBackend(Protocol):
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
         """
         Convert a (nested) list or tuple to the backend's native tensor
-        representation.
+        representation, normalising numeric values to floats. Use of
+        floats has to be enforced at the implementation level.
         """
 
     def zeros(self, shape: NonEmptyShape) -> Tensor:
         """
-        Create a tensor with the given shape, filled with zeros.
+        Create a tensor with the given shape, filled with 0.0 values.
+        Use of floats has to be enforced at the implementation level.
 
         Example:
         zeros((2, 3)) -> [[0, 0, 0],
@@ -70,7 +83,8 @@ class TensorBackend(Protocol):
 
     def zeros_like(self, x: Tensor) -> Tensor:
         """
-        Create a tensor of zeros with the same shape as ``x``.
+        Create a tensor of 0.0 values with the same shape as ``x``.
+        Use of floats has to be enforced at the implementation level.
 
         Example:
         zeros_like([[1, 2], [3, 4]]) -> [[0, 0], [0, 0]]
@@ -78,7 +92,8 @@ class TensorBackend(Protocol):
 
     def ones(self, shape: NonEmptyShape) -> Tensor:
         """
-        Create a tensor with the given shape, filled with ones.
+        Create a tensor with the given shape, filled with 1.0 values.
+        Use of floats has to be enforced at the implementation level.
 
         Example:
         ones((2, 3)) -> [[1, 1, 1], [1, 1, 1]]
@@ -86,20 +101,32 @@ class TensorBackend(Protocol):
 
     def ones_like(self, x: Tensor) -> Tensor:
         """
-        Create a tensor of ones with the same shape as ``x``.
+        Create a tensor of 1.0 values with the same shape as ``x``.
+        Use of floats has to be enforced at the implementation level.
 
         Example:
         ones_like([[1, 2], [3, 4]]) -> [[1, 1], [1, 1]]
         """
 
+    # After some deliberation it was decided to allow ints as arguments in
+    # full and full_like and leave enforcement to the implemenation. The
+    # alternative was a slightly ugly combination of static type checks and
+    # tests to enforce runtime behaviour. I.e. a call from the tests which
+    # failed to meet the contract and would fail if mypy were to be run with
+    # --check-untyped-defs or the test method were given a type annotation
+    # for its return value.
     def full(self, shape: NonEmptyShape, fill_value: float | int) -> Tensor:
         """
-        Create a tensor with the given shape, filled with ``fill_value``.
+        Create a float-valued tensor with the given shape, filled with
+        ``fill_value``. Use of floats has to be enforced at the
+        implementation level.
         """
 
     def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
         """
-        Create a tensor with the same shape as ``x``, filled with ``fill_value``.
+        Create a float-valued tensor with the same shape as ``x``, filled
+        with ``fill_value``. Use of floats has to be enforced at the
+        implementation level.
         """
 
     def empty(self, shape: NonEmptyShape) -> Tensor:
@@ -284,7 +311,7 @@ class TensorBackend(Protocol):
 
     def sign(self, x: Tensor) -> Tensor:
         """
-        Return the sign of each element in the tensor.
+        Return the sign of each element in the tensor as floats.
         """
 
     def clip(self, x: Tensor, min_value: float | int, max_value: float | int) -> Tensor:
@@ -297,7 +324,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         """
         Compute the sum of all elements in the tensor, or along one or more
         specific axes.
@@ -313,7 +340,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         """
         Compute the mean of all elements in the tensor, or along one or more axes.
         """
@@ -323,7 +350,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         """
         Compute the maximum value of all elements in the tensor, or along one
         or more specific axes.
@@ -339,7 +366,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         """
         Compute the minimum value of all elements in the tensor, or along one
         or more specific axes.
@@ -350,7 +377,7 @@ class TensorBackend(Protocol):
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         """
         Compute the standard deviation of the tensor, or along one or more axes.
         """
@@ -380,7 +407,8 @@ class TensorBackend(Protocol):
 
     def eye(self, n: int, m: int | None = None) -> Tensor:
         """
-        Create a 2D identity matrix.
+        Create a float-valued 2D identity matrix. Use of floats has to
+        be enforced at the implementation level.
 
         Example:
         eye(3) -> [[1, 0, 0], [0, 1, 0], [0, 0, 1]]

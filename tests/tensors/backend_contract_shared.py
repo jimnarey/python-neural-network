@@ -45,6 +45,13 @@ from typing import TYPE_CHECKING
 from src.tensors.tensor_backend import TensorBackend
 from tests.helpers.tensor_assertions import to_python
 
+
+def _all_values_are_floats(value) -> bool:
+    if isinstance(value, list):
+        return all(_all_values_are_floats(item) for item in value)
+    return isinstance(value, float)
+
+
 if TYPE_CHECKING:
     import unittest
 
@@ -116,7 +123,7 @@ class BackendContractCreationMixin(BackendContractBase):
             ("randn", lambda: backend.randn(())),
             ("zeros", lambda: backend.zeros(())),
             ("ones", lambda: backend.ones(())),
-            ("full", lambda: backend.full((), 7)),
+            ("full", lambda: backend.full((), 7.0)),
             ("empty", lambda: backend.empty(())),
         ]
 
@@ -211,3 +218,54 @@ class BackendContractToTensorValueMixin(BackendContractBase):
         backend = self.make_backend()
         result = to_python(backend.to_tensor([1, 2.5, 3]))
         self.assertEqual(result, [1.0, 2.5, 3.0])
+
+
+class BackendContractFloatCreationMixin(BackendContractBase):
+    def test_zeros_returns_float_values(self):
+        backend = self.make_backend()
+        result = to_python(backend.zeros((2, 2)))
+        self.assertTrue(_all_values_are_floats(result))
+
+    def test_ones_returns_float_values(self):
+        backend = self.make_backend()
+        result = to_python(backend.ones((2, 2)))
+        self.assertTrue(_all_values_are_floats(result))
+
+    def test_full_returns_float_values_when_given_an_int_fill_value(self):
+        backend = self.make_backend()
+        result = to_python(backend.full((2, 2), 1))
+        self.assertTrue(_all_values_are_floats(result))
+
+    def test_eye_returns_float_values(self):
+        backend = self.make_backend()
+        result = to_python(backend.eye(3))
+        self.assertTrue(_all_values_are_floats(result))
+
+
+class BackendContractScalarReturnTypeMixin(BackendContractBase):
+    def test_reduction_methods_return_float_scalars(self):
+        backend = self.make_backend()
+        tensor = backend.ones((2, 2))
+
+        scalar_methods = [
+            ("sum", lambda: backend.sum(tensor)),
+            ("mean", lambda: backend.mean(tensor)),
+            ("max", lambda: backend.max(tensor)),
+            ("min", lambda: backend.min(tensor)),
+            ("std", lambda: backend.std(tensor)),
+        ]
+
+        for method_name, call in scalar_methods:
+            with self.subTest(method=method_name):
+                result = call()
+                self.assertIsInstance(
+                    result,
+                    float,
+                    msg=f"{method_name} returned {result!r} instead of a float",
+                )
+
+    def test_argmax_returns_int_when_returning_a_scalar(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor([[1, 4], [3, 2]])
+        result = backend.argmax(tensor)
+        self.assertIsInstance(result, int)

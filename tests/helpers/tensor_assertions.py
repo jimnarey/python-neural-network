@@ -12,6 +12,9 @@ to accomodate the differences in rounding behaviour but no larger.
 
 import math
 
+# TODO - tighten type checking here once we can add a meaningful type
+# or union for tensor
+
 
 def to_python(tensor):
     """

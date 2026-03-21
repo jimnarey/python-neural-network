@@ -37,6 +37,14 @@ class NumpyBackend:
             return x.item()
         return x
 
+    def _normalise_float_scalar_result(self, x: Tensor | Scalar) -> Tensor | float:
+        result = self._normalise_scalar_result(x)
+        if isinstance(result, np.ndarray):
+            return result
+        # The logic is sound here but that's not enough for mypy. Revisit
+        # once we have pinned down the Tensor type
+        return float(result)  # type: ignore
+
     def _validate_not_rank_0(self, x: object) -> None:
         if isinstance(x, np.ndarray) and x.shape == ():
             raise ValueError("Backend methods do not accept rank 0 arrays.")
@@ -62,39 +70,39 @@ class NumpyBackend:
 
     def zeros(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
-        return np.zeros(shape)
+        return np.zeros(shape, dtype=float)
 
     def ones(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
-        return np.ones(shape)
+        return np.ones(shape, dtype=float)
 
     def ones_like(self, x: Tensor) -> Tensor:
         self._validate_not_rank_0(x)
-        return np.ones_like(x)
+        return np.ones_like(x, dtype=float)
 
     def zeros_like(self, x: Tensor) -> Tensor:
         self._validate_not_rank_0(x)
-        return np.zeros_like(x)
+        return np.zeros_like(x, dtype=float)
 
     def full(self, shape: NonEmptyShape, fill_value: float | int) -> Tensor:
         self._validate_non_empty_shape(shape)
-        return np.full(shape, fill_value)
+        return np.full(shape, fill_value, dtype=float)
 
     def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
         self._validate_not_rank_0(x)
-        return np.full_like(x, fill_value)
+        return np.full_like(x, fill_value, dtype=float)
 
     def empty(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
-        return np.empty(shape)
+        return np.empty(shape, dtype=float)
 
     def empty_like(self, x: Tensor) -> Tensor:
         self._validate_not_rank_0(x)
-        return np.empty_like(x)
+        return np.empty_like(x, dtype=float)
 
     def copy(self, x: Tensor) -> Tensor:
         self._validate_not_rank_0(x)
-        return np.copy(x)
+        return np.array(x, dtype=float, copy=True)
 
     def shape(self, x: Tensor) -> tuple[int, ...]:
         self._validate_not_rank_0(x)
@@ -178,45 +186,55 @@ class NumpyBackend:
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         self._validate_not_rank_0(x)
-        return self._normalise_scalar_result(np.sum(x, axis=axis, keepdims=keepdims))
+        return self._normalise_float_scalar_result(
+            np.sum(x, axis=axis, keepdims=keepdims)
+        )
 
     def mean(
         self,
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         self._validate_not_rank_0(x)
-        return self._normalise_scalar_result(np.mean(x, axis=axis, keepdims=keepdims))
+        return self._normalise_float_scalar_result(
+            np.mean(x, axis=axis, keepdims=keepdims)
+        )
 
     def max(
         self,
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         self._validate_not_rank_0(x)
-        return self._normalise_scalar_result(np.max(x, axis=axis, keepdims=keepdims))
+        return self._normalise_float_scalar_result(
+            np.max(x, axis=axis, keepdims=keepdims)
+        )
 
     def min(
         self,
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         self._validate_not_rank_0(x)
-        return self._normalise_scalar_result(np.min(x, axis=axis, keepdims=keepdims))
+        return self._normalise_float_scalar_result(
+            np.min(x, axis=axis, keepdims=keepdims)
+        )
 
     def std(
         self,
         x: Tensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | Scalar:
+    ) -> Tensor | float:
         self._validate_not_rank_0(x)
-        return self._normalise_scalar_result(np.std(x, axis=axis, keepdims=keepdims))
+        return self._normalise_float_scalar_result(
+            np.std(x, axis=axis, keepdims=keepdims)
+        )
 
     def stack(self, xs: tuple[Tensor, ...] | list[Tensor], axis: int = 0) -> Tensor:
         self._validate_not_rank_0_sequence(xs)
@@ -237,4 +255,4 @@ class NumpyBackend:
         return np.hstack(xs)
 
     def eye(self, n: int, m: int | None = None) -> Tensor:
-        return np.eye(n, m)
+        return np.eye(n, m, dtype=float)
