@@ -53,6 +53,12 @@ class TensorBackend(Protocol):
                           [ 0.8, -1.1, 0.0]]
         """
 
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+        """
+        Convert a (nested) list or tuple to the backend's native tensor
+        representation.
+        """
+
     def zeros(self, shape: NonEmptyShape) -> Tensor:
         """
         Create a tensor with the given shape, filled with zeros.

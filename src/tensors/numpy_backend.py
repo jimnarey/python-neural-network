@@ -53,6 +53,13 @@ class NumpyBackend:
         self._validate_non_empty_shape(shape)
         return self._random.standard_normal(size=shape)
 
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+        if not isinstance(data, (list, tuple)):
+            raise ValueError("Tensor conversion requires a list or tuple input.")
+        tensor = np.array(data, dtype=float)
+        self._validate_not_rank_0(tensor)
+        return tensor
+
     def zeros(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
         return np.zeros(shape)

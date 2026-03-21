@@ -43,12 +43,13 @@ It also has the highly desirable effect of making IntelliSense work properly in 
 from typing import TYPE_CHECKING
 
 from src.tensors.backend import TensorBackend
+from tests.helpers.tensor_assertions import to_python
 
 if TYPE_CHECKING:
     import unittest
 
     class _BackendTestCase(unittest.TestCase):
-        def make_backend(self, seed: int | None = None):
+        def make_backend(self, seed: int | None = None) -> TensorBackend:
             raise NotImplementedError
 
 else:
@@ -58,12 +59,16 @@ else:
 
 
 class BackendContractBase(_BackendTestCase):
-    def make_backend(self, seed: int | None = None):
+    def make_backend(self, seed: int | None = None) -> TensorBackend:
         raise NotImplementedError
 
 
 class BackendContractConstructionMixin(BackendContractBase):
-    def _construct_backend(self, message: str, seed: int | None = None):
+    def _construct_backend(
+        self,
+        message: str,
+        seed: int | None = None,
+    ) -> TensorBackend:
         try:
             return self.make_backend(seed=seed)
         except Exception as exc:
@@ -131,3 +136,78 @@ class BackendContractCreationMixin(BackendContractBase):
             msg="reshape accepted an empty shape when it should reject it",
         ):
             backend.reshape([1.0], ())
+
+
+class BackendContractToTensorInputMixin(BackendContractBase):
+    def test_to_tensor_accepts_list_input(self):
+        backend = self.make_backend()
+        backend.to_tensor([1, 2, 3])
+
+    def test_to_tensor_accepts_tuple_input(self):
+        backend = self.make_backend()
+        backend.to_tensor((1, 2, 3))
+
+    def test_to_tensor_rejects_plain_scalar_values(self):
+        backend = self.make_backend()
+        for data in (1, 1.5):
+            with self.subTest(data=data):
+                with self.assertRaises(
+                    ValueError,
+                    msg="to_tensor accepted a plain scalar value when it should reject it",
+                ):
+                    backend.to_tensor(data)
+
+    def test_to_tensor_rejects_ragged_input(self):
+        backend = self.make_backend()
+        with self.assertRaises(
+            ValueError,
+            msg="to_tensor accepted ragged input when it should reject it",
+        ):
+            backend.to_tensor([[1, 2], [3]])
+
+
+class BackendContractToTensorShapeMixin(BackendContractBase):
+    def test_to_tensor_converts_1D_input_to_tensor(self):
+        backend = self.make_backend()
+        result = to_python(backend.to_tensor([1, 2, 3]))
+        self.assertEqual(result, [1.0, 2.0, 3.0])
+
+    def test_to_tensor_converts_2D_input_to_tensor(self):
+        backend = self.make_backend()
+        result = to_python(backend.to_tensor(((1, 2), (3, 4))))
+        self.assertEqual(result, [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_to_tensor_converts_3D_input_to_tensor(self):
+        backend = self.make_backend()
+        result = to_python(
+            backend.to_tensor(
+                [
+                    [[1, 2], [3, 4]],
+                    [[5, 6], [7, 8]],
+                ]
+            )
+        )
+        self.assertEqual(
+            result,
+            [
+                [[1.0, 2.0], [3.0, 4.0]],
+                [[5.0, 6.0], [7.0, 8.0]],
+            ],
+        )
+
+
+class BackendContractToTensorValueMixin(BackendContractBase):
+    def test_to_tensor_converts_integer_values_to_float(self):
+        backend = self.make_backend()
+        result = to_python(backend.to_tensor([1, 2, 3]))
+        self.assertEqual(result, [1.0, 2.0, 3.0])
+
+    def test_to_tensor_preserves_float_values(self):
+        backend = self.make_backend()
+        result = to_python(backend.to_tensor([1.5, 2.5, 3.5]))
+        self.assertEqual(result, [1.5, 2.5, 3.5])
+
+    def test_to_tensor_normalises_mixed_numeric_input_to_float(self):
+        backend = self.make_backend()
+        result = to_python(backend.to_tensor([1, 2.5, 3]))
+        self.assertEqual(result, [1.0, 2.5, 3.0])

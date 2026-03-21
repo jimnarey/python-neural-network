@@ -1,10 +1,15 @@
 import importlib.util
 import unittest
 
+from src.tensors.backend import TensorBackend
 from tests.tensors.backend_contract import BackendContractConstructionMixin
+from tests.tensors.backend_contract import BackendContractToTensorInputMixin
+from tests.tensors.backend_contract import BackendContractToTensorShapeMixin
+from tests.tensors.backend_contract import BackendContractToTensorValueMixin
 from tests.tensors.backend_contract import BackendContractCreationMixin
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
+
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -13,11 +18,14 @@ NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 class TestNumpyBackend(
     BackendContractConstructionMixin,
     BackendContractCreationMixin,
+    BackendContractToTensorInputMixin,
+    BackendContractToTensorShapeMixin,
+    BackendContractToTensorValueMixin,
     BackendContractRandnMixin,
     BackendContractMatmulMixin,
     unittest.TestCase,
 ):
-    def make_backend(self, seed: int | None = None):
+    def make_backend(self, seed: int | None = None) -> TensorBackend:
         from src.tensors import NumpyBackend
 
         return NumpyBackend(seed=seed)
