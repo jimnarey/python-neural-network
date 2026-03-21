@@ -1,4 +1,4 @@
-from src.tensors.backend import Tensor, TensorBackend
+from src.tensors.tensor_backend import Tensor, TensorBackend
 
 __all__ = ["Tensor", "TensorBackend", "NumpyBackend"]
 

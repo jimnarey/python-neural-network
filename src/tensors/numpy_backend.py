@@ -8,7 +8,7 @@ for this implementation.
 
 import numpy as np
 
-from src.tensors.backend import NonEmptyShape, Scalar, Tensor
+from src.tensors.tensor_backend import NonEmptyShape, Scalar, Tensor
 
 
 class NumpyBackend:

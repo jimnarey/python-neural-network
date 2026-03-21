@@ -42,7 +42,7 @@ It also has the highly desirable effect of making IntelliSense work properly in 
 
 from typing import TYPE_CHECKING
 
-from src.tensors.backend import TensorBackend
+from src.tensors.tensor_backend import TensorBackend
 from tests.helpers.tensor_assertions import to_python
 
 if TYPE_CHECKING:

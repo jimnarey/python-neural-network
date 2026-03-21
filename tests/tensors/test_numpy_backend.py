@@ -1,12 +1,12 @@
 import importlib.util
 import unittest
 
-from src.tensors.backend import TensorBackend
-from tests.tensors.backend_contract import BackendContractConstructionMixin
-from tests.tensors.backend_contract import BackendContractToTensorInputMixin
-from tests.tensors.backend_contract import BackendContractToTensorShapeMixin
-from tests.tensors.backend_contract import BackendContractToTensorValueMixin
-from tests.tensors.backend_contract import BackendContractCreationMixin
+from src.tensors.tensor_backend import TensorBackend
+from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
+from tests.tensors.backend_contract_shared import BackendContractToTensorInputMixin
+from tests.tensors.backend_contract_shared import BackendContractToTensorShapeMixin
+from tests.tensors.backend_contract_shared import BackendContractToTensorValueMixin
+from tests.tensors.backend_contract_shared import BackendContractCreationMixin
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
 

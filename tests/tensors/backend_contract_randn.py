@@ -1,4 +1,4 @@
-from tests.tensors.backend_contract import BackendContractBase
+from tests.tensors.backend_contract_shared import BackendContractBase
 from tests.helpers.tensor_assertions import assert_nested_close, to_python
 
 
