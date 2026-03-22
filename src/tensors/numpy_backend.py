@@ -7,6 +7,7 @@ for this implementation.
 """
 
 import numpy as np
+from typing import Sequence
 
 from src.tensors.tensor_backend import NonEmptyShape, Scalar, Tensor
 
@@ -51,9 +52,7 @@ class NumpyBackend:
         if isinstance(x, np.generic):
             raise ValueError("Backend methods do not accept NumPy scalar values.")
 
-    def _validate_not_rank_0_sequence(
-        self, xs: tuple[Tensor, ...] | list[Tensor]
-    ) -> None:
+    def _validate_not_rank_0_sequence(self, xs: Sequence[Tensor]) -> None:
         for x in xs:
             self._validate_not_rank_0(x)
 
@@ -236,21 +235,19 @@ class NumpyBackend:
             np.std(x, axis=axis, keepdims=keepdims)
         )
 
-    def stack(self, xs: tuple[Tensor, ...] | list[Tensor], axis: int = 0) -> Tensor:
+    def stack(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
         self._validate_not_rank_0_sequence(xs)
         return np.stack(xs, axis=axis)
 
-    def concatenate(
-        self, xs: tuple[Tensor, ...] | list[Tensor], axis: int = 0
-    ) -> Tensor:
+    def concatenate(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
         self._validate_not_rank_0_sequence(xs)
         return np.concatenate(xs, axis=axis)
 
-    def vstack(self, xs: tuple[Tensor, ...] | list[Tensor]) -> Tensor:
+    def vstack(self, xs: Sequence[Tensor]) -> Tensor:
         self._validate_not_rank_0_sequence(xs)
         return np.vstack(xs)
 
-    def hstack(self, xs: tuple[Tensor, ...] | list[Tensor]) -> Tensor:
+    def hstack(self, xs: Sequence[Tensor]) -> Tensor:
         self._validate_not_rank_0_sequence(xs)
         return np.hstack(xs)
 

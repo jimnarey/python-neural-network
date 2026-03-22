@@ -16,6 +16,21 @@ NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendProtocolConformance(unittest.TestCase):
+    # It is essential to set the return type here if we want mypy to type check
+    # the instantiation of NumpyBackend
+    def test_numpy_backend_implements_tensor_backend_protocol(self) -> None:
+        from src.tensors import NumpyBackend
+
+        # This is a safety check so that if the codebase ever temporarily or
+        # permanently does not pass NumpyBackend to a layer or other consumer
+        # the type checker will still catch deviations from the protocol/contract
+        backend: TensorBackend = NumpyBackend()
+        # Test at runtime.
+        self.assertIsInstance(backend, TensorBackend)
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackend(
     BackendContractConstructionMixin,
     BackendContractCreationMixin,
