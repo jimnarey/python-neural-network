@@ -11,6 +11,7 @@ from tests.tensors.backend_contract_shared import BackendContractToTensorShapeMi
 from tests.tensors.backend_contract_shared import BackendContractToTensorValueMixin
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
+from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -41,6 +42,7 @@ class TestNumpyBackend(
     BackendContractToTensorValueMixin,
     BackendContractRandnMixin,
     BackendContractMatmulMixin,
+    BackendContractReshapeMixin,
     unittest.TestCase,
 ):
     def make_backend(self, seed: int | None = None) -> TensorBackend:

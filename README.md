@@ -39,6 +39,7 @@ The backend contract does (or will) enforce the following:
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
 - Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
 - This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
+- The conversion method must accept `int` and `float` values and convert any `int` values to `float` when constructing the resulting tensor.
 
 ##### Numeric operations
 - Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise an exception rather than returning special values.
@@ -49,6 +50,8 @@ The backend contract does (or will) enforce the following:
 - Arrays must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular arrays must raise an exception when passed as inputs.
 - `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise an exception.
 - Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
+- `reshape` must reject any negative value in the target shape.
+> This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
 - Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise an exception.
 
 ##### Axes Rules

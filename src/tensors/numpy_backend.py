@@ -134,6 +134,10 @@ class NumpyBackend:
     def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
         self._validate_not_rank_0(x)
         self._validate_non_empty_shape(shape)
+        if any(dimension < 0 for dimension in shape):
+            raise ValueError(
+                "reshape does not support negative values in the target shape"
+            )
         return np.reshape(x, shape)
 
     def transpose(self, x: Tensor, axes: tuple[int, ...] | None = None) -> Tensor:
