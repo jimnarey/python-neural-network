@@ -56,6 +56,28 @@ class NumpyBackend:
         for x in xs:
             self._validate_not_rank_0(x)
 
+    def _validate_tensor_input_values(self, data: object) -> None:
+        """
+        Check that values are a valid type. It is limited and relies on
+        NumPy doing some of the work for us. It will not catch cases like:
+
+        [[(), 0], 1, 2]
+        [[(1,), 0], 1, 2]
+
+        which are both invalid. Nor is it safe to use unless conversion of
+        ints to floats happens elsewhere. Again, in the case of NumPy that
+        happens if we pass the right dtype when calling np.array.
+
+        We can't just check that the type of incoming values is float or
+        int because bool is a subclass of int. So it gets special treatment.
+        """
+        if isinstance(data, (list, tuple)):
+            for item in data:
+                self._validate_tensor_input_values(item)
+            return
+        if isinstance(data, bool) or not isinstance(data, (int, float)):
+            raise ValueError("Tensor conversion requires numeric values.")
+
     def randn(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
         return self._random.standard_normal(size=shape)
@@ -63,6 +85,7 @@ class NumpyBackend:
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
         if not isinstance(data, (list, tuple)):
             raise ValueError("Tensor conversion requires a list or tuple input.")
+        self._validate_tensor_input_values(data)
         tensor = np.array(data, dtype=float)
         self._validate_not_rank_0(tensor)
         return tensor

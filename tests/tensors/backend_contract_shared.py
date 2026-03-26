@@ -40,6 +40,9 @@ It also has the highly desirable effect of making IntelliSense work properly in 
 # values produced by the NumPy backend and therefore properly belong in the NumPy-specific
 # tests.
 
+# TODO - Use of floats is not yet completely pinned down for non-creation methods which
+# return tensors.
+
 from typing import TYPE_CHECKING
 
 from src.tensors.tensor_backend import TensorBackend
@@ -166,11 +169,63 @@ class BackendContractToTensorInputMixin(BackendContractBase):
 
     def test_to_tensor_rejects_ragged_input(self):
         backend = self.make_backend()
-        with self.assertRaises(
-            ValueError,
-            msg="to_tensor accepted ragged input when it should reject it",
-        ):
-            backend.to_tensor([[1, 2], [3]])
+        ragged_inputs = [
+            [[1, 2], [3]],
+            ((1, 2), (3,)),
+            [[[1, 2], [3, 4]], [[5, 6]]],
+            (((1, 2), (3, 4)), ((5, 6),)),
+        ]
+
+        for data in ragged_inputs:
+            with self.subTest(data=data):
+                with self.assertRaises(
+                    ValueError,
+                    msg="to_tensor accepted ragged input when it should reject it",
+                ):
+                    backend.to_tensor(data)
+
+    def test_to_tensor_rejects_inconsistent_nesting_depth(self):
+        """
+        Test that the backends do not try to treat empty lists/tuples
+        or those woth a single value as valid. What is tested here is
+        partly about structure (shape) and partly about type.
+        """
+        backend = self.make_backend()
+        inconsistent_inputs = [
+            [[], 1],
+            [[(), 0], 1, 2],
+            [[(1,), 0], 1, 2],
+        ]
+
+        for data in inconsistent_inputs:
+            with self.subTest(data=data):
+                with self.assertRaises(
+                    ValueError,
+                    msg=(
+                        "to_tensor accepted input with inconsistent nesting depth "
+                        "when it should reject it"
+                    ),
+                ):
+                    backend.to_tensor(data)
+
+    def test_to_tensor_rejects_non_numeric_input(self):
+        backend = self.make_backend()
+        non_numeric_inputs = [
+            ["a", "b"],
+            [[1, 2], ["a", "b"]],
+            [1, None, 3],
+            [False],
+            [0, True],
+            ((1, 2), (3, "x")),
+        ]
+
+        for data in non_numeric_inputs:
+            with self.subTest(data=data):
+                with self.assertRaises(
+                    (TypeError, ValueError),
+                    msg="to_tensor accepted non-numeric input when it should reject it",
+                ):
+                    backend.to_tensor(data)
 
 
 class BackendContractToTensorShapeMixin(BackendContractBase):

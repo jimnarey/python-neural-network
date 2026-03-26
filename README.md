@@ -37,7 +37,8 @@ The backend contract does (or will) enforce the following:
 - Values within arrays are always `float`s, including internally (not just when values are exposed to the wider application). Methods which return a single scalar value always return a `float` unless that value is an index.
 > There is a potential performance hit in places with this but it keeps things much simpler and, for the most part, tensor operations require `float`s anyway. Where this principle differs from NumPy's implementation and interface is that some array operations, e.g. `ones`, would normally return an array of `int`s.
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
-- Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a 1D tensor into its native tensor type. This method must reject plain scalar values.
+- Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
+- This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
 
 ##### Numeric operations
 - Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise an exception rather than returning special values.
@@ -70,13 +71,13 @@ The backend contract does (or will) enforce the following:
 - The order of arguments is part of the contract: backends are only required to support scalar arguments in the positions explicitly allowed by the method signature.
 - For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
 - If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
-- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is 1, the result takes the other dimension.
+- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
 - If any pair of aligned dimensions is neither equal nor `1`, the operation must raise an exception.
 
 ##### Aliasing/Views
 - The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
 - Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
-- `copy` is the method which guarantees an independent tensor with the same values.
+- `copy` is the only method which guarantees an independent tensor with the same values.
 
 ##### Other
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
