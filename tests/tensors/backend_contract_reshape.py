@@ -17,6 +17,18 @@ class BackendContractReshapeMixin(BackendContractBase):
     We test explicitly for shape too.
     """
 
+    def test_reshape_rejects_empty_shape(self):
+        """
+        Ensures that reshape cannot return a rank 0 array
+        """
+        backend = self.make_backend()
+
+        with self.assertRaises(
+            ValueError,
+            msg="reshape accepted an empty shape when it should reject it",
+        ):
+            backend.reshape([1.0], ())
+
     def test_reshape_converts_1D_array_to_2D_array_with_shape_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0])

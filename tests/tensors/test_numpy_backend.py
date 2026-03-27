@@ -3,15 +3,22 @@ import unittest
 
 from src.tensors.tensor_backend import TensorBackend
 from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
-from tests.tensors.backend_contract_shared import BackendContractCreationMixin
-from tests.tensors.backend_contract_shared import BackendContractFloatCreationMixin
-from tests.tensors.backend_contract_shared import BackendContractScalarReturnTypeMixin
-from tests.tensors.backend_contract_shared import BackendContractToTensorInputMixin
-from tests.tensors.backend_contract_shared import BackendContractToTensorShapeMixin
-from tests.tensors.backend_contract_shared import BackendContractToTensorValueMixin
+from tests.tensors.backend_contract_creation import (
+    BackendContractCreationMixin,
+    BackendContractFloatCreationMixin,
+)
+from tests.tensors.backend_contract_to_tensor import (
+    BackendContractToTensorTypeInputMixin,
+    BackendContractToTensorShapeInputMixin,
+    BackendContractToTensorValueMixin,
+)
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
+from tests.tensors.backend_contract_reduction import (
+    BackendContractScalarReturnTypeMixin,
+)
+from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -36,13 +43,14 @@ class TestNumpyBackend(
     BackendContractConstructionMixin,
     BackendContractCreationMixin,
     BackendContractFloatCreationMixin,
-    BackendContractScalarReturnTypeMixin,
-    BackendContractToTensorInputMixin,
-    BackendContractToTensorShapeMixin,
+    BackendContractToTensorTypeInputMixin,
+    BackendContractToTensorShapeInputMixin,
     BackendContractToTensorValueMixin,
     BackendContractRandnMixin,
     BackendContractMatmulMixin,
     BackendContractReshapeMixin,
+    BackendContractScalarReturnTypeMixin,
+    BackendContractArgMaxMixin,
     unittest.TestCase,
 ):
     def make_backend(self, seed: int | None = None) -> TensorBackend:
