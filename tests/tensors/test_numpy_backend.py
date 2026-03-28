@@ -19,6 +19,7 @@ from tests.tensors.backend_contract_reduction import (
     BackendContractScalarReturnTypeMixin,
 )
 from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
+from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -51,6 +52,7 @@ class TestNumpyBackend(
     BackendContractReshapeMixin,
     BackendContractScalarReturnTypeMixin,
     BackendContractArgMaxMixin,
+    BackendContractTransposeMixin,
     unittest.TestCase,
 ):
     def make_backend(self, seed: int | None = None) -> TensorBackend:
