@@ -129,18 +129,20 @@ There are a lot. In some cases these represent my description of what a function
 
 ## Use of AI to complete this project
 
-A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs to write much code. AI, specifically GitHub Co-pilot and OpenAI Codex, were used to:
+A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs to write much code. AI coding tools, specifically GitHub Co-pilot and OpenAI Codex, were used to:
 
 - Fix small, tedious problems e.g. headaches with the pre-commit hooks
 - Answer many hundreds of questions, especially about:
-     - the operations implemented by the tensor backends
+     - the operations implemented by the tensor backends, especially the more complex operations and how they work with higher-rank tensors
+     - whether my instincts about what to allow and not in the backend contract (e.g. forbidding zero rank arrays) were sensible
      - whether design decisions were likely to cause headaches later when I came to implementing concepts I didn't yet understand
      - whether my comments and docstrings were accurate
-     - what needed to be tested, especially with more complex matmul calculations
-- Lay down boilerpate code, e.g. method stubs which I could then work through one-by-one
+     - what needed to be tested, especially with more complex calculations, e.g. matmul
+- Lay down boilerpate code, e.g. test method stubs which I could then work through one-by-one
 - Quickly produce things like arrays for tests and make close copies of existing tests, especially in the backend contract tests where the reference implementation (NumPy) was certain and the purpose of the tests was to fully describe its behaviour
-> Codex did remarkably well at producing both input and output arrays for these tests. I had assumed I would have to ask it to quickly knock up some input arrays then run (e.g.) `np.matmul` in REPL to get the expected results but it was often able to produce the results as well. That said, I can't stress enough how much of a bad idea this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends).
+> Codex did remarkably well at producing both input and output arrays for tests. I had assumed I would have to ask it to quickly knock up some input arrays then run (e.g.) `np.matmul` in REPL to get the expected results but it was often able to produce the results as well. That said, I can't stress enough how much of a bad idea this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends). Interestingly, when the tests turned to higher-rank tensors, Codex started running Python commands to get the tensors without being asked. It also became clear, as I started work on the backend tests, that it's trivial to generate input tensors manually with numpy with something like `np.random.randn(2, 3)`.
 - Carry out simple but laborious refactoring, e.g. splitting code out into different modules as the project grew and I became more sure of the design.
+> I stopped using Codex for this once the project reached approx 15+ modules as it became quicker to do it than explain it.
 - Parse the source from the NNfSiP book to help answer questions about the code needed to be adapted. E.g. NNfSiP makes a lot of use of dot product which I decided not to implement in the backend, in favour of the more generic `matmul`.
 - Write new logic or edit existing logic very sparingly, in very small steps, and only when I was sure what it was doing.
 
