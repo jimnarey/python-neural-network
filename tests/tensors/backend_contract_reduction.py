@@ -946,6 +946,13 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
                 assert_nested_close(singleton_tuple_result, expected)
 
     def test_reduction_methods_accept_negative_axes(self):
+        """
+        This tests that negative axis values are accepted and interpreted by
+        counting back from the end of the tensor shape.
+
+        Each case compares a negative axis or axes tuple with the equivalent
+        positive value and checks that both produce the same result.
+        """
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -997,7 +1004,59 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
                         assert_nested_close(positive_result, expected)
 
     def test_reduction_methods_remove_reduced_axes_when_keepdims_is_false(self):
-        pass
+        """
+        This tests the behaviour of the reduction methods when keepdims=False.
+
+        In these cases the reduced axes should be removed from the result,
+        rather than being kept with size 1.
+        """
+        backend = self.make_backend()
+        tensor = backend.to_tensor(
+            [
+                [[1.0, 2.0], [3.0, 4.0]],
+                [[5.0, 6.0], [7.0, 9.0]],
+            ]
+        )
+
+        valid_cases = [
+            (
+                (1, 2),
+                (2,),
+                [
+                    ("sum", backend.sum, [10.0, 27.0]),
+                    ("mean", backend.mean, [2.5, 6.75]),
+                    ("max", backend.max, [4.0, 9.0]),
+                    ("min", backend.min, [1.0, 5.0]),
+                    ("std", backend.std, [1.118033988749895, 1.479019945774904]),
+                ],
+            ),
+            (
+                (0, 2),
+                (2,),
+                [
+                    ("sum", backend.sum, [14.0, 23.0]),
+                    ("mean", backend.mean, [3.5, 5.75]),
+                    ("max", backend.max, [6.0, 9.0]),
+                    ("min", backend.min, [1.0, 3.0]),
+                    ("std", backend.std, [2.0615528128088303, 2.384848003542364]),
+                ],
+            ),
+        ]
+
+        for axes, expected_shape, reduction_methods in valid_cases:
+            with self.subTest(axes=axes):
+                for method_name, method, expected in reduction_methods:
+                    with self.subTest(method=method_name):
+                        result = method(tensor, axis=axes, keepdims=False)
+                        self.assertEqual(
+                            backend.shape(result),
+                            expected_shape,
+                            msg=(
+                                f"{method_name} did not return the expected shape when "
+                                f"reducing with keepdims=False over axis tuple {axes}"
+                            ),
+                        )
+                        assert_nested_close(result, expected)
 
 
 class BackendContractReductionInvalidAxisMixin(BackendContractBase):
