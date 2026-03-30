@@ -3,6 +3,47 @@ from tests.helpers.tensor_assertions import assert_nested_close
 
 
 class BackendContractReductionBehaviourMixin(BackendContractBase):
+    """
+    A class to test the five 'reduction' methods in the tenso
+    backend.
+
+    Reducing over an axis means:
+
+    - choose one axis to reduce
+    - group together values whose positions are the same on every other axis
+    - combine the values in each such group
+
+    For:
+
+    [
+        [1.0, 2.0],
+        [3.0, 5.0]
+    ]
+
+    the positions are:
+
+    - 1.0 at (0, 0)
+    - 2.0 at (0, 1)
+    - 3.0 at (1, 0)
+    - 5.0 at (1, 1)
+
+    If we reduce over axis 0, we group together values whose positions are
+    the same on every other axis, and whose positions differ only in axis 0.
+    I.e. in a 2D array we take everything in the same column:
+
+    - (0, 0) and (1, 0) -> 1.0 and 3.0
+    - (0, 1) and (1, 1) -> 2.0 and 5.0
+
+    If we reduce over axis 1, we group together values whose positions are
+    the same on every other axis, and whose positions differ only in axis 1.
+    I.e. in a 2D array we take everything in the same row:
+
+    - (0, 0) and (0, 1) -> 1.0 and 2.0
+    - (1, 0) and (1, 1) -> 3.0 and 5.0
+
+    What can be slightly confusing is that if you reduce by axis 0 (rows)
+    you are left with columns, and vice-versa.
+    """
 
     def test_reduction_methods_return_float_scalars(self):
         backend = self.make_backend()
@@ -32,8 +73,27 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
         Tests the application of the reduction operations when applied to all
         elements in a 2D tensor.
 
-        For example, sum adds every value in the tensor, so for
-        [[1.0, 2.0], [3.0, 4.0]] the result is 10.0.
+        The tests three call variants to the reduction methods, each of which
+        performs the respective operation across all axes, with:
+        - no axis argument
+        - None as the axis argument
+        - a tuple listing all (both) of the axes
+
+        Note that when passing a tuple to the axis argument we are passing
+        a sequence of indices (zero-indexed), not a shape.
+
+        sum adds every value in the tensor, so for [[1.0, 2.0], [3.0, 4.0]]
+        the result is 10.0.
+
+        mean returns the arithmetic average of all the values in the
+        tensor. Here the values add up to 10.0, and there are 4 values
+        in total, so the mean is 10.0 / 4 = 2.5.
+
+        max returns the largest value anywhere in the tensor, which here
+        is 4.0.
+
+        min returns the smallest value anywhere in the tensor,
+        which here is 1.0.
 
         std calculates the standard deviation of all the values in the
         tensor. It first finds the mean, which here is 2.5, then looks at
@@ -76,6 +136,22 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
                         self.assertEqual(result, expected)
 
     def test_reduction_methods_reduce_over_a_tuple_of_axes_with_2D_array(self):
+        """
+        This tests running the reduction methods across one of the (two) possible
+        axes in the tensor. In each case the axis we want is passed as a singleton
+        tuple.
+
+        In the first case, axis=(0,) means we reduce over the first axis of
+        the tensor and keep the second axis. For a 2D tensor, axis 0
+        corresponds to the rows, so reducing over axis 0 means combining the
+        values row by row within each column.
+
+        For the input [[1.0, 2.0], [3.0, 5.0]], the first result value is
+        calculated from the first column, i.e. from 1.0 and 3.0, and the
+        second result value is calculated from the second column, i.e. from
+        2.0 and 5.0. Because the columns remain, the result has shape
+        (2,).
+        """
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0], [3.0, 5.0]])
 
@@ -120,6 +196,10 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
     def test_reduction_methods_keep_reduced_single_axis_when_keepdims_is_true_with_2D_array(
         self,
     ):
+        """
+        When True is passed as the keepdims argument, the reduction methods are run across
+        each axis separately, with the result for each axis becoming that axis's only value.
+        """
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0], [3.0, 5.0]])
 
@@ -145,6 +225,16 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
                 assert_nested_close(result, expected)
 
     def test_reduction_methods_reduce_over_all_axes_with_3D_array(self):
+        """
+        Tests the application of the reduction operations when applied to all
+        elements in a 3D tensor.
+
+        The tests three call variants to the reduction methods, each of which
+        performs the respective operation across all axes, with:
+        - no axis argument
+        - None as the axis argument
+        - a tuple listing all three of the axes
+        """
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -177,6 +267,17 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
                         self.assertEqual(result, expected)
 
     def test_reduction_methods_reduce_over_a_tuple_of_axes_with_3D_array(self):
+        """
+        This tests running the reduction methods across different combinations of
+        the three possible axes in 3D tensor. One or more axes can be passed in
+        a tuple to the axis argument.
+
+        In the second case, `axis=(1, 2)` means we reduce over the second and
+        third axes of the tensor, leaving only the first axis. So each result
+        value comes from one whole `2 x 2` block of the input: the first value
+        is calculated from `[[1.0, 2.0], [3.0, 4.0]]`, and the second from
+        `[[5.0, 6.0], [7.0, 9.0]]`. The result therefore has shape `(2,)`.
+        """
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
