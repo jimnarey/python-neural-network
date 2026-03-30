@@ -1,10 +1,39 @@
+"""
+Tests for the five reduction methods: sum, mean, max, min, std
+
+For the following tensor, with each operation run across *all*
+of the axes:
+
+[
+    [1.0, 2.0],
+    [3.0, 4.0]
+]
+
+sum adds every value in the tensor, in this case returning 10.0.
+
+mean returns the arithmetic average of all the values in the
+tensor. I.e. 10.0 / 4 = 2.5.
+
+max returns the largest value anywhere in the tensor: 4.0.
+
+min returns the smallest value anywhere in the tensor: 1.0.
+
+std calculates the standard deviation of all the values in the
+tensor. This means:
+- calculate the mean: 2.5
+- calculate the difference between each value and the mean: -1.5, -0.5, 0.5, 1.5
+- squares each of the difference values: 2.25, 0.5, 0.25, 2.25
+- calculate the mean of those: 1.25
+- calculate the square root of the mean: 1.118033988749895
+"""
+
 from tests.tensors.backend_contract_shared import BackendContractBase
 from tests.helpers.tensor_assertions import assert_nested_close
 
 
 class BackendContractReductionBehaviourMixin(BackendContractBase):
     """
-    A class to test the five 'reduction' methods in the tenso
+    A class to test the five 'reduction' methods in the tensor
     backend.
 
     Reducing over an axis means:
@@ -81,25 +110,6 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
 
         Note that when passing a tuple to the axis argument we are passing
         a sequence of indices (zero-indexed), not a shape.
-
-        sum adds every value in the tensor, so for [[1.0, 2.0], [3.0, 4.0]]
-        the result is 10.0.
-
-        mean returns the arithmetic average of all the values in the
-        tensor. Here the values add up to 10.0, and there are 4 values
-        in total, so the mean is 10.0 / 4 = 2.5.
-
-        max returns the largest value anywhere in the tensor, which here
-        is 4.0.
-
-        min returns the smallest value anywhere in the tensor,
-        which here is 1.0.
-
-        std calculates the standard deviation of all the values in the
-        tensor. It first finds the mean, which here is 2.5, then looks at
-        how far each value lies from that mean: -1.5, -0.5, 0.5 and
-        1.5. It squares those differences, takes their mean, and then
-        takes the square root. For this tensor that about 1.118033988749895.
 
         We use assert_nested_close for testing the output of std for consistency
         with the other test modules but could have used math.to_close() directly,
@@ -197,8 +207,9 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
         self,
     ):
         """
-        When True is passed as the keepdims argument, the reduction methods are run across
-        each axis separately, with the result for each axis becoming that axis's only value.
+        When True is passed as the keepdims argument, the reduction methods
+        are run across each axis separately, with the result for each axis
+        becoming that axis's only value.
         """
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0], [3.0, 5.0]])
