@@ -16,12 +16,15 @@ from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 from tests.tensors.backend_contract_reduction import (
-    BackendContractScalarReturnTypeMixin,
+    BackendContractReductionBehaviourMixin,
 )
 from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
+
+# TODO - we're relying on to_tensor in many of the tests for other methods
+# Consider adding some implementation-specific to_tensor tests
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
@@ -50,7 +53,7 @@ class TestNumpyBackend(
     BackendContractRandnMixin,
     BackendContractMatmulMixin,
     BackendContractReshapeMixin,
-    BackendContractScalarReturnTypeMixin,
+    BackendContractReductionBehaviourMixin,
     BackendContractArgMaxMixin,
     BackendContractTransposeMixin,
     unittest.TestCase,
