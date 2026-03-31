@@ -26,20 +26,51 @@ The backend contract does (or will) enforce the following:
 
 #### Done
 
-- No arrays of rank 0 are returned or can be passed as arguments. Methods will return either at least a 1D array (including an empty array) or a scalar.
+
+
+##### Types
+
 - Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`.
 - Backend methods only receive and return standard Python types for scalar values (`float`, `int`) and never implementation-specific types (`np.float64`).
+- No arrays of rank 0 are returned or can be passed as arguments. Methods will return either at least a 1D array (including an empty array) or a scalar.
+- Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
+- Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
+- This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
+- The conversion method must accept `int` and `float` values.
+
+##### Numeric operations
+
+##### Shape
+
+- Arrays must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular arrays must raise an exception when passed as inputs.
+- `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise an exception.
+- Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
+- `reshape` must reject any negative value in the target shape.
+> This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
+
+##### Axes Rules
+
+- `transpose` must accept either `None` or a full axes `tuple`. When an axes `tuple` is provided, it gives the new order of the axes.
+- `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, axis=1 and axis=(1,) are equivalent.
+- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank `0` array.
+- When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains an array.
+
+##### Broadcasting
+
+##### Aliasing/Views
+
+- The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
+- Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
+
+
+##### Other
+
+
 
 #### To do
 
 ##### Types
 
-- Values within arrays are always `float`s, including internally (not just when values are exposed to the wider application). Methods which return a single scalar value always return a `float` unless that value is an index.
-> There is a potential performance hit in places with this but it keeps things much simpler and, for the most part, tensor operations require `float`s anyway. Where this principle differs from NumPy's implementation and interface is that some array operations, e.g. `ones`, would normally return an array of `int`s.
-- Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
-- Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
-- This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
-- The conversion method must accept `int` and `float` values and convert any `int` values to `float` when constructing the resulting tensor.
 
 ##### Numeric operations
 - Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise an exception rather than returning special values.
@@ -47,11 +78,6 @@ The backend contract does (or will) enforce the following:
 - Other reductions such as `mean`, `max`, `min` and `std` must raise an exception on an empty array, because there is no single, obvious value these might sensibly return.
 
 ##### Shape
-- Arrays must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular arrays must raise an exception when passed as inputs.
-- `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise an exception.
-- Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
-- `reshape` must reject any negative value in the target shape.
-> This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
 - Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise an exception.
 
 ##### Axes Rules
@@ -60,11 +86,7 @@ The backend contract does (or will) enforce the following:
 - Negative axes are allowed wherever a method accepts an axis or axes `tuple`, and are interpreted by counting back from the end of the tensor shape.
 - Duplicate axes are invalid and must raise an exception.
 - Any axis outside the valid range for the tensor shape is invalid and must raise an exception.
-- `transpose` must accept either `None` or a full axes `tuple`. When an axes `tuple` is provided, it gives the new order of the axes.
-- `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, axis=1 and axis=(1,) are equivalent.
 - `keepdims` is accepted only by the reduction methods `sum`, `mean`, `max`, `min` and `std`.
-- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank `0` array.
-- When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains an array.
 - `argmax` does not support the `keepdims` parameter.
 - `argmax` must accept `None` or a single `int` for the axis argument.
 
@@ -78,15 +100,14 @@ The backend contract does (or will) enforce the following:
 - If any pair of aligned dimensions is neither equal nor `1`, the operation must raise an exception.
 
 ##### Aliasing/Views
-- The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
-- Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
+
 - `copy` is the only method which guarantees an independent tensor with the same values.
 
 ##### Other
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
 - When input violates the contract for a method, the method must raise an exception rather than guessing or silently adjusting the input
 
-##### No decision(s) made
+#### No decision(s) made
 - No decisions have yet been made about the exact contract for stack, concatenate, vstack and hstack. This includes which input shapes and ranks they must accept, how the axis argument should work where relevant, and what should happen when the inputs are empty or their shapes do not match. These decisions have been deferred until the methods themselves are being tested and implemented.
 
 #### Interoperability
@@ -94,33 +115,53 @@ The backend contract does (or will) enforce the following:
 - The project is designed such that only one backend will be used in the same instance of a network. The purpose of having multiple backends is to learn about tensor operations and provide a choice when a new network is instantiated.
 - The shared backend contract tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against it with confidence, while still allowing small floating-point differences, within tolerances.
 
-### Implementation planning
 
-I haven't got to writing the custom backends yet but the following outlines some design choices I have made (at least for the time being) to act as a reference as I progress.
+### Design And Architecture
 
-### Test Coverage
+- The network will always be orchestrated and described in Python.
+- Tensor representations will be native to their respective backend.
+- Only scalar values and other narrow interface points should normally cross the boundary.
+- The tensor backends are concerned only with tensors and operations on them.
+- Other concepts present in the NNfSiP book, such as input handling, batching orchestration, sample loading, image preprocessing, serialisation, and labelling, are not considered part of the backend. These should be handled separately and remain pluggable.
+- No assumptions are made about the eventual use of the network beyond the need for the core tensor and network logic to remain adaptable.
 
-The backends will use NumPy as a reference implementation. The various backend tests were written against the NumPy implementation and were used to describe the behaviour of NumPy's tensor (array) operations so - with some changes noted in the Backend Contract section - this behaviour could be replicated. NumPy's operations often have a huge amount of functionality not required by the network built in the NNfSiP book and a lot of convenience features which are really just a matter of preference.
+#### Tensor backends
 
-- Tests cover the functionality needed by NNfSiP as a minimum
-- Beyond that, they include selected NumPy behavior only where doing so helps push implementations toward a general and extensible design
-> For example, the matmul tests include some higher-dimensional cases not used directly in NNfSiP, because they encourage a more general implementation which should be easier to extend later.
-- They do not try to reproduce every NumPy convenience or edge case
+- The baseline design for the project is float-based. It is the design against which the first custom backends and the current backend contract tests are being built.
+- The NumPy backend remains the reference implementation for tensor operations, and the shared backend contract tests exist to pin down its behaviour closely enough that alternative backends can be built against it with confidence.
+- Other backends are not bound to try to reproduce every NumPy convenience or edge cases.
+- The project is designed such that backends may be written in any language with good Python integration, though there are no plans to attempt to write backends in anything other than Python (inc. Cython) and C.
+- The key requirement is all backends can be tested against the same Python (unittest) test suite.
 
-### Python
+#### Python
 
-- Use nested lists as the main tensor representation
-- Use plain Python scalars only for scalar-returning operations, not tensor values (i.e. no rank 0 tensors)
-- Do not introduce a custom Python array/tensor type unless a later need clearly justifies it.
+- The first custom backend will be written in Python. Its initial tensor representation will be nested lists, and its initial scalar representation will be Python’s native float type.
+- Neither choice is intended to be permanent. If a later bespoke tensor type or bespoke numeric type becomes useful, those should be introduced in a way that can be plugged in or removed cleanly rather than becoming entangled with the rest of the backend.
+- The Python backend should remain compatible with Cython where possible.
+- If a Cython-oriented variant later rules out a bespoke tensor representation or bespoke number representation, that is acceptable, provided those features remain optional rather than forcing a redesign of the backend. Compatibility with the MicroPython Viper emitter would also be desirable, but is currently an aspiration rather than a hard requirement. It may turn out to be incompatible with the simultaneous use of ordinary Python type annotations and Cython-friendly structure.
 
-### C
+#### C
 
-- Do not represent tensors as nested C arrays in the general case.
-- Use a flat contiguous block of memory plus shape metadata as the core tensor representation.
-- The flat-buffer-plus-shape-metadata design leaves room to avoid copying internally where that is useful, without making aliasing part of the contract
-- Keep the scalar type configurable in one place so the same core code can be built around `float` or `double` as needed.
-- Keep the low-level maths code as pure and dependency-light as possible so it can be reused from a CPython wrapper, a MicroPython wrapper, and later backends.
-- Treat the C backend as the performance-oriented implementation; the Python backend does not need to mirror its internal representation exactly.
+- A C backend is also planned, and is the only non-Python backend the project is likely to pursue in practice.
+- The C implementation should favour a flat contiguous buffer plus shape metadata over nested arrays.
+- Maximising code reuse across float and quantized arithmetic, x86 CPU execution, possible later CUDA support, CPython extension integration, and MicroPython extension integration is a central design goal. This means, in particular, separating shape, indexing, axis, and other structural logic from the arithmetic core wherever practical, so that later work on quantized inference can reuse as much non-arithmetic code as possible.
+- Low-level arithmetic code must be as pure and dependency-light as possible
+- It is important to avoid tensors crossing the Python or MicroPython boundary any more than strictly necessary. This has already informed the Protocol-based design.
+
+#### Testing
+
+- Testing will be comprehensive, but the design aims to minimise duplicated effort.
+- Tests must cover the functionality needed by NNfSiP as a minimum
+- [To Do!] The backend contract tests are, as far as possible split into shape/axes/other structural tests and arithmetic tests. This means that should the project evolve to accomodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
+- The tests are written to cover at least some higher-rank work, including 4D tensors, not because every immediate use case requires them, but to ensure that the network and tensor backends are adaptable to a range of use cases.
+
+#### Quantised backends
+
+- Quantization will be a possible, later phase, not part of the baseline design.
+- Only after a proof-of-concept network with Python and C tensor backends is successfully running on an x86 CPU, will this be attempted. However, the possible implementation of a quantised inference network has informed the testing strategy.
+> It actually informed the testing strategy a little too late, requiring some splitting out of structural and arithmetic tests in some modules.
+- Each backend capable of supporting quantization will need a different internal tensor representation and different arithmetic implementations.
+- Quantised implementations will share as much structural code and as much of the existing structural test coverage as possible, while adding only the extra representations, arithmetic logic, and tests needed for both.
 
 
 ## Docstrings
