@@ -12,8 +12,15 @@ from tests.tensors.backend_contract_to_tensor import (
     BackendContractToTensorShapeInputMixin,
     BackendContractToTensorValueMixin,
 )
+
+from tests.tensors.backend_contract_matmul import (
+    BackendContractMatmulReferenceArithmeticMixin,
+    BackendContractMatmulSemanticsMixin,
+    BackendContractMatmulBroadcastingMixin,
+)
+
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
-from tests.tensors.backend_contract_matmul import BackendContractMatmulMixin
+
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 from tests.tensors.backend_contract_reduction import (
     BackendContractScalarReturnTypeMixin,
@@ -48,7 +55,9 @@ class TestNumpyBackend(
     BackendContractToTensorShapeInputMixin,
     BackendContractToTensorValueMixin,
     BackendContractRandnMixin,
-    BackendContractMatmulMixin,
+    BackendContractMatmulReferenceArithmeticMixin,
+    BackendContractMatmulSemanticsMixin,
+    BackendContractMatmulBroadcastingMixin,
     BackendContractReshapeMixin,
     BackendContractScalarReturnTypeMixin,
     BackendContractArgMaxMixin,
