@@ -11,12 +11,16 @@ to accomodate the differences in rounding behaviour but no larger.
 """
 
 import math
+from typing import Any, Final
 
 # TODO - tighten type checking here once we can add a meaningful type
 # or union for tensor
 
+DEFAULT_REL_TOL: Final = 1e-7
+DEFAULT_ABS_TOL: Final = 1e-8
 
-def to_python(tensor):
+
+def to_python(tensor: Any) -> Any:
     """
     Convert a backend-native tensor into plain Python values so the same
     assertions work for list-based and NumPy-based implementations.
@@ -26,7 +30,12 @@ def to_python(tensor):
     return tensor
 
 
-def assert_nested_close(actual, expected, rel_tol=1e-7, abs_tol=1e-8):
+def assert_nested_close(
+    actual: Any,
+    expected: Any,
+    rel_tol: float = DEFAULT_REL_TOL,
+    abs_tol: float = DEFAULT_ABS_TOL,
+) -> None:
     """
     Assert that two nested numeric structures are equal within a
     floating-point tolerance.
@@ -35,7 +44,12 @@ def assert_nested_close(actual, expected, rel_tol=1e-7, abs_tol=1e-8):
     _assert_nested_close(actual_value, expected, rel_tol=rel_tol, abs_tol=abs_tol)
 
 
-def _assert_nested_close(actual, expected, rel_tol=1e-7, abs_tol=1e-8):
+def _assert_nested_close(
+    actual: Any,
+    expected: Any,
+    rel_tol: float = DEFAULT_REL_TOL,
+    abs_tol: float = DEFAULT_ABS_TOL,
+) -> None:
     """
     Recurse through lists/tuples of expected and actual values until we
     get to a pair of scalar values, then check that they match within
