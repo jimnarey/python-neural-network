@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 .vscode/
+
+# Deal with a bug as of 03/04/26 whereby Codex keeps dropping an empty file in the project root
+.codex
