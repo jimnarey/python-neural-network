@@ -17,3 +17,4 @@
 - When referring to arrays in test method names, I prefer `2D` over `2d` and `3D` over `3d`, even if this is inconsistent with the snake_case convention.
 - When adding empty methods, I prefer them to contain `pass` rather than `...`.
 - When passing values within tensors to backend methods as part of tests use floats unless the test is specifically testing the normalisation/rejection of non-float values.
+- When I express a preference for how tests should be named prioritise clarity over literal compliance.
