@@ -153,6 +153,12 @@ The backend contract does (or will) enforce the following:
 - Testing will be comprehensive, but the design aims to minimise duplicated effort.
 - Tests must cover the functionality needed by NNfSiP as a minimum
 - [To Do!] The backend contract tests are, as far as possible split into shape/axes/other structural tests and arithmetic tests. This means that should the project evolve to accomodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
+- Where backend contract tests are intended to be shared with future non-float or quantised backends, any input values and expected output values used in those tests must be integer-valued `float`s (e.g. `1.0`) or `int`s.
+> When requiring values to be `int`s it is important to account for the fact that in Python `bool` is a subclass of `int` so will pass a naive `isinstance()` check.
+- This applies to values passed into `to_tensor` and to values checked with `assert_nested_close`.
+- Tests which use non-integer `float` values are treated as part of the `float`-based reference design and are not intended to be shared unchanged with non-`float` backends.
+- Shared-test decorators are used to enforce these rules in the test suite, including the requirement that shared `assert_nested_close` tests use `rel_tol=0` and `abs_tol=0`.
+- Some overlap between arithmetic and structural or semantic testing is accepted where separating them further would make the tests less clear or less useful.
 - The tests are written to cover at least some higher-rank work, including 4D tensors, not because every immediate use case requires them, but to ensure that the network and tensor backends are adaptable to a range of use cases.
 
 #### Quantised backends
