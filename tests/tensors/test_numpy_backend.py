@@ -70,6 +70,15 @@ class TestNumpyBackend(
         return NumpyBackend(seed=seed)
 
     def test_scalar_returning_methods_do_not_return_rank_0_arrays(self):
+        """
+        This ensures that the NumPy backend methods which return a single value
+        do not do so in the form of a rank 0 array. We're looking for a specific
+        NumPy type here, so this is the right place for this test.
+        """
+        # Some of the assertions here are arguably duplicative of assertions in
+        # the (still WIP) backend contract tests. This is fine for now and probably
+        # fine forever but do a sense check once the backend contract tests are
+        # complete.
         import numpy as np
 
         backend = self.make_backend()
@@ -101,6 +110,12 @@ class TestNumpyBackend(
                 )
 
     def test_tensor_input_methods_reject_rank_0_arrays(self):
+        """
+        This test ensures that the methods in the NumPy backend do not
+        accept NumPy rank 0 types. This a risk particular to the NumPy
+        backend, so the tests go here rather than in the backend contract
+        tests.
+        """
         import numpy as np
 
         backend = self.make_backend()
