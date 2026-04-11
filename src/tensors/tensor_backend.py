@@ -53,6 +53,18 @@ class TensorBackend(Protocol):
     they each function identically.
     """
 
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+        """
+        Convert a (nested) list or tuple to the backend's native tensor
+        representation, normalising numeric values to floats. Use of
+        floats has to be enforced at the implementation level.
+        """
+
+    def to_python(self, tensor: Tensor) -> object:  # TODO - tighten this
+        """
+        Convert a native tensor representation to a (nested) list/tuple
+        """
+
     def randn(self, shape: NonEmptyShape) -> Tensor:
         """
         Generate a tensor with the given shape, filled with random numbers
@@ -62,13 +74,6 @@ class TensorBackend(Protocol):
         Example:
         randn((2, 3)) -> [[-0.5, 1.2, 0.3],
                           [ 0.8, -1.1, 0.0]]
-        """
-
-    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
-        """
-        Convert a (nested) list or tuple to the backend's native tensor
-        representation, normalising numeric values to floats. Use of
-        floats has to be enforced at the implementation level.
         """
 
     def zeros(self, shape: NonEmptyShape) -> Tensor:

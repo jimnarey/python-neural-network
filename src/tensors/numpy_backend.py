@@ -78,10 +78,6 @@ class NumpyBackend:
         if isinstance(data, bool) or not isinstance(data, (int, float)):
             raise ValueError("Tensor conversion requires numeric values.")
 
-    def randn(self, shape: NonEmptyShape) -> Tensor:
-        self._validate_non_empty_shape(shape)
-        return self._random.standard_normal(size=shape)
-
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
         if not isinstance(data, (list, tuple)):
             raise ValueError("Tensor conversion requires a list or tuple input.")
@@ -89,6 +85,17 @@ class NumpyBackend:
         tensor = np.array(data, dtype=float)
         self._validate_not_rank_0(tensor)
         return tensor
+
+    def to_python(self, tensor: Tensor) -> object:
+        self._validate_not_rank_0(tensor)
+        assert isinstance(
+            tensor, np.ndarray
+        )  # Remove this once we've properly tackled typing of tensors
+        return tensor.tolist()
+
+    def randn(self, shape: NonEmptyShape) -> Tensor:
+        self._validate_non_empty_shape(shape)
+        return self._random.standard_normal(size=shape)
 
     def zeros(self, shape: NonEmptyShape) -> Tensor:
         self._validate_non_empty_shape(shape)
