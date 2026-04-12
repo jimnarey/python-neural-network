@@ -36,7 +36,7 @@ The backend contract does (or will) enforce the following:
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
 - Each backend must provide a method for converting a rectangular Python nested/un-nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
 - This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
-- The conversion method must accept `int` and `float` values.
+- The conversion method must accept only Python's built in `int` and `float` types for values.
 - Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list` or `tuple`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
 - The values returned by this method (within the `list` or `tuple`) must be `float`s or `int`s.
 
