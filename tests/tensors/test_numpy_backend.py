@@ -221,24 +221,154 @@ class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendToTensor(NumpyBackendTestCase):
-    def test_to_tensor_returns_ndarray(self):
+    def test_to_tensor_preserves_1D_value_positions_in_ndarray(self):
         import numpy as np
 
         backend = self.make_backend()
-        result = backend.to_tensor([1.0, 2.0, 3.0])
+        result = backend.to_tensor([1.0, 2.0, 3.0, 4.0])
+
         self.assertIsInstance(result, np.ndarray)
+        # Use ndarray's shape attribute, not our backend's shape method
+        self.assertEqual(result.shape, (4,))
+        self.assertEqual(result[0], 1.0)
+        self.assertEqual(result[1], 2.0)
+        self.assertEqual(result[2], 3.0)
+        self.assertEqual(result[3], 4.0)
+
+    def test_to_tensor_preserves_2D_value_positions_in_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, (2, 3))
+        self.assertEqual(result[0, 0], 1.0)
+        self.assertEqual(result[0, 1], 2.0)
+        self.assertEqual(result[0, 2], 3.0)
+        self.assertEqual(result[1, 0], 4.0)
+        self.assertEqual(result[1, 1], 5.0)
+        self.assertEqual(result[1, 2], 6.0)
+
+    def test_to_tensor_preserves_3D_value_positions_in_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor(
+            [
+                [[1.0, 2.0], [3.0, 4.0]],
+                [[5.0, 6.0], [7.0, 8.0]],
+            ]
+        )
+
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, (2, 2, 2))
+        self.assertEqual(result[0, 0, 0], 1.0)
+        self.assertEqual(result[0, 0, 1], 2.0)
+        self.assertEqual(result[0, 1, 0], 3.0)
+        self.assertEqual(result[0, 1, 1], 4.0)
+        self.assertEqual(result[1, 0, 0], 5.0)
+        self.assertEqual(result[1, 0, 1], 6.0)
+        self.assertEqual(result[1, 1, 0], 7.0)
+        self.assertEqual(result[1, 1, 1], 8.0)
+
+    def test_to_tensor_preserves_4D_value_positions_in_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0], [3.0, 4.0]],
+                ],
+                [
+                    [[5.0, 6.0], [7.0, 8.0]],
+                ],
+            ]
+        )
+
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, (2, 1, 2, 2))
+        self.assertEqual(result[0, 0, 0, 0], 1.0)
+        self.assertEqual(result[0, 0, 0, 1], 2.0)
+        self.assertEqual(result[0, 0, 1, 0], 3.0)
+        self.assertEqual(result[0, 0, 1, 1], 4.0)
+        self.assertEqual(result[1, 0, 0, 0], 5.0)
+        self.assertEqual(result[1, 0, 0, 1], 6.0)
+        self.assertEqual(result[1, 0, 1, 0], 7.0)
+        self.assertEqual(result[1, 0, 1, 1], 8.0)
 
     def test_to_tensor_returns_float_dtype_ndarray_when_given_integer_input(self):
-        pass
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor([1, 2, 3])
+
+        self.assertIsInstance(result, np.ndarray)
+        # Checks that the ndarray is float typed but does not check
+        # which is not quite the same as checking every value
+        # (but close enough)
+        self.assertTrue(np.issubdtype(result.dtype, np.floating))
+        self.assertEqual(result[0], 1.0)
+        self.assertEqual(result[1], 2.0)
+        self.assertEqual(result[2], 3.0)
 
     def test_to_tensor_returns_float_dtype_ndarray_when_given_mixed_numeric_input(self):
-        pass
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor([1, 2.5, 3])
+
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(np.issubdtype(result.dtype, np.floating))
+        self.assertEqual(result[0], 1.0)
+        self.assertEqual(result[1], 2.5)
+        self.assertEqual(result[2], 3.0)
 
     def test_to_tensor_rejects_ndarray_input(self):
-        pass
+        import numpy as np
+
+        backend = self.make_backend()
+
+        invalid_inputs = [
+            np.array([1.0, 2.0, 3.0]),
+            np.matrix([[1.0, 2.0], [3.0, 4.0]]),
+        ]
+
+        for data in invalid_inputs:
+            with self.subTest(data_type=type(data).__name__):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    r"list or tuple input",
+                    msg=(
+                        "to_tensor did not raise the expected ValueError from the "
+                        "list-or-tuple input guard when given a NumPy array-like input"
+                    ),
+                ):
+                    backend.to_tensor(data)
 
     def test_to_tensor_rejects_numpy_scalar_values_within_input(self):
-        pass
+        import numpy as np
+
+        backend = self.make_backend()
+        invalid_inputs = [
+            [np.float64(1.0), 2.0],
+            [1.0, np.int64(2)],
+            [[1.0, 2.0], [3.0, np.float64(4.0)]],
+        ]
+
+        for data in invalid_inputs:
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    r"numeric values",
+                    msg=(
+                        "to_tensor did not raise the expected ValueError from "
+                        "the numeric-values guard when given NumPy scalar "
+                        "values within input"
+                    ),
+                ):
+                    backend.to_tensor(data)
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
