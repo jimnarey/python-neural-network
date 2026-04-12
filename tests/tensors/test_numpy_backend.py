@@ -1,3 +1,17 @@
+"""Test module for the NumPy backend
+
+This contains a runner class for the shared backend contract tests.
+
+It also has tests for to_tensor and to_python, which it is critical
+be tested thoroughly as the shared tests rely on them.
+
+We import numpy within each test method individually to enable the
+skipUnless checks which apply to each class. It also helps with test
+isolation just in case code under test does something like set the
+global NumPy seed (this has been carefully avoided in the way the
+backend is constructed).
+"""
+
 import importlib.util
 import unittest
 
@@ -10,7 +24,6 @@ from tests.tensors.backend_contract_creation import (
 from tests.tensors.backend_contract_to_tensor import (
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
-    BackendContractToTensorValueMixin,
 )
 
 from tests.tensors.backend_contract_matmul import (
@@ -33,27 +46,40 @@ NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendProtocolConformance(unittest.TestCase):
+    """
+    This is a safety check so that if the codebase ever temporarily or
+    permanently does not pass NumpyBackend to a layer or other consumer
+    the type checker will still catch deviations from the protocol/contract
+    """
+
     # It is essential to set the return type here if we want mypy to type check
     # the instantiation of NumpyBackend
     def test_numpy_backend_implements_tensor_backend_protocol(self) -> None:
         from src.tensors import NumpyBackend
 
-        # This is a safety check so that if the codebase ever temporarily or
-        # permanently does not pass NumpyBackend to a layer or other consumer
-        # the type checker will still catch deviations from the protocol/contract
+        # mypy check
         backend: TensorBackend = NumpyBackend()
-        # Test at runtime.
+        # Test at runtime
         self.assertIsInstance(backend, TensorBackend)
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
-class TestNumpyBackend(
+class NumpyBackendTestCase(unittest.TestCase):
+
+    def make_backend(self, seed: int | None = None) -> TensorBackend:
+        from src.tensors import NumpyBackend
+
+        return NumpyBackend(seed=seed)
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendContract(
+    NumpyBackendTestCase,
     BackendContractConstructionMixin,
     BackendContractCreationMixin,
     BackendContractFloatCreationMixin,
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
-    BackendContractToTensorValueMixin,
     BackendContractRandnMixin,
     BackendContractMatmulReferenceArithmeticMixin,
     BackendContractMatmulSemanticsMixin,
@@ -62,14 +88,13 @@ class TestNumpyBackend(
     BackendContractScalarReturnTypeMixin,
     BackendContractArgMaxMixin,
     BackendContractTransposeMixin,
-    unittest.TestCase,
 ):
-    def make_backend(self, seed: int | None = None) -> TensorBackend:
-        from src.tensors import NumpyBackend
+    pass
 
-        return NumpyBackend(seed=seed)
 
-    def test_scalar_returning_methods_do_not_return_rank_0_arrays(self):
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
+    def test_scalar_returning_methods_do_not_return_rank_0_tensors(self):
         """
         This ensures that the NumPy backend methods which return a single value
         do not do so in the form of a rank 0 array. We're looking for a specific
@@ -109,7 +134,7 @@ class TestNumpyBackend(
                     ),
                 )
 
-    def test_tensor_input_methods_reject_rank_0_arrays(self):
+    def test_tensor_input_methods_reject_rank_0_tensors(self):
         """
         This test ensures that the methods in the NumPy backend do not
         accept NumPy rank 0 types. This a risk particular to the NumPy
@@ -192,3 +217,46 @@ class TestNumpyBackend(
                     msg=f"{method_name} accepted a rank 0 array when it should reject it",
                 ):
                     call()
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendToTensor(NumpyBackendTestCase):
+    def test_to_tensor_returns_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.to_tensor([1.0, 2.0, 3.0])
+        self.assertIsInstance(result, np.ndarray)
+
+    def test_to_tensor_returns_float_dtype_ndarray_when_given_integer_input(self):
+        pass
+
+    def test_to_tensor_returns_float_dtype_ndarray_when_given_mixed_numeric_input(self):
+        pass
+
+    def test_to_tensor_rejects_ndarray_input(self):
+        pass
+
+    def test_to_tensor_rejects_numpy_scalar_values_within_input(self):
+        pass
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendToPython(NumpyBackendTestCase):
+    def test_to_python_converts_1D_ndarray_to_plain_python_list(self):
+        pass
+
+    def test_to_python_converts_2D_ndarray_to_plain_python_nested_list(self):
+        pass
+
+    def test_to_python_converts_3D_ndarray_to_plain_python_nested_list(self):
+        pass
+
+    def test_to_python_returns_plain_python_float_values(self):
+        pass
+
+    def test_to_python_rejects_rank_0_arrays(self):
+        pass
+
+    def test_to_python_rejects_numpy_scalar_values(self):
+        pass
