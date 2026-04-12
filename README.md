@@ -1,22 +1,22 @@
 # python-neural-network
 
-A work-in-progress proof of concept neural network written in Python. This follows the book 'Neural Networks from Scratch in Python' (NNfSiP), adopting a more robust design and with the ultimate aim of extending the resulting model. In particular, the aim is to expose more of the underlying mathematical operations and where possible improve performance.
+A work-in-progress proof of concept neural network written in Python. This follows the book 'Neural Networks from Scratch in Python' (NNfSiP), adopting a more robust design and with the ultimate aim of extending the resulting network. In particular, the aim is to expose more of the underlying mathematical operations and where possible improve performance.
 
 The final code from the NNfSiP book, which encompasses all the concepts taught in the book, can be found [here](https://github.com/Sentdex/nnfs_book/blob/main/Chapter_22/Ch22_Final.py).
 
 ## Python compatibility
 
-This project requires Python 3.13 or newer. It is designed with the at least the option of using free-threaded Python in mind. That aside, it uses typing features only available in 3.11+, e.g. `*tuple[int, ...]` to require a tuple with one `int` as a minimum.
+This project requires Python 3.13 or newer as it is designed with the the option of using free-threaded Python in mind. That aside, it uses typing features only available in 3.11+, e.g. `*tuple[int, ...]` to require a tuple with one `int` as a minimum, and uses 3.12+ `type` declarations.
 
 > NB this project currently uses poetry which doesn't yet support free-threaded Python, so will be transitioned to uv in due course.
 
 ## Tensor Backends
 
-NNfSiP and a lot of other Python-based resources on neural networks make heavy use of NumPy for tensor operations. I wanted to fully understand how tensors work and therefore write my own implementations, starting with one in pure Python (NNfSiP does a little of this at the beginning to explain weights before moving on to NumPy).
+NNfSiP and a lot of other Python-based resources on neural networks make heavy use of NumPy for tensor operations. I wanted to fully understand how tensors work and therefore write my own implementations, starting with one in pure Python (NNfSiP does a little work in Python at the beginning to explain weights before moving on to NumPy).
 
-The NumPy tensor backend is a very thin wrapper around the relevant NumPy functions. Producing this early meant it was possible to write a suite of backend contract tests to tightly pin down NumPy's behaviour (e.g. what you get when you multiply two 2D arrays), which could then be run against my own implementations. So although the objective was to wean myself off the convenience provided by NumPy, NumPy was essential to doing so. I can't overstate how essential it was to have a solid reference implementation to work from.
+The NumPy tensor backend is a very thin wrapper around the relevant NumPy functions. Producing this early meant it was possible to write a suite of backend contract tests to tightly pin down NumPy's behaviour (e.g. what you get when you multiply two 2D tensors), which could then be run against my own implementations. So although the objective was to wean myself off the convenience provided by NumPy, NumPy was essential to doing so.
 
-Ultimately, my aim was to build a neural network which, for classifying numerical data at least, did not require any imports.
+Ultimately, my aim was to build a neural network which, for classifying numerical data at least, does not require any imports. It is designed to be runnable, using a pure-Python tensor backend, without the the dependencies required for the other backends (and their tests) installed. This means that, in places, there is some slughtly complex import logic, e.g. in `__init__.py` in the `tensors` package. The NumPy-specific backend tests check whether NumPy is available and skip the tests if it isn't but this logic is much more simple.
 
 ### Backend Contract
 
@@ -30,19 +30,21 @@ The backend contract does (or will) enforce the following:
 
 ##### Types
 
-- Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`.
+- Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`. TODO - should this be 'must'? Probably
 - Backend methods only receive and return standard Python types for scalar values (`float`, `int`) and never implementation-specific types (`np.float64`).
 - No arrays of rank 0 are returned or can be passed as arguments. Methods will return either at least a 1D array (including an empty array) or a scalar.
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
-- Each backend must provide a method for converting a rectangular Python nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
+- Each backend must provide a method for converting a rectangular Python nested/un-nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
 - This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
 - The conversion method must accept `int` and `float` values.
+- Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list` or `tuple`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
+- The values returned by this method (within the `list` or `tuple`) must be `float`s or `int`s.
 
 ##### Numeric operations
 
 ##### Shape
 
-- Arrays must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular arrays must raise an exception when passed as inputs.
+- Tensors must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular tensors must raise an exception when passed to any method which accepts a tensor as an input.
 - `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise an exception.
 - Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
 - `reshape` must reject any negative value in the target shape.
@@ -51,9 +53,9 @@ The backend contract does (or will) enforce the following:
 ##### Axes Rules
 
 - `transpose` must accept either `None` or a full axes `tuple`. When an axes `tuple` is provided, it gives the new order of the axes.
-- `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, axis=1 and axis=(1,) are equivalent.
-- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank `0` array.
-- When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains an array.
+- `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, `axis=1` and `axis=(1,)` are equivalent.
+- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank 0 tensor.
+- When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains a tensor.
 
 ##### Broadcasting
 
@@ -74,8 +76,8 @@ The backend contract does (or will) enforce the following:
 
 ##### Numeric operations
 - Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise an exception rather than returning special values.
-- When `sum` is called on an empty array it returns 0.0, so code which totals values can continue without special handling.
-- Other reductions such as `mean`, `max`, `min` and `std` must raise an exception on an empty array, because there is no single, obvious value these might sensibly return.
+- When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
+- Other reductions such as `mean`, `max`, `min` and `std` must raise an exception on an empty tensor, because there is no single, obvious value these might sensibly return.
 
 ##### Shape
 - Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise an exception.
@@ -113,8 +115,7 @@ The backend contract does (or will) enforce the following:
 #### Interoperability
 
 - The project is designed such that only one backend will be used in the same instance of a network. The purpose of having multiple backends is to learn about tensor operations and provide a choice when a new network is instantiated.
-- The shared backend contract tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against it with confidence, while still allowing small floating-point differences, within tolerances.
-
+- The shared backend contract tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against it with confidence. This means that where floating-point arithmetic is tested, the tests are designed to allow small differences between actual and expected values, within clearly defined tolerances.
 
 ### Design And Architecture
 
@@ -127,11 +128,20 @@ The backend contract does (or will) enforce the following:
 
 #### Tensor backends
 
-- The baseline design for the project is float-based. It is the design against which the first custom backends and the current backend contract tests are being built.
-- The NumPy backend remains the reference implementation for tensor operations, and the shared backend contract tests exist to pin down its behaviour closely enough that alternative backends can be built against it with confidence.
-- Other backends are not bound to try to reproduce every NumPy convenience or edge cases.
-- The project is designed such that backends may be written in any language with good Python integration, though there are no plans to attempt to write backends in anything other than Python (inc. Cython) and C.
-- The key requirement is all backends can be tested against the same Python (unittest) test suite.
+The tensor-backend design is intended to leave room for future backends with different internal representations and numeric types. It has three layers:
+
+1. The backend contract.
+   This defines what every backend must do and the behaviour the rest of the network may rely on.
+
+2. The reference design.
+   This is a narrower design used for the first implementations. It is float-based and is the design currently being followed by the Python and planned C backends.
+
+3. Individual implementations.
+   Each backend has its own native tensor representation and may require a small amount of implementation-specific testing. NumPy is the reference implementation used to pin down the shared contract tests, but other backends are not required to reproduce every NumPy convenience or edge case.
+
+- Backends may be written in any language with good Python integration, though in practice only Python (including Cython) and C are planned.
+- The goal is that all backends which follow the reference design can run against the same unittest suite apart from a small number of implementation-specific tests.
+- Backends which diverge from the reference design, for example by using `int` values internally, should still be able to use most of the shared backend contract tests.
 
 #### Python
 
@@ -152,7 +162,7 @@ The backend contract does (or will) enforce the following:
 
 - Testing will be comprehensive, but the design aims to minimise duplicated effort.
 - Tests must cover the functionality needed by NNfSiP as a minimum
-- [To Do!] The backend contract tests are, as far as possible split into shape/axes/other structural tests and arithmetic tests. This means that should the project evolve to accomodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
+- [To Do!] The backend contract tests are, as far as possible split into shape/axes/other structural tests and arithmetic tests. This means that should the project evolve to accommodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
 - Where backend contract tests are intended to be shared with future non-float or quantised backends, any input values and expected output values used in those tests must be integer-valued `float`s (e.g. `1.0`) or `int`s.
 > When requiring values to be `int`s it is important to account for the fact that in Python `bool` is a subclass of `int` so will pass a naive `isinstance()` check.
 - This applies to values passed into `to_tensor` and to values checked with `assert_nested_close`.
@@ -160,6 +170,22 @@ The backend contract does (or will) enforce the following:
 - Shared-test decorators are used to enforce these rules in the test suite, including the requirement that shared `assert_nested_close` tests use `rel_tol=0` and `abs_tol=0`.
 - Some overlap between arithmetic and structural or semantic testing is accepted where separating them further would make the tests less clear or less useful.
 - The tests are written to cover at least some higher-rank work, including 4D tensors, not because every immediate use case requires them, but to ensure that the network and tensor backends are adaptable to a range of use cases.
+
+##### to_python and to_tensor
+
+The backend contract tests are designed to be implementation-agnostic, so their inputs, expected values and observed results need to be expressed using plain Python types. For this reason each backend provides `to_tensor` and `to_python` methods for converting between Python `list`/`tuple` structures and the backend's native tensor representation.
+
+This creates a tension in the test design. We want the tests to remain independent of backend-specific dependencies such as NumPy, but we also want to avoid implementing and maintaining separate conversion logic inside the test suite.
+
+The chosen design is:
+
+- Backend contract tests for tensor operations such as `matmul` use each backend's own `to_tensor` and `to_python` methods to complete the round-trip between Python values and backend-native tensors.
+- The risk of relying on those methods within other tests is accepted in order to keep each conversion path implemented only once, in the backend itself.
+- `to_tensor` and `to_python` are therefore exceptions to the general rule that backend method tests are universal.
+- Each method has thorough implementation-specific tests, because the shared tests for those methods cannot by themselves catch all classes of implementation defect.
+> These tests are therefor critical. Problems here could result in false successes elsewhere in the test suite
+- Each method also has shared contract tests, which define the universal behaviour expected of all backends.
+
 
 #### Quantised backends
 
