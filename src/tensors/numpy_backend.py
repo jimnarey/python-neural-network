@@ -58,24 +58,29 @@ class NumpyBackend:
 
     def _validate_tensor_input_values(self, data: object) -> None:
         """
-        Check that values are a valid type. It is limited and relies on
-        NumPy doing some of the work for us. It will not catch cases like:
+        Check that values are a valid type. It is limited in a number of
+        ways. It will not catch cases like:
 
         [[(), 0], 1, 2]
         [[(1,), 0], 1, 2]
 
-        which are both invalid. Nor is it safe to use unless conversion of
-        ints to floats happens elsewhere. Again, in the case of NumPy that
-        happens if we pass the right dtype when calling np.array.
+        which are both invalid. We rely on NumPy's built-in behaviour to
+        catch such cases.
 
-        We can't just check that the type of incoming values is float or
-        int because bool is a subclass of int. So it gets special treatment.
+        For this backend implementation we want to strictly use floats
+        internally. Again, we are relying on NumPy's built in behaviour
+        (setting the array dtype) and not this method to ensure ints are
+        converted to floats.
+
+        We use type rather than isinstance in the second check because
+        bool is a subclass of int and some NumPy-specific types are a
+        subclass of float.
         """
         if isinstance(data, (list, tuple)):
             for item in data:
                 self._validate_tensor_input_values(item)
             return
-        if isinstance(data, bool) or not isinstance(data, (int, float)):
+        if type(data) not in (int, float):
             raise ValueError("Tensor conversion requires numeric values.")
 
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
