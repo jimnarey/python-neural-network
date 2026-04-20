@@ -9,13 +9,39 @@ to represent tensors with more than one dimension.
 
 This module has several classes which, together, enforce the backend
 contract for the to_tensor method.
+
+The shared to_tensor tests in this module cover only behaviour which can
+be expressed and checked using plain Python list and tuple structures.
+This includes, for example, ordinary 1D/2D/3D inputs and those empty
+inputs whose structure is still visible in Python, such as [] and
+[[], []].
+
+This means that we need complementary tests at the implementation level
+for each backend. These can inspect the backend's native tensor
+representation directly without converting to lists/tuples.
+
+This is particualaly important for empty tensors. Some empty shapes,
+such as (2, 0, 3), are valid but collapse to the same Python representation
+as other shapes with empty dimensions.
+
+This module is intentionally light on round-trip tests (i.e. create a tensor
+with to_tensor and check what we get when we call to_python on it). The
+shared tests for to_python necessarily work this way and will catch various
+classes of problem with round-trip behaviour, including to_tensor mangling
+the tensor creation in some way.
 """
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import to_python
 
 
 class BackendContractToTensorTypeInputMixin(BackendContractBase):
+    """
+    Invalid inputs should throw an exception and that is all we test
+    for here. I.e. in the happy path cases we do not test what we get
+    as a result of calling to_tensor (we can't here, as it's
+    implementation-specifc).
+    """
+
     def test_to_tensor_accepts_list_input(self):
         backend = self.make_backend()
         backend.to_tensor([1, 2, 3])
@@ -56,33 +82,40 @@ class BackendContractToTensorTypeInputMixin(BackendContractBase):
 
 class BackendContractToTensorShapeInputMixin(BackendContractBase):
 
-    def test_to_tensor_converts_1D_input_to_tensor(self):
+    def test_to_tensor_converts_empty_1D_input_to_tensor(self):
+        """
+        This uses the backend's to_python method, as well as calling
+        to_tensor, to test the outcome of the round-trip. Accordingly
+        it is really just a sense check. We need implementation-level
+        tests to be sure we are getting the proper behaviour.
+        """
         backend = self.make_backend()
-        result = to_python(backend.to_tensor([1, 2, 3]))
-        self.assertEqual(result, [1.0, 2.0, 3.0])
+        test_cases = [
+            [],
+            (),
+        ]
 
-    def test_to_tensor_converts_2D_input_to_tensor(self):
-        backend = self.make_backend()
-        result = to_python(backend.to_tensor(((1, 2), (3, 4))))
-        self.assertEqual(result, [[1.0, 2.0], [3.0, 4.0]])
+        for data in test_cases:
+            with self.subTest(data=data):
+                result = backend.to_python(backend.to_tensor(data))
+                self.assertEqual(result, [])
 
-    def test_to_tensor_converts_3D_input_to_tensor(self):
+    def test_to_tensor_converts_empty_2D_input_to_tensor(self):
+        """
+        Relies on to_python as well as to_tensor.
+        """
         backend = self.make_backend()
-        result = to_python(
-            backend.to_tensor(
-                [
-                    [[1, 2], [3, 4]],
-                    [[5, 6], [7, 8]],
-                ]
-            )
-        )
-        self.assertEqual(
-            result,
-            [
-                [[1.0, 2.0], [3.0, 4.0]],
-                [[5.0, 6.0], [7.0, 8.0]],
-            ],
-        )
+        test_cases = [
+            [[], []],
+            ((), ()),
+            [(), ()],
+            ([], []),
+        ]
+
+        for data in test_cases:
+            with self.subTest(data=data):
+                result = backend.to_python(backend.to_tensor(data))
+                self.assertEqual(result, [[], []])
 
     def test_to_tensor_rejects_ragged_input(self):
         backend = self.make_backend()
@@ -124,26 +157,3 @@ class BackendContractToTensorShapeInputMixin(BackendContractBase):
                     ),
                 ):
                     backend.to_tensor(data)
-
-
-class BackendContractToTensorValueMixin(BackendContractBase):
-    """
-    All tensor representations are required to use floats but
-    to_tensor should convert ints to floats when used to create
-    new tensors.
-    """
-
-    def test_to_tensor_converts_integer_values_to_float(self):
-        backend = self.make_backend()
-        result = to_python(backend.to_tensor([1, 2, 3]))
-        self.assertEqual(result, [1.0, 2.0, 3.0])
-
-    def test_to_tensor_preserves_float_values(self):
-        backend = self.make_backend()
-        result = to_python(backend.to_tensor([1.5, 2.5, 3.5]))
-        self.assertEqual(result, [1.5, 2.5, 3.5])
-
-    def test_to_tensor_normalises_mixed_numeric_input_to_float(self):
-        backend = self.make_backend()
-        result = to_python(backend.to_tensor([1, 2.5, 3]))
-        self.assertEqual(result, [1.0, 2.5, 3.0])

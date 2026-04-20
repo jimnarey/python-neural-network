@@ -26,6 +26,8 @@ from tests.tensors.backend_contract_to_tensor import (
     BackendContractToTensorShapeInputMixin,
 )
 
+from tests.tensors.backend_contract_to_python import BackendContractToPythonMixin
+
 from tests.tensors.backend_contract_matmul import (
     BackendContractMatmulReferenceArithmeticMixin,
     BackendContractMatmulSemanticsMixin,
@@ -80,6 +82,7 @@ class TestNumpyBackendContract(
     BackendContractFloatCreationMixin,
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
+    BackendContractToPythonMixin,
     BackendContractRandnMixin,
     BackendContractMatmulReferenceArithmeticMixin,
     BackendContractMatmulSemanticsMixin,
