@@ -32,15 +32,17 @@ class BackendContractReshapeMixin(BackendContractBase):
     def test_reshape_converts_1D_array_to_2D_array_with_shape_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0])
-        result = backend.reshape(tensor, (2, 2))
-        self.assertEqual(backend.shape(result), (2, 2))
+        reshaped_tensor = backend.reshape(tensor, (2, 2))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 2))
         assert_nested_close(result, [[1.0, 2.0], [3.0, 4.0]], rel_tol=0, abs_tol=0)
 
     def test_reshape_converts_1D_array_to_2D_array_with_shape_2_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-        result = backend.reshape(tensor, (2, 3))
-        self.assertEqual(backend.shape(result), (2, 3))
+        reshaped_tensor = backend.reshape(tensor, (2, 3))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 3))
         assert_nested_close(
             result,
             [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
@@ -51,8 +53,9 @@ class BackendContractReshapeMixin(BackendContractBase):
     def test_reshape_converts_1D_array_to_3D_array_with_shape_2_by_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-        result = backend.reshape(tensor, (2, 2, 2))
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        reshaped_tensor = backend.reshape(tensor, (2, 2, 2))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 2, 2))
         assert_nested_close(
             result,
             [
@@ -66,15 +69,17 @@ class BackendContractReshapeMixin(BackendContractBase):
     def test_reshape_converts_2D_array_to_1D_array_from_shape_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
-        result = backend.reshape(tensor, (4,))
-        self.assertEqual(backend.shape(result), (4,))
+        reshaped_tensor = backend.reshape(tensor, (4,))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (4,))
         assert_nested_close(result, [1.0, 2.0, 3.0, 4.0], rel_tol=0, abs_tol=0)
 
     def test_reshape_converts_2D_array_to_1D_array_from_shape_2_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-        result = backend.reshape(tensor, (6,))
-        self.assertEqual(backend.shape(result), (6,))
+        reshaped_tensor = backend.reshape(tensor, (6,))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (6,))
         assert_nested_close(
             result,
             [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
@@ -85,8 +90,9 @@ class BackendContractReshapeMixin(BackendContractBase):
     def test_reshape_converts_2D_array_to_3D_array_with_shape_2_by_1_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-        result = backend.reshape(tensor, (2, 1, 3))
-        self.assertEqual(backend.shape(result), (2, 1, 3))
+        reshaped_tensor = backend.reshape(tensor, (2, 1, 3))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 1, 3))
         assert_nested_close(
             result,
             [
@@ -105,8 +111,9 @@ class BackendContractReshapeMixin(BackendContractBase):
                 [[5.0, 6.0], [7.0, 8.0]],
             ]
         )
-        result = backend.reshape(tensor, (8,))
-        self.assertEqual(backend.shape(result), (8,))
+        reshaped_tensor = backend.reshape(tensor, (8,))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (8,))
         assert_nested_close(
             result,
             [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
@@ -122,8 +129,9 @@ class BackendContractReshapeMixin(BackendContractBase):
                 [[5.0, 6.0], [7.0, 8.0]],
             ]
         )
-        result = backend.reshape(tensor, (4, 2))
-        self.assertEqual(backend.shape(result), (4, 2))
+        reshaped_tensor = backend.reshape(tensor, (4, 2))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (4, 2))
         assert_nested_close(
             result,
             [
@@ -144,8 +152,9 @@ class BackendContractReshapeMixin(BackendContractBase):
                 [[5.0, 6.0], [7.0, 8.0]],
             ]
         )
-        result = backend.reshape(tensor, (2, 2, 1, 2))
-        self.assertEqual(backend.shape(result), (2, 2, 1, 2))
+        reshaped_tensor = backend.reshape(tensor, (2, 2, 1, 2))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 2, 1, 2))
         assert_nested_close(
             result,
             [
@@ -164,8 +173,9 @@ class BackendContractReshapeMixin(BackendContractBase):
                 [[[5.0, 6.0]], [[7.0, 8.0]]],
             ]
         )
-        result = backend.reshape(tensor, (2, 4))
-        self.assertEqual(backend.shape(result), (2, 4))
+        reshaped_tensor = backend.reshape(tensor, (2, 4))
+        result = backend.to_python(reshaped_tensor)
+        self.assertEqual(backend.shape(reshaped_tensor), (2, 4))
         assert_nested_close(
             result,
             [
@@ -298,8 +308,9 @@ class BackendContractReshapeMixin(BackendContractBase):
                 input_shape=backend.shape(tensor),
                 target_shape=shape,
             ):
-                result = backend.reshape(tensor, shape)
-                self.assertEqual(backend.shape(result), shape)
+                reshaped_tensor = backend.reshape(tensor, shape)
+                result = backend.to_python(reshaped_tensor)
+                self.assertEqual(backend.shape(reshaped_tensor), shape)
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_reshape_rejects_zero_length_dimensions_when_called_with_a_non_empty_array(

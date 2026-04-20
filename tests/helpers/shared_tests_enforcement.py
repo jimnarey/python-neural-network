@@ -191,9 +191,7 @@ def _patch_assert_nested_close_to_enforce_integer_valued_floats(
         rel_tol: float = DEFAULT_REL_TOL,
         abs_tol: float = DEFAULT_ABS_TOL,
     ) -> None:
-        _assert_uses_only_integer_valued_floats(
-            tensor_assertions.to_python(actual), context="actual value"
-        )
+        _assert_uses_only_integer_valued_floats(actual, context="actual value")
         _assert_uses_only_integer_valued_floats(expected, context="expected value")
         return original_module_assert_nested_close(
             actual, expected, rel_tol=rel_tol, abs_tol=abs_tol

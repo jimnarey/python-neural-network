@@ -10,21 +10,12 @@ it works with different combinations of values and thresholds.
 
 from unittest import TestCase
 
-from tests.helpers.tensor_assertions import assert_nested_close, to_python
+from tests.helpers.tensor_assertions import assert_nested_close
 
 
 class MockTensor:
     def tolist(self):
         return [[1.0, 2.0], [3.0, 4.0]]
-
-
-class TestToPython(TestCase):
-    def test_returns_nested_python_values_from_objects_with_to_list_method(self):
-        self.assertEqual(to_python(MockTensor()), [[1.0, 2.0], [3.0, 4.0]])
-
-    def test_returns_plain_python_values_unchanged(self):
-        value = [[1.0, 2.0], [3.0, 4.0]]
-        self.assertIs(to_python(value), value)
 
 
 class TestAssertNestedClose(TestCase):

@@ -20,31 +20,7 @@ DEFAULT_REL_TOL: Final = 1e-7
 DEFAULT_ABS_TOL: Final = 1e-8
 
 
-def to_python(tensor: Any) -> Any:
-    """
-    Convert a backend-native tensor into plain Python values so the same
-    assertions work for list-based and NumPy-based implementations.
-    """
-    if hasattr(tensor, "tolist"):
-        return tensor.tolist()
-    return tensor
-
-
 def assert_nested_close(
-    actual: Any,
-    expected: Any,
-    rel_tol: float = DEFAULT_REL_TOL,
-    abs_tol: float = DEFAULT_ABS_TOL,
-) -> None:
-    """
-    Assert that two nested numeric structures are equal within a
-    floating-point tolerance.
-    """
-    actual_value = to_python(actual)
-    _assert_nested_close(actual_value, expected, rel_tol=rel_tol, abs_tol=abs_tol)
-
-
-def _assert_nested_close(
     actual: Any,
     expected: Any,
     rel_tol: float = DEFAULT_REL_TOL,
@@ -72,7 +48,7 @@ def _assert_nested_close(
                 f"Sequence lengths differ: {len(actual)} != {len(expected)}."
             )
         for actual_item, expected_item in zip(actual, expected, strict=True):
-            _assert_nested_close(
+            assert_nested_close(
                 actual_item,
                 expected_item,
                 rel_tol=rel_tol,

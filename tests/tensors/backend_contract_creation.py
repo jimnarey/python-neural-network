@@ -10,7 +10,6 @@ an empty shape to the method).
 """
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import to_python
 
 
 def _all_values_are_floats(value) -> bool:
@@ -43,20 +42,24 @@ class BackendContractCreationMixin(BackendContractBase):
 class BackendContractFloatCreationMixin(BackendContractBase):
     def test_zeros_returns_float_values(self):
         backend = self.make_backend()
-        result = to_python(backend.zeros((2, 2)))
+        tensor = backend.zeros((2, 2))
+        result = backend.to_python(tensor)
         self.assertTrue(_all_values_are_floats(result))
 
     def test_ones_returns_float_values(self):
         backend = self.make_backend()
-        result = to_python(backend.ones((2, 2)))
+        tensor = backend.ones((2, 2))
+        result = backend.to_python(tensor)
         self.assertTrue(_all_values_are_floats(result))
 
     def test_full_returns_float_values_when_given_an_int_fill_value(self):
         backend = self.make_backend()
-        result = to_python(backend.full((2, 2), 1))
+        tensor = backend.full((2, 2), 1)
+        result = backend.to_python(tensor)
         self.assertTrue(_all_values_are_floats(result))
 
     def test_eye_returns_float_values(self):
         backend = self.make_backend()
-        result = to_python(backend.eye(3))
+        tensor = backend.eye(3)
+        result = backend.to_python(tensor)
         self.assertTrue(_all_values_are_floats(result))

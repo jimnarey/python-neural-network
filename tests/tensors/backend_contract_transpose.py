@@ -42,15 +42,17 @@ class BackendContractTransposeMixin(BackendContractBase):
     def test_transpose_returns_same_1D_tensor_when_axes_is_none(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0])
-        result = backend.transpose(tensor)
-        self.assertEqual(backend.shape(result), (3,))
+        transposed_tensor = backend.transpose(tensor)
+        result = backend.to_python(transposed_tensor)
+        self.assertEqual(backend.shape(transposed_tensor), (3,))
         assert_nested_close(result, [1.0, 2.0, 3.0], rel_tol=0, abs_tol=0)
 
     def test_transpose_accepts_a_singleton_axes_tuple_for_a_1D_tensor(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0])
-        result = backend.transpose(tensor, axes=(0,))
-        self.assertEqual(backend.shape(result), (3,))
+        transposed_tensor = backend.transpose(tensor, axes=(0,))
+        result = backend.to_python(transposed_tensor)
+        self.assertEqual(backend.shape(transposed_tensor), (3,))
         assert_nested_close(result, [1.0, 2.0, 3.0], rel_tol=0, abs_tol=0)
 
     def test_transpose_reverses_axes_of_2D_tensor(self):
@@ -86,8 +88,9 @@ class BackendContractTransposeMixin(BackendContractBase):
 
         for mode, call in calls:
             with self.subTest(mode=mode):
-                result = call()
-                self.assertEqual(backend.shape(result), (3, 2))
+                transposed_tensor = call()
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), (3, 2))
                 assert_nested_close(
                     result,
                     expected,
@@ -134,8 +137,9 @@ class BackendContractTransposeMixin(BackendContractBase):
 
         for mode, call in calls:
             with self.subTest(mode=mode):
-                result = call()
-                self.assertEqual(backend.shape(result), (4, 3, 2))
+                transposed_tensor = call()
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), (4, 3, 2))
                 assert_nested_close(
                     result,
                     expected,
@@ -160,8 +164,9 @@ class BackendContractTransposeMixin(BackendContractBase):
                 [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
             ]
         )
-        result = backend.transpose(tensor, axes=(1, 2, 0))
-        self.assertEqual(backend.shape(result), (2, 3, 2))
+        transposed_tensor = backend.transpose(tensor, axes=(1, 2, 0))
+        result = backend.to_python(transposed_tensor)
+        self.assertEqual(backend.shape(transposed_tensor), (2, 3, 2))
         assert_nested_close(
             result,
             [
@@ -185,8 +190,9 @@ class BackendContractTransposeMixin(BackendContractBase):
                 [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
             ]
         )
-        result = backend.transpose(tensor, axes=(0, 1, 2))
-        self.assertEqual(backend.shape(result), (2, 2, 3))
+        transposed_tensor = backend.transpose(tensor, axes=(0, 1, 2))
+        result = backend.to_python(transposed_tensor)
+        self.assertEqual(backend.shape(transposed_tensor), (2, 2, 3))
         assert_nested_close(
             result,
             [
@@ -240,8 +246,9 @@ class BackendContractTransposeMixin(BackendContractBase):
 
         for mode, call in calls:
             with self.subTest(mode=mode):
-                result = call()
-                self.assertEqual(backend.shape(result), (3, 2, 1, 2))
+                transposed_tensor = call()
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), (3, 2, 1, 2))
                 assert_nested_close(
                     result,
                     expected,
@@ -329,8 +336,9 @@ class BackendContractTransposeMixin(BackendContractBase):
 
         for axes, expected_shape, expected in valid_cases:
             with self.subTest(axes=axes):
-                result = backend.transpose(tensor, axes=axes)
-                self.assertEqual(backend.shape(result), expected_shape)
+                transposed_tensor = backend.transpose(tensor, axes=axes)
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), expected_shape)
                 assert_nested_close(
                     result,
                     expected,
@@ -376,8 +384,9 @@ class BackendContractTransposeMixin(BackendContractBase):
 
         for tensor, axes, expected_shape, expected in valid_cases:
             with self.subTest(input_shape=backend.shape(tensor), axes=axes):
-                result = backend.transpose(tensor, axes=axes)
-                self.assertEqual(backend.shape(result), expected_shape)
+                transposed_tensor = backend.transpose(tensor, axes=axes)
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), expected_shape)
                 assert_nested_close(
                     result,
                     expected,
@@ -397,8 +406,9 @@ class BackendContractTransposeMixin(BackendContractBase):
         """
         backend = self.make_backend()
         tensor = backend.zeros((2, 0, 3))
-        result = backend.transpose(tensor)
-        self.assertEqual(backend.shape(result), (3, 0, 2))
+        transposed_tensor = backend.transpose(tensor)
+        result = backend.to_python(transposed_tensor)
+        self.assertEqual(backend.shape(transposed_tensor), (3, 0, 2))
         assert_nested_close(
             result,
             [[], [], []],
@@ -438,8 +448,9 @@ class BackendContractTransposeMixin(BackendContractBase):
                 input_shape=backend.shape(tensor),
                 axes=axes,
             ):
-                result = backend.transpose(tensor, axes=axes)
-                self.assertEqual(backend.shape(result), expected_shape)
+                transposed_tensor = backend.transpose(tensor, axes=axes)
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), expected_shape)
                 assert_nested_close(
                     result,
                     expected,

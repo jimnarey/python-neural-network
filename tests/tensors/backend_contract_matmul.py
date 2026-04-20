@@ -44,7 +44,7 @@ matmul behaviour using, as always, NumPy as the reference.
 # (2, 2, 2, 3) @ (3, 2, 3, 2) should raise in broadcasting mixin
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import to_python, assert_nested_close
+from tests.helpers.tensor_assertions import assert_nested_close
 from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 
@@ -56,13 +56,14 @@ class BackendContractMatmulReferenceArithmeticMixin(BackendContractBase):
         a = backend.to_tensor([[1.5, 2.25], [3.75, 4.5]])
         b = backend.to_tensor([[2.0, 0.5], [1.25, 3.5]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [5.8125, 8.625],
             [13.125, 17.625],
         ]
-        self.assertEqual(backend.shape(result), (2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2))
         assert_nested_close(result, expected)
 
 
@@ -75,13 +76,14 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[2.0, 0.0], [1.0, 3.0]])
         b = backend.to_tensor([[4.0, 1.0], [2.0, 5.0]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [8.0, 2.0],
             [10.0, 16.0],
         ]
-        self.assertEqual(backend.shape(result), (2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_square_and_non_square_2D_tensors(self):
@@ -90,13 +92,14 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
         b = backend.to_tensor([[5.0, 6.0, 7.0], [8.0, 9.0, 10.0]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [21.0, 24.0, 27.0],
             [47.0, 54.0, 61.0],
         ]
-        self.assertEqual(backend.shape(result), (2, 3))
+        self.assertEqual(backend.shape(tensor), (2, 3))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_two_non_square_2D_tensors_with_different_shapes(self):
@@ -105,17 +108,17 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         b = backend.to_tensor([[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [58.0, 64.0],
             [139.0, 154.0],
         ]
-        self.assertEqual(backend.shape(result), (2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_1D_tensor_and_2D_tensor(self):
-        # Source: test_matmul_multiplies_1D_array_and_2D_matrix
         """
         A 1D array can be multiplied by a matrix if the length of the 1D
         array matches the number of rows in the matrix.
@@ -133,10 +136,11 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([1.0, 2.0, 3.0])
         b = backend.to_tensor([[4.0, 5.0], [6.0, 7.0], [8.0, 9.0]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [40.0, 46.0]
-        self.assertEqual(backend.shape(result), (2,))
+        self.assertEqual(backend.shape(tensor), (2,))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_2D_tensor_and_1D_tensor(self):
@@ -157,10 +161,11 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         b = backend.to_tensor([7.0, 8.0, 9.0])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [50.0, 122.0]
-        self.assertEqual(backend.shape(result), (2,))
+        self.assertEqual(backend.shape(tensor), (2,))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_two_1D_tensors(self):
@@ -180,13 +185,12 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([1.0, 2.0, 3.0])
         b = backend.to_tensor([4.0, 5.0, 6.0])
 
-        result = backend.matmul(a, b)
-
         expected = 32.0
-        python_result = to_python(result)
-        self.assertNotIsInstance(python_result, (list, tuple))
-        self.assertIsInstance(python_result, (int, float))
-        self.assertEqual(python_result, expected)
+        # This is a scalar value already so we do not need to convert it with to_python
+        result = backend.matmul(a, b)
+        self.assertNotIsInstance(result, (list, tuple))
+        self.assertIsInstance(result, (int, float))
+        self.assertEqual(result, expected)
 
     def test_matmul_multiplies_corresponding_3D_chunks_when_both_operands_are_3D_tensors(
         self,
@@ -269,13 +273,14 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
             ]
         )
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [[22.0, 28.0], [49.0, 64.0]],
             [[22.0, 25.0], [31.0, 34.0]],
         ]
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_each_3D_chunk_of_the_left_hand_tensor_by_the_same_2D_tensor(
@@ -352,13 +357,14 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         )
         b = backend.to_tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [[22.0, 28.0], [49.0, 64.0]],
             [[76.0, 100.0], [103.0, 136.0]],
         ]
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_the_same_2D_tensor_by_each_3D_chunk_on_the_right(
@@ -403,13 +409,14 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
             ]
         )
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [[22.0, 28.0], [49.0, 64.0]],
             [[4.0, 7.0], [13.0, 16.0]],
         ]
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_raises_when_2D_and_2D_inner_dimensions_do_not_match(self):
@@ -729,13 +736,14 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
             ]
         )
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [[22.0, 28.0], [49.0, 64.0]],
             [[76.0, 100.0], [103.0, 136.0]],
         ]
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_reuses_the_only_left_hand_3D_chunk_when_leading_axis_broadcasting_applies(
@@ -809,13 +817,14 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
             ]
         )
 
-        result = backend.matmul(a, b)
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
 
         expected = [
             [[22.0, 28.0], [49.0, 64.0]],
             [[4.0, 7.0], [13.0, 16.0]],
         ]
-        self.assertEqual(backend.shape(result), (2, 2, 2))
+        self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_raises_when_3D_and_3D_leading_axes_do_not_match(self):

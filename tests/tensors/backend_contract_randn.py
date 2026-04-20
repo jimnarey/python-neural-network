@@ -1,5 +1,7 @@
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import assert_nested_close, to_python
+from tests.helpers.tensor_assertions import assert_nested_close
+
+# TODO - consider whether to use a broader range of shapes in these tests
 
 
 class BackendContractRandnMixin(BackendContractBase):
@@ -14,7 +16,8 @@ class BackendContractRandnMixin(BackendContractBase):
 
     def test_randn_returns_float_values(self):
         backend = self.make_backend(seed=0)
-        result = to_python(backend.randn((10,)))
+        tensor = backend.randn((10,))
+        result = backend.to_python(tensor)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 10)
         for value in result:
@@ -26,7 +29,8 @@ class BackendContractRandnMixin(BackendContractBase):
              [0.1, -0.2, 0.3]
         """
         backend = self.make_backend(seed=0)
-        result = to_python(backend.randn((3,)))
+        tensor = backend.randn((3,))
+        result = backend.to_python(tensor)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 3)
 
@@ -38,7 +42,8 @@ class BackendContractRandnMixin(BackendContractBase):
                     ]
         """
         backend = self.make_backend(seed=0)
-        result = to_python(backend.randn((2, 3)))
+        tensor = backend.randn((2, 3))
+        result = backend.to_python(tensor)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 2)
         for row in result:
@@ -59,7 +64,8 @@ class BackendContractRandnMixin(BackendContractBase):
                     ]
         """
         backend = self.make_backend(seed=0)
-        result = to_python(backend.randn((2, 3, 4)))
+        tensor = backend.randn((2, 3, 4))
+        result = backend.to_python(tensor)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 2)
         for matrix in result:
@@ -77,16 +83,19 @@ class BackendContractRandnMixin(BackendContractBase):
         array with one or more empty dimensions.
         """
         backend = self.make_backend(seed=0)
-        result = to_python(backend.randn((0,)))
+        tensor = backend.randn((0,))
+        result = backend.to_python(tensor)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 0)
 
     def test_backends_constructed_with_same_seed_produce_same_first_draw(self):
         first_backend = self.make_backend(seed=0)
         second_backend = self.make_backend(seed=0)
-        first_draw = first_backend.randn((2, 3))
-        second_draw = second_backend.randn((2, 3))
-        assert_nested_close(first_draw, to_python(second_draw))
+        first_draw_tensor = first_backend.randn((2, 3))
+        second_draw_tensor = second_backend.randn((2, 3))
+        first_draw = first_backend.to_python(first_draw_tensor)
+        second_draw = second_backend.to_python(second_draw_tensor)
+        assert_nested_close(first_draw, second_draw)
 
     def test_successive_randn_calls_return_different_values(self):
         """
@@ -94,8 +103,10 @@ class BackendContractRandnMixin(BackendContractBase):
         differ
         """
         backend = self.make_backend(seed=0)
-        first_draw = to_python(backend.randn((2, 3)))
-        second_draw = to_python(backend.randn((2, 3)))
+        first_draw_tensor = backend.randn((2, 3))
+        first_draw = backend.to_python(first_draw_tensor)
+        second_draw_tensor = backend.randn((2, 3))
+        second_draw = backend.to_python(second_draw_tensor)
         self.assertNotEqual(first_draw, second_draw)
 
     def test_backends_constructed_with_same_seed_produce_same_sequence(self):
@@ -118,9 +129,13 @@ class BackendContractRandnMixin(BackendContractBase):
         """
         first_backend = self.make_backend(seed=0)
         second_backend = self.make_backend(seed=0)
-        first_backend_draw_1 = first_backend.randn((2, 3))
-        second_backend_draw_1 = second_backend.randn((2, 3))
-        assert_nested_close(first_backend_draw_1, to_python(second_backend_draw_1))
-        first_backend_draw_2 = first_backend.randn((2, 3))
-        second_backend_draw_2 = second_backend.randn((2, 3))
-        assert_nested_close(first_backend_draw_2, to_python(second_backend_draw_2))
+        first_backend_draw_1_tensor = first_backend.randn((2, 3))
+        second_backend_draw_1_tensor = second_backend.randn((2, 3))
+        first_backend_draw_1 = first_backend.to_python(first_backend_draw_1_tensor)
+        second_backend_draw_1 = second_backend.to_python(second_backend_draw_1_tensor)
+        assert_nested_close(first_backend_draw_1, second_backend_draw_1)
+        first_backend_draw_2_tensor = first_backend.randn((2, 3))
+        second_backend_draw_2_tensor = second_backend.randn((2, 3))
+        first_backend_draw_2 = first_backend.to_python(first_backend_draw_2_tensor)
+        second_backend_draw_2 = second_backend.to_python(second_backend_draw_2_tensor)
+        assert_nested_close(first_backend_draw_2, second_backend_draw_2)
