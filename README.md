@@ -37,8 +37,8 @@ The backend contract does (or will) enforce the following:
 - Each backend must provide a method for converting a rectangular Python nested/un-nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
 - This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
 - The conversion method must accept only Python's built in `int` and `float` types for values.
-- Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list` or `tuple`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
-- The values returned by this method (within the `list` or `tuple`) must be `float`s or `int`s.
+- Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
+- The values returned by this method (within the `list`) must be `float`s or `int`s.
 
 ##### Numeric operations
 
@@ -173,7 +173,7 @@ The tensor-backend design is intended to leave room for future backends with dif
 
 ##### to_python and to_tensor
 
-The backend contract tests are designed to be implementation-agnostic, so their inputs, expected values and observed results need to be expressed using plain Python types. For this reason each backend provides `to_tensor` and `to_python` methods for converting between Python `list`/`tuple` structures and the backend's native tensor representation.
+The backend contract tests are designed to be implementation-agnostic, so their inputs, expected values and observed results need to be expressed using plain Python types. For this reason each backend provides `to_tensor` and `to_python` methods for, respectively, converting Python `list`/`tuple` structures to the backend's tensor representation and from those to `list`s.
 
 This creates a tension in the test design. We want the tests to remain independent of backend-specific dependencies such as NumPy, but we also want to avoid implementing and maintaining separate conversion logic inside the test suite.
 

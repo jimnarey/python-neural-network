@@ -60,9 +60,9 @@ class TensorBackend(Protocol):
         floats has to be enforced at the implementation level.
         """
 
-    def to_python(self, tensor: Tensor) -> object:  # TODO - tighten this
+    def to_python(self, tensor: Tensor) -> list:
         """
-        Convert a native tensor representation to a (nested) list/tuple
+        Convert a native tensor representation to a (nested) list.
         """
 
     def randn(self, shape: NonEmptyShape) -> Tensor:

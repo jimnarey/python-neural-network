@@ -169,8 +169,7 @@ def _patch_assert_nested_close_to_enforce_integer_valued_floats(
     Creates a wrapped version of assert_nested_close and patches it into the
     places from which the given test method may resolve it.
 
-    The wrapped version first converts the actual result to plain Python
-    values, then checks both the actual result and expected value
+    The wrapped version checks both the actual result and expected value
     recursively to ensure they contain only integer-valued floats or
     non-bool ints. If those checks pass, it calls the version of
     assert_nested_close which was in place at the point this function was

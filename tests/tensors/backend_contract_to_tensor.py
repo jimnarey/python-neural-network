@@ -11,7 +11,7 @@ This module has several classes which, together, enforce the backend
 contract for the to_tensor method.
 
 The shared to_tensor tests in this module cover only behaviour which can
-be expressed and checked using plain Python list and tuple structures.
+be expressed and checked using plain Python list structures.
 This includes, for example, ordinary 1D/2D/3D inputs and those empty
 inputs whose structure is still visible in Python, such as [] and
 [[], []].
@@ -106,16 +106,28 @@ class BackendContractToTensorShapeInputMixin(BackendContractBase):
         """
         backend = self.make_backend()
         test_cases = [
-            [[], []],
-            ((), ()),
-            [(), ()],
-            ([], []),
+            # Empty 2D tensor represented with nested lists
+            ([[], []], [[], []]),
+            # Empty 2D tensor represented with nested tuples
+            (((), ()), [[], []]),
+            # Empty 2D tensor represented with mixed list/tuple nesting
+            ([(), ()], [[], []]),
+            # Empty 2D tensor represented with mixed tuple/list nesting
+            (([], []), [[], []]),
+            # Empty 3D tensor represented with nested lists
+            ([[[]], [[]]], [[[]], [[]]]),
+            # Empty 3D tensor represented with mixed list/tuple nesting
+            (([[]], [[]]), [[[]], [[]]]),
+            # Empty 4D tensor represented with nested lists
+            ([[[[]]]], [[[[]]]]),
+            # Empty 4D tensor represented with nested tuples/lists
+            ((([[]],),), [[[[]]]]),
         ]
 
-        for data in test_cases:
+        for data, expected in test_cases:
             with self.subTest(data=data):
                 result = backend.to_python(backend.to_tensor(data))
-                self.assertEqual(result, [[], []])
+                self.assertEqual(result, expected)
 
     def test_to_tensor_rejects_ragged_input(self):
         backend = self.make_backend()

@@ -1,11 +1,10 @@
 """Test classes for the backend contract helpers
 
-As well as ensuring the helpers can convert whatever tensor objects the
-individual backends use into nested lists these tests document the
-behaviour of the float comparisons. This amounts, to a large extent, to
-testing Python's math.to_close function. This isn't because we don't
-trust the Python devs. It's to make absolutely sure we understand how
-it works with different combinations of values and thresholds.
+These tests document the behaviour of the float comparisons used in the
+rest of the test suite. This amounts, to a large extent, to testing Python's
+math.to_close function. This isn't  because we don't trust the Python devs.
+It's to make absolutely sure we understand how it works with different
+combinations of values and thresholds.
 """
 
 from unittest import TestCase
@@ -13,15 +12,13 @@ from unittest import TestCase
 from tests.helpers.tensor_assertions import assert_nested_close
 
 
-class MockTensor:
-    def tolist(self):
-        return [[1.0, 2.0], [3.0, 4.0]]
-
-
 class TestAssertNestedClose(TestCase):
     """
     Tests that the recursive unpacking of nested lists/tuples works
-    as expected.
+    as expected. The backend contract requires that tensors are converted
+    to (nested) lists rather than tuples by each backend's to_python method
+    but that isn't enforced here (it is elsewhere) in case we ever want to
+    use tuples as fixtures or otherwise compare them with lists.
 
     Also documents how rel_tol and abs_tol passed to math.isclose interact:
     each defines an allowed difference and the larger of the two
