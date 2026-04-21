@@ -13,7 +13,7 @@ to accomodate the differences in rounding behaviour but no larger.
 import math
 from typing import Any, Final
 
-# TODO - tighten type checking here once we can add a meaningful type
+# TODO - tighten type checking in this module once we can add a meaningful type
 # or union for tensor
 
 DEFAULT_REL_TOL: Final = 1e-7
@@ -30,6 +30,10 @@ def assert_nested_close(
     Recurse through lists/tuples of expected and actual values until we
     get to a pair of scalar values, then check that they match within
     the provided tolerances.
+
+    Each backend's to_python method must return a (nested) list. Tuple
+    support is kept for convenience, so that fixtures or other comparators
+    can be expressed using tuples if needed.
 
     rel_tol: The relative tolerance. It is the maximum allowed difference
     between value a and b.
