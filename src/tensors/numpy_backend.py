@@ -91,7 +91,7 @@ class NumpyBackend:
         self._validate_not_rank_0(tensor)
         return tensor
 
-    def to_python(self, tensor: Tensor) -> object:
+    def to_python(self, tensor: Tensor) -> list:
         self._validate_not_rank_0(tensor)
         assert isinstance(
             tensor, np.ndarray
