@@ -1,7 +1,7 @@
 from tests.tensors.backend_contract_shared import BackendContractBase
 
 
-class BackendContractScalarReturnTypeMixin(BackendContractBase):
+class BackendReferenceReductionReturnTypeMixin(BackendContractBase):
     def test_reduction_methods_return_float_scalars(self):
         backend = self.make_backend()
         tensor = backend.ones((2, 2))

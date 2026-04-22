@@ -1,7 +1,9 @@
 from tests.tensors.backend_contract_shared import BackendContractBase
 from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 
+@EnforceSharedNumericFixtures()
 class BackendContractReshapeMixin(BackendContractBase):
     """
     This class provides good coverage of reshape's handling of 2D > 1D
@@ -10,7 +12,7 @@ class BackendContractReshapeMixin(BackendContractBase):
     written with 1D/2D tensors as special cases.
 
     When run against the expected tensor/values, assert_nested_close
-    confims that reshape preserves both the element order and the values
+    confirms that reshape preserves both the element order and the values
     of the elements. There's no rounding of floats happening here so the
     tolerances (passed to math.is_close) are set to zero.
 
@@ -19,7 +21,7 @@ class BackendContractReshapeMixin(BackendContractBase):
 
     def test_reshape_rejects_empty_shape(self):
         """
-        Ensures that reshape cannot return a rank 0 array
+        Ensures that reshape cannot return a rank 0 tensor
         """
         backend = self.make_backend()
 
@@ -27,9 +29,10 @@ class BackendContractReshapeMixin(BackendContractBase):
             ValueError,
             msg="reshape accepted an empty shape when it should reject it",
         ):
-            backend.reshape([1.0], ())
+            tensor = backend.to_tensor([1.0])
+            backend.reshape(tensor, ())
 
-    def test_reshape_converts_1D_array_to_2D_array_with_shape_2_by_2(self):
+    def test_reshape_converts_1D_tensor_to_2D_tensor_with_shape_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0])
         reshaped_tensor = backend.reshape(tensor, (2, 2))
@@ -37,7 +40,7 @@ class BackendContractReshapeMixin(BackendContractBase):
         self.assertEqual(backend.shape(reshaped_tensor), (2, 2))
         assert_nested_close(result, [[1.0, 2.0], [3.0, 4.0]], rel_tol=0, abs_tol=0)
 
-    def test_reshape_converts_1D_array_to_2D_array_with_shape_2_by_3(self):
+    def test_reshape_converts_1D_tensor_to_2D_tensor_with_shape_2_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         reshaped_tensor = backend.reshape(tensor, (2, 3))
@@ -50,7 +53,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_1D_array_to_3D_array_with_shape_2_by_2_by_2(self):
+    def test_reshape_converts_1D_tensor_to_3D_tensor_with_shape_2_by_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
         reshaped_tensor = backend.reshape(tensor, (2, 2, 2))
@@ -66,7 +69,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_2D_array_to_1D_array_from_shape_2_by_2(self):
+    def test_reshape_converts_2D_tensor_to_1D_tensor_from_shape_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
         reshaped_tensor = backend.reshape(tensor, (4,))
@@ -74,7 +77,7 @@ class BackendContractReshapeMixin(BackendContractBase):
         self.assertEqual(backend.shape(reshaped_tensor), (4,))
         assert_nested_close(result, [1.0, 2.0, 3.0, 4.0], rel_tol=0, abs_tol=0)
 
-    def test_reshape_converts_2D_array_to_1D_array_from_shape_2_by_3(self):
+    def test_reshape_converts_2D_tensor_to_1D_tensor_from_shape_2_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         reshaped_tensor = backend.reshape(tensor, (6,))
@@ -87,7 +90,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_2D_array_to_3D_array_with_shape_2_by_1_by_3(self):
+    def test_reshape_converts_2D_tensor_to_3D_tensor_with_shape_2_by_1_by_3(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         reshaped_tensor = backend.reshape(tensor, (2, 1, 3))
@@ -103,7 +106,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_3D_array_to_1D_array_from_shape_2_by_2_by_2(self):
+    def test_reshape_converts_3D_tensor_to_1D_tensor_from_shape_2_by_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -121,7 +124,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_3D_array_to_2D_array_from_shape_2_by_2_by_2(self):
+    def test_reshape_converts_3D_tensor_to_2D_tensor_from_shape_2_by_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -144,7 +147,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_3D_array_to_4D_array_from_shape_2_by_2_by_2(self):
+    def test_reshape_converts_3D_tensor_to_4D_tensor_from_shape_2_by_2_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -165,7 +168,7 @@ class BackendContractReshapeMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_reshape_converts_4D_array_to_2D_array_from_shape_2_by_2_by_1_by_2(self):
+    def test_reshape_converts_4D_tensor_to_2D_tensor_from_shape_2_by_2_by_1_by_2(self):
         backend = self.make_backend()
         tensor = backend.to_tensor(
             [
@@ -242,20 +245,20 @@ class BackendContractReshapeMixin(BackendContractBase):
                     ):
                         backend.reshape(tensor, shape)
 
-    def test_reshape_supports_zero_length_dimensions_when_called_with_an_empty_array(
+    def test_reshape_supports_zero_length_dimensions_when_called_with_an_empty_tensor(
         self,
     ):
         """
         This tests some subtle behaviour, related to shape, and the expected tensors
         returned (in particular) are not very intuitive.
 
-        If any dimension in the target shape is 0, the reshaped array has 0
-        elements, because the total number of elements in an array is the product
+        If any dimension in the target shape is 0, the reshaped tensor has 0
+        elements, because the total number of elements in an tensor is the product
         of its dimensions. For example, (0, 1), (1, 0) and (2, 0, 3) all
         contain no scalar values.
 
         Because reshape must preserve the number of elements, such target shapes
-        are only valid when the input array is empty.
+        are only valid when the input tensor is empty.
 
         These cases are hard to follow because the Python nested-list model for
         representing tensors eliminates axes if they are preceded with a zero-value
@@ -313,7 +316,7 @@ class BackendContractReshapeMixin(BackendContractBase):
                 self.assertEqual(backend.shape(reshaped_tensor), shape)
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_reshape_rejects_zero_length_dimensions_when_called_with_a_non_empty_array(
+    def test_reshape_rejects_zero_length_dimensions_when_called_with_a_non_empty_tensor(
         self,
     ):
         backend = self.make_backend()
@@ -344,7 +347,7 @@ class BackendContractReshapeMixin(BackendContractBase):
                         ValueError,
                         msg=(
                             "reshape accepted a target shape containing a zero-length "
-                            "dimension for a non-empty array when it should reject it"
+                            "dimension for a non-empty tensor when it should reject it"
                         ),
                     ):
                         backend.reshape(tensor, shape)

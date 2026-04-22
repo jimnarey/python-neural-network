@@ -1,6 +1,7 @@
 """Test module for the NumPy backend
 
-This contains a runner class for the shared backend contract tests.
+This contains a runner class for the shared backend contract tests
+and one for the shared reference design tests.
 
 It also has tests for to_tensor and to_python, which it is critical
 be tested thoroughly as the shared tests rely on them.
@@ -17,10 +18,8 @@ import unittest
 
 from src.tensors.tensor_backend import TensorBackend
 from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
-from tests.tensors.backend_contract_creation import (
-    BackendContractCreationMixin,
-    BackendContractFloatCreationMixin,
-)
+from tests.tensors.backend_contract_creation import BackendContractCreationMixin
+
 from tests.tensors.backend_contract_to_tensor import (
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
@@ -29,7 +28,6 @@ from tests.tensors.backend_contract_to_tensor import (
 from tests.tensors.backend_contract_to_python import BackendContractToPythonMixin
 
 from tests.tensors.backend_contract_matmul import (
-    BackendContractMatmulReferenceArithmeticMixin,
     BackendContractMatmulSemanticsMixin,
     BackendContractMatmulBroadcastingMixin,
 )
@@ -37,11 +35,18 @@ from tests.tensors.backend_contract_matmul import (
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
-from tests.tensors.backend_contract_reduction import (
-    BackendContractScalarReturnTypeMixin,
-)
+
 from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
+
+from tests.tensors.backend_reference_matmul import BackendReferenceMatmulArithmeticMixin
+from tests.tensors.backend_reference_reduction import (
+    BackendReferenceReductionReturnTypeMixin,
+)
+from tests.tensors.backend_reference_creation import (
+    BackendReferenceCreationValueTypeMixin,
+)
+from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -79,18 +84,26 @@ class TestNumpyBackendContract(
     NumpyBackendTestCase,
     BackendContractConstructionMixin,
     BackendContractCreationMixin,
-    BackendContractFloatCreationMixin,
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
     BackendContractToPythonMixin,
     BackendContractRandnMixin,
-    BackendContractMatmulReferenceArithmeticMixin,
     BackendContractMatmulSemanticsMixin,
     BackendContractMatmulBroadcastingMixin,
     BackendContractReshapeMixin,
-    BackendContractScalarReturnTypeMixin,
     BackendContractArgMaxMixin,
     BackendContractTransposeMixin,
+):
+    pass
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendReference(
+    NumpyBackendTestCase,
+    BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceReductionReturnTypeMixin,
+    BackendReferenceCreationValueTypeMixin,
+    BackendReferenceRandnMixin,
 ):
     pass
 
