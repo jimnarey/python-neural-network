@@ -34,6 +34,13 @@ from tests.tensors.backend_contract_matmul import (
 
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 
+from tests.tensors.backend_contract_reduction import (
+    BackendContractReductionBehaviourMixin,
+    BackendContractReductionKeepdimsMixin,
+    BackendContractReductionEmptyInputMixin,
+    BackendContractReductionInvalidAxisMixin,
+)
+
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 
 from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
@@ -41,7 +48,8 @@ from tests.tensors.backend_contract_transpose import BackendContractTransposeMix
 
 from tests.tensors.backend_reference_matmul import BackendReferenceMatmulArithmeticMixin
 from tests.tensors.backend_reference_reduction import (
-    BackendReferenceReductionReturnTypeMixin,
+    BackendReferenceReductionArithmeticMixin,
+    BackendReferenceReductionFloatValueMixin,
 )
 from tests.tensors.backend_reference_creation import (
     BackendReferenceCreationValueTypeMixin,
@@ -93,6 +101,10 @@ class TestNumpyBackendContract(
     BackendContractReshapeMixin,
     BackendContractArgMaxMixin,
     BackendContractTransposeMixin,
+    BackendContractReductionBehaviourMixin,
+    BackendContractReductionKeepdimsMixin,
+    BackendContractReductionEmptyInputMixin,
+    BackendContractReductionInvalidAxisMixin,
 ):
     pass
 
@@ -101,7 +113,8 @@ class TestNumpyBackendContract(
 class TestNumpyBackendReference(
     NumpyBackendTestCase,
     BackendReferenceMatmulArithmeticMixin,
-    BackendReferenceReductionReturnTypeMixin,
+    BackendReferenceReductionFloatValueMixin,
+    BackendReferenceReductionArithmeticMixin,
     BackendReferenceCreationValueTypeMixin,
     BackendReferenceRandnMixin,
 ):

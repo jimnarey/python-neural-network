@@ -52,6 +52,10 @@ class NumpyBackend:
         if isinstance(x, np.generic):
             raise ValueError("Backend methods do not accept NumPy scalar values.")
 
+    def _validate_not_empty(self, x: Tensor) -> None:
+        if np.size(x) == 0:
+            raise ValueError("This reduction method does not accept empty tensors.")
+
     def _validate_not_rank_0_sequence(self, xs: Sequence[Tensor]) -> None:
         for x in xs:
             self._validate_not_rank_0(x)
@@ -237,6 +241,7 @@ class NumpyBackend:
         keepdims: bool = False,
     ) -> Tensor | float:
         self._validate_not_rank_0(x)
+        self._validate_not_empty(x)
         return self._normalise_float_scalar_result(
             np.mean(x, axis=axis, keepdims=keepdims)
         )
@@ -248,6 +253,7 @@ class NumpyBackend:
         keepdims: bool = False,
     ) -> Tensor | float:
         self._validate_not_rank_0(x)
+        self._validate_not_empty(x)
         return self._normalise_float_scalar_result(
             np.max(x, axis=axis, keepdims=keepdims)
         )
@@ -259,6 +265,7 @@ class NumpyBackend:
         keepdims: bool = False,
     ) -> Tensor | float:
         self._validate_not_rank_0(x)
+        self._validate_not_empty(x)
         return self._normalise_float_scalar_result(
             np.min(x, axis=axis, keepdims=keepdims)
         )
@@ -270,6 +277,7 @@ class NumpyBackend:
         keepdims: bool = False,
     ) -> Tensor | float:
         self._validate_not_rank_0(x)
+        self._validate_not_empty(x)
         return self._normalise_float_scalar_result(
             np.std(x, axis=axis, keepdims=keepdims)
         )
