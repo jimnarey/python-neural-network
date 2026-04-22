@@ -16,7 +16,7 @@ NNfSiP and a lot of other Python-based resources on neural networks make heavy u
 
 The NumPy tensor backend is a very thin wrapper around the relevant NumPy functions. Producing this early meant it was possible to write a suite of backend contract tests to tightly pin down NumPy's behaviour (e.g. what you get when you multiply two 2D tensors), which could then be run against my own implementations. So although the objective was to wean myself off the convenience provided by NumPy, NumPy was essential to doing so.
 
-Ultimately, my aim was to build a neural network which, for classifying numerical data at least, does not require any imports. It is designed to be runnable, using a pure-Python tensor backend, without the the dependencies required for the other backends (and their tests) installed. This means that, in places, there is some slughtly complex import logic, e.g. in `__init__.py` in the `tensors` package. The NumPy-specific backend tests check whether NumPy is available and skip the tests if it isn't but this logic is much more simple.
+Ultimately, my aim was to build a neural network which, for classifying numerical data at least, does not require any imports. It is designed to be runnable, using a pure-Python tensor backend, without the the dependencies required for the other backends (and their tests) installed. This means that, in places, there is some slightly complex import logic, e.g. in `__init__.py` in the `tensors` package. The NumPy-specific backend tests check whether NumPy is available and skip the tests if it isn't but this logic is much more simple.
 
 ### Backend Contract
 
@@ -117,7 +117,66 @@ The backend contract does (or will) enforce the following:
 - The project is designed such that only one backend will be used in the same instance of a network. The purpose of having multiple backends is to learn about tensor operations and provide a choice when a new network is instantiated.
 - The shared backend contract tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against it with confidence. This means that where floating-point arithmetic is tested, the tests are designed to allow small differences between actual and expected values, within clearly defined tolerances.
 
-### Design And Architecture
+### Reference Design
+
+The backend contract defines what every backend must do. The reference design is narrower: it describes the first family of backends this project is actually building towards.
+
+The reference design is float-based. It is intended for the NumPy backend, the first pure-Python backend, and any later full-fat CPU/GPU backend used for ordinary training or inference. Quantised backends may deliberately diverge from this design while still sharing as much of the backend contract and structural test coverage as possible.
+
+The reference design does (or will) enforce the following:
+
+#### Done
+
+##### Types And Values
+
+- Tensor values are represented as `float`s internally.
+- Python `int` values may be accepted at the contract boundary where this is convenient, but they are normalised to `float` values inside tensors.
+- Methods which create tensors with values, such as `zeros`, `ones`, `full`, `eye` and `randn`, return float-valued tensors.
+- Methods which return scalar numeric results, other than index-returning methods, return plain Python `float`s.
+- Methods which return indices return plain Python `int`s.
+
+##### Conversion
+
+- `to_tensor` converts acceptable Python numeric values to the backend's native `float`-valued tensor representation.
+- `to_python` converts native tensors back to Python lists containing `float`s.
+
+##### Arithmetic
+
+- Arithmetic follows ordinary floating-point behaviour, subject to the tolerances used in the backend contract tests.
+- Tests using non-integer `float` values are reference-design tests. They are not expected to be reusable unchanged for quantised or integer-valued backends.
+
+##### Random Tensor Creation
+
+- `randn` returns float-valued tensors.
+- Backends should support seeding so tests and examples can be reproduced, but different backends do not have to generate the same random values from the same seed.
+
+#### To do
+
+##### Numeric Operations
+
+- Elementwise arithmetic methods such as `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must return float-valued tensors.
+- Unary methods such as `exp`, `log`, `sqrt`, `absolute`, `sign` and `clip` must return float-valued tensors.
+- Reduction methods must return plain Python `float`s when the result is scalar.
+- Reduction methods must return float-valued tensors when the result is not scalar.
+
+##### Creation Methods
+
+- `zeros_like`, `ones_like` and `full_like` must return float-valued tensors with the same shape as the input tensor.
+- `full_like` must normalise an `int` fill value to `float` values in the returned tensor.
+- `copy` must return an independent tensor with the same shape and values as the input tensor.
+- `empty` and `empty_like` must return tensors with the requested shape, but their values are not part of the contract.
+- Any dtype or native-representation expectations for `empty` and `empty_like` belong to reference-design or implementation-level tests, not the universal backend contract.
+
+
+
+#### Relationship With The Backend Contract
+
+- Every reference-design backend must satisfy the backend contract.
+- Not every backend which satisfies the backend contract has to satisfy the reference design.
+- Quantised or integer-valued backends may use different internal numeric representations and different arithmetic tests.
+- The test suite therefore separates reusable contract tests from reference-design tests wherever practical.
+
+## Design And Architecture
 
 - The network will always be orchestrated and described in Python.
 - Tensor representations will be native to their respective backend.
@@ -126,7 +185,7 @@ The backend contract does (or will) enforce the following:
 - Other concepts present in the NNfSiP book, such as input handling, batching orchestration, sample loading, image preprocessing, serialisation, and labelling, are not considered part of the backend. These should be handled separately and remain pluggable.
 - No assumptions are made about the eventual use of the network beyond the need for the core tensor and network logic to remain adaptable.
 
-#### Tensor backends
+### Tensor backends
 
 The tensor-backend design is intended to leave room for future backends with different internal representations and numeric types. It has three layers:
 
