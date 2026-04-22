@@ -20,7 +20,7 @@ This means that we need complementary tests at the implementation level
 for each backend. These can inspect the backend's native tensor
 representation directly without converting to lists/tuples.
 
-This is particualaly important for empty tensors. Some empty shapes,
+This is particularly important for empty tensors. Some empty shapes,
 such as (2, 0, 3), are valid but collapse to the same Python representation
 as other shapes with empty dimensions.
 
@@ -39,7 +39,7 @@ class BackendContractToTensorTypeInputMixin(BackendContractBase):
     Invalid inputs should throw an exception and that is all we test
     for here. I.e. in the happy path cases we do not test what we get
     as a result of calling to_tensor (we can't here, as it's
-    implementation-specifc).
+    implementation-specific).
     """
 
     def test_to_tensor_accepts_list_input(self):
@@ -149,7 +149,7 @@ class BackendContractToTensorShapeInputMixin(BackendContractBase):
     def test_to_tensor_rejects_inconsistent_nesting_depth(self):
         """
         Test that the backends do not try to treat empty lists/tuples
-        or those woth a single value as valid. What is tested here is
+        or those with a single value as valid. What is tested here is
         partly about structure (shape) and partly about type.
         """
         backend = self.make_backend()

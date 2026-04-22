@@ -1,23 +1,15 @@
-"""Test classes for tensor creation methods
+"""Test classes for tensor creation methods (contract)
 
 These test classes enforce the contract for those methods which create
 new tensors according to a specification (as distinct from converting
 an existing structure into a tensor as to_tensor does).
-
-The main things we care about is that new tensors are float-valued,
-and that rank 0 tensors cannot be created (which involves passing
-an empty shape to the method).
 """
 
 from tests.tensors.backend_contract_shared import BackendContractBase
+from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 
-def _all_values_are_floats(value) -> bool:
-    if isinstance(value, list):
-        return all(_all_values_are_floats(item) for item in value)
-    return isinstance(value, float)
-
-
+@EnforceSharedNumericFixtures()
 class BackendContractCreationMixin(BackendContractBase):
     def test_creation_methods_reject_empty_shape(self):
         backend = self.make_backend()
@@ -37,29 +29,3 @@ class BackendContractCreationMixin(BackendContractBase):
                     msg=f"{method_name} accepted an empty shape when it should reject it",
                 ):
                     call()
-
-
-class BackendContractFloatCreationMixin(BackendContractBase):
-    def test_zeros_returns_float_values(self):
-        backend = self.make_backend()
-        tensor = backend.zeros((2, 2))
-        result = backend.to_python(tensor)
-        self.assertTrue(_all_values_are_floats(result))
-
-    def test_ones_returns_float_values(self):
-        backend = self.make_backend()
-        tensor = backend.ones((2, 2))
-        result = backend.to_python(tensor)
-        self.assertTrue(_all_values_are_floats(result))
-
-    def test_full_returns_float_values_when_given_an_int_fill_value(self):
-        backend = self.make_backend()
-        tensor = backend.full((2, 2), 1)
-        result = backend.to_python(tensor)
-        self.assertTrue(_all_values_are_floats(result))
-
-    def test_eye_returns_float_values(self):
-        backend = self.make_backend()
-        tensor = backend.eye(3)
-        result = backend.to_python(tensor)
-        self.assertTrue(_all_values_are_floats(result))

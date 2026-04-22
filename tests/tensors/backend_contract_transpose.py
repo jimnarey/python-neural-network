@@ -1,11 +1,12 @@
 from tests.tensors.backend_contract_shared import BackendContractBase
 from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 
+@EnforceSharedNumericFixtures()
 class BackendContractTransposeMixin(BackendContractBase):
     """
-    Test that transpose methods conform to the contract and describe
-    the behaviour of the transpose reference implementation (NumPy).
+    Test that transpose methods conform to the contract.
 
     Note that when passing tuples as values for the transpose axes
     argument we are passing axes indices, which are zero-based. This

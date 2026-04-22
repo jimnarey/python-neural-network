@@ -12,12 +12,13 @@ some of the guarantees provided by using NumPy as the reference implementation.
 
 How inheritance for backend test classes works:
 - Each test class covering a specific backend method or methods
-  (e.g. BackendContractMatmulMixin) must inherit from BackendContractBase. This enforces
-  implementation of make_backend.
+  (e.g. BackendContractMatmulSemanticsMixin) must inherit from BackendContractBase.
+  This enforces implementation of make_backend.
 - BackendConstructionContractMixin also inherits from BackendContractBase (see below).
 - The test classes which are responsible for running the tests against a specific
-  backend implementation (e.g. TestNumpyBackend) inherit from BackendConstructionContractMixin
-  and *all of* the method mixins (BackendContractMatmulMixin, BackendContractRandnMixin etc).
+  backend implementation (e.g. TestNumpyBackendContract) inherit from
+  BackendConstructionContractMixin and *all of* the method mixins
+  (BackendContractMatmulMixin, BackendContractRandnMixin etc).
 - This is a bit more complex than is ideal but it separates concerns while ensuring the
   requirement to implement make_backend is enforced in every mixin that uses it.
 - Having the mixins NOT inherit from TestCase means that they are not picked up during test
