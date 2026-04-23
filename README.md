@@ -158,7 +158,6 @@ The reference design does (or will) enforce the following:
 - Unary methods such as `exp`, `log`, `sqrt`, `absolute`, `sign` and `clip` must return float-valued tensors.
 - Reduction methods must return plain Python `float`s when the result is scalar.
 - Reduction methods must return float-valued tensors when the result is not scalar.
-- Reduction methods must preserve the reference-design behaviour for `axis` and `keepdims`.
 
 ##### Creation Methods
 
