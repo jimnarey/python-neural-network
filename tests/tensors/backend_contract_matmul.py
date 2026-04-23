@@ -456,7 +456,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         b = backend.to_tensor([[7.0, 8.0], [9.0, 10.0]])
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_1D_and_2D_inner_dimensions_do_not_match(self):
@@ -469,7 +469,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([1.0, 2.0, 3.0])
         b = backend.to_tensor([[4.0, 5.0], [6.0, 7.0]])
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_2D_and_1D_inner_dimensions_do_not_match(self):
@@ -482,7 +482,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         b = backend.to_tensor([7.0, 8.0])
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_1D_and_1D_inner_dimensions_do_not_match(self):
@@ -495,7 +495,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         a = backend.to_tensor([1.0, 2.0, 3.0])
         b = backend.to_tensor([4.0, 5.0])
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_3D_and_2D_inner_dimensions_do_not_match(self):
@@ -535,7 +535,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         )
         b = backend.to_tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_2D_and_3D_inner_dimensions_do_not_match(self):
@@ -571,7 +571,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
             ]
         )
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
     def test_matmul_raises_when_3D_and_3D_inner_dimensions_do_not_match(self):
@@ -621,7 +621,7 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
             ]
         )
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
 
@@ -861,5 +861,5 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
             ]
         )
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             backend.matmul(a, b)

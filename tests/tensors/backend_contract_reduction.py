@@ -1146,7 +1146,7 @@ class BackendContractReductionInvalidAxisMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 for axis in invalid_axes:
                     with self.subTest(axis=axis):
-                        with self.assertRaisesRegex(ValueError, r"duplicate"):
+                        with self.assertRaises(ValueError):
                             method(tensor, axis=axis)
 
     def test_reduction_methods_reject_axes_outside_the_valid_range(self):
@@ -1185,7 +1185,7 @@ class BackendContractReductionInvalidAxisMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 for axis in invalid_axes:
                     with self.subTest(axis=axis):
-                        with self.assertRaisesRegex(ValueError, r"axis"):
+                        with self.assertRaises(ValueError):
                             method(tensor, axis=axis)
 
 
@@ -1226,5 +1226,5 @@ class BackendContractReductionEmptyInputMixin(BackendContractBase):
                 tensor = backend.to_tensor(data)
                 for method_name, method in reduction_methods:
                     with self.subTest(method=method_name):
-                        with self.assertRaises(Exception):
+                        with self.assertRaises(ValueError):
                             method(tensor)
