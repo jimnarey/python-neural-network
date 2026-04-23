@@ -35,7 +35,7 @@ The backend contract does (or will) enforce the following:
 - No arrays of rank 0 are returned or can be passed as arguments. Methods will return either at least a 1D array (including an empty array) or a scalar.
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
 - Each backend must provide a method for converting a rectangular Python nested/un-nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
-- This method must raise an exception if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
+- This method must raise `TypeError` or `ValueError` if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
 - The conversion method must accept only Python's built in `int` and `float` types for values.
 - Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
 - The values returned by this method (within the `list`) must be `float`s or `int`s.
@@ -44,8 +44,8 @@ The backend contract does (or will) enforce the following:
 
 ##### Shape
 
-- Tensors must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular tensors must raise an exception when passed to any method which accepts a tensor as an input.
-- `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise an exception.
+- Tensors must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular tensors must raise `ValueError` when passed to any method which accepts a tensor as an input.
+- `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise `ValueError`.
 - Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
 - `reshape` must reject any negative value in the target shape.
 > This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
@@ -75,19 +75,19 @@ The backend contract does (or will) enforce the following:
 
 
 ##### Numeric operations
-- Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise an exception rather than returning special values.
+- Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise `ValueError` rather than returning special values.
 - When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
-- Other reductions such as `mean`, `max`, `min` and `std` must raise an exception on an empty tensor, because there is no single, obvious value these might sensibly return.
+- Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
 
 ##### Shape
-- Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise an exception.
+- Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise `ValueError`.
 
 ##### Axes Rules
 - Where a method takes an axes `tuple` to reorder axes, the order of the axes in the `tuple` is part of the contract and must be followed exactly.
 - Where a method takes an axes `tuple` to identify which axes to operate on, the `tuple` identifies the set of axes to use; the order of those axes is not part of the contract.
 - Negative axes are allowed wherever a method accepts an axis or axes `tuple`, and are interpreted by counting back from the end of the tensor shape.
-- Duplicate axes are invalid and must raise an exception.
-- Any axis outside the valid range for the tensor shape is invalid and must raise an exception.
+- Duplicate axes are invalid and must raise `ValueError`.
+- Any axis outside the valid range for the tensor shape is invalid and must raise `ValueError`.
 - `keepdims` is accepted only by the reduction methods `sum`, `mean`, `max`, `min` and `std`.
 - `argmax` does not support the `keepdims` parameter.
 - `argmax` must accept `None` or a single `int` for the axis argument.
@@ -99,7 +99,7 @@ The backend contract does (or will) enforce the following:
 - For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
 - If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
 - The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
-- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise an exception.
+- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise `ValueError`.
 
 ##### Aliasing/Views
 
@@ -107,7 +107,7 @@ The backend contract does (or will) enforce the following:
 
 ##### Other
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
-- When input violates the contract for a method, the method must raise an exception rather than guessing or silently adjusting the input
+- When input violates the contract for a method, the method must raise `ValueError` rather than guessing or silently adjusting the input. Where the violation is fundamentally about Python input type rather than value or shape, `TypeError` is also acceptable.
 
 #### No decision(s) made
 - No decisions have yet been made about the exact contract for stack, concatenate, vstack and hstack. This includes which input shapes and ranks they must accept, how the axis argument should work where relevant, and what should happen when the inputs are empty or their shapes do not match. These decisions have been deferred until the methods themselves are being tested and implemented.
