@@ -15,15 +15,18 @@ a single-row or single-column matrix for the calculation, then removing
 that extra dimension from the result.
 
 It can also handle arrays with more than 2 dimensions, but the actual
-multiplication is still done only on 2D slices taken from the last axes.
-The rules for how those slices are chosen, and what happens to the other
-axes, are not always easy to understand. The docstrings for the relevant
-tests try to explain this.
+multiplication is still carried out only on matrices formed from the
+last two axes of each operand. What can be harder to understand is how
+the leading axes are handled. The docstrings for the relevant tests try
+to explain this.
 
-This module does not test all possible matmul behaviour. Its coverage of
-broadcasting is limited to a small number of representative, leading-axis
-cases, because that is the only kind of broadcasting used by NumPy-style
-matmul and it is not relied upon heavily in the NNfSiP book.
+The terms 'leading axes matmul' and 'trailing axes matmul' refer to this
+same behaviour. The first term emphasises that the earlier axes have to
+be handled coherently; the second that it is the last to axes (forming
+a matrix) that we actually multiply.
+
+This module does not test all possible higher-dimension matmul behaviour.
+Tesing is limited to a small number of representative cases.
 
 The tests stop at 3 dimensions for now.
 
@@ -50,8 +53,60 @@ from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 @EnforceSharedNumericFixtures()
 class BackendContractMatmulSemanticsMixin(BackendContractBase):
+    """
+    This class pins down the contract for matrix multiplication.
+
+    Matrix multiplication is not an elementwise operation. It works by
+    multiplying the rows of the first operand by the columns of the second.
+    This convention can seem a bit arbitrary at first but makes sense when
+    it comes to chaining multiple operations together.
+
+    Each result value is formed from a whole row of the left-hand matrix
+    and a whole column of the right-hand matrix, not from two values in the
+    same position.
+
+    This is what allows chaining. If an input row vector x is first
+    multiplied by a matrix A, and the result is then multiplied by a matrix
+    B, the whole calculation can be represented by a single matrix A @ B:
+
+    (x @ A) @ B == x @ (A @ B)
+    """
 
     def test_matmul_multiplies_two_square_2D_tensors(self):
+        """
+        This tests matrix multiplication for the simplest case.
+
+        The left-hand tensor is:
+
+        [
+            [1.0, 2.0],
+            [3.0, 4.0]
+        ]
+
+        The right-hand tensor is:
+
+        [
+            [5.0, 6.0],
+            [7.0, 8.0]
+        ]
+
+        The result should be:
+
+        [
+            [19.0, 22.0],
+            [43.0, 50.0]
+        ]
+
+        Each result value is calculated by multiplying a row from the left-hand
+        tensor by a column from the right-hand tensor and summing the products.
+
+        So:
+
+        - top left: [1.0, 2.0] with [5.0, 7.0] -> 1.0*5.0 + 2.0*7.0 = 19.0
+        - top right: [1.0, 2.0] with [6.0, 8.0] -> 1.0*6.0 + 2.0*8.0 = 22.0
+        - bottom left: [3.0, 4.0] with [5.0, 7.0] -> 3.0*5.0 + 4.0*7.0 = 43.0
+        - bottom right: [3.0, 4.0] with [6.0, 8.0] -> 3.0*6.0 + 4.0*8.0 = 50.0
+        """
         backend = self.make_backend()
 
         a = backend.to_tensor([[2.0, 0.0], [1.0, 3.0]])
@@ -68,6 +123,47 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_square_and_non_square_2D_tensors(self):
+        """
+        These tensors can be multiplied without any broadcasting even though
+        their shapes differ. What matters is that the number of columns in
+        the left-hand tensor matches the number of rows in the right-hand tensor.
+        Here the left-hand tensor has shape (2, 2) and the right-hand tensor has
+        shape (2, 3), so each row from the left-hand tensor has length 2 and
+        each column from the right-hand tensor also has length 2.
+
+        The left-hand tensor is:
+
+        [
+            [1.0, 2.0],
+            [3.0, 4.0]
+        ]
+
+        The right-hand tensor is:
+
+        [
+            [5.0, 6.0, 7.0],
+            [8.0, 9.0, 10.0]
+        ]
+
+        The result should be:
+
+        [
+            [21.0, 24.0, 27.0],
+            [47.0, 54.0, 61.0]
+        ]
+
+        Each result value is calculated by multiplying a row from the left-hand
+        tensor by a column from the right-hand tensor and summing the products.
+
+        So:
+
+        - top left: [1.0, 2.0] with [5.0, 8.0] -> 1.0*5.0 + 2.0*8.0 = 21.0
+        - top middle: [1.0, 2.0] with [6.0, 9.0] -> 1.0*6.0 + 2.0*9.0 = 24.0
+        - top right: [1.0, 2.0] with [7.0, 10.0] -> 1.0*7.0 + 2.0*10.0 = 27.0
+        - bottom left: [3.0, 4.0] with [5.0, 8.0] -> 3.0*5.0 + 4.0*8.0 = 47.0
+        - bottom middle: [3.0, 4.0] with [6.0, 9.0] -> 3.0*6.0 + 4.0*9.0 = 54.0
+        - bottom right: [3.0, 4.0] with [7.0, 10.0] -> 3.0*7.0 + 4.0*10.0 = 61.0
+        """
         backend = self.make_backend()
 
         a = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
@@ -84,6 +180,43 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_two_non_square_2D_tensors_with_different_shapes(self):
+        """
+        These tensors can be multiplied without raising an exception or requiring
+        broadcasting because the length of each row in the first tensor is the same
+        as the length of each column in the second tensor.
+
+        The left-hand tensor is:
+
+        [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0]
+        ]
+
+        The right-hand tensor is:
+
+        [
+            [7.0, 8.0],
+            [9.0, 10.0],
+            [11.0, 12.0]
+        ]
+
+        The result should be:
+
+        [
+            [58.0, 64.0],
+            [139.0, 154.0]
+        ]
+
+        Each result value is calculated by multiplying a row from the left-hand
+        tensor by a column from the right-hand tensor and summing the products.
+
+        So:
+
+        - top left: [1.0, 2.0, 3.0] with [7.0, 9.0, 11.0] -> 1.0*7.0 + 2.0*9.0 + 3.0*11.0 = 58.0
+        - top right: [1.0, 2.0, 3.0] with [8.0, 10.0, 12.0] -> 1.0*8.0 + 2.0*10.0 + 3.0*12.0 = 64.0
+        - bottom left: [4.0, 5.0, 6.0] with [7.0, 9.0, 11.0] -> 4.0*7.0 + 5.0*9.0 + 6.0*11.0 = 139.0
+        - bottom right: [4.0, 5.0, 6.0] with [8.0, 10.0, 12.0] -> 4.0*8.0 + 5.0*10.0 + 6.0*12.0 = 154.0
+        """
         backend = self.make_backend()
 
         a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
@@ -173,49 +306,39 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         self.assertIsInstance(result, (int, float))
         self.assertEqual(result, expected)
 
-    def test_matmul_multiplies_corresponding_3D_chunks_when_both_operands_are_3D_tensors(
+    def test_matmul_multiplies_paired_matrices_when_both_operands_are_3D_tensors(
         self,
     ):
         """
-        Matrix multiplication also works when both operands have more than 2
-        dimensions.
+        Matrix multiplication also works when both operands are 3D tensors.
 
-        The matrix part of the calculation is still taken from the last 2 axes.
-        Any earlier axes are used to group the matrices into separate chunks.
-        In this case, each chunk on the left is multiplied by the matching chunk
-        on the right because the leading axes have the same length, so the
-        chunks match one-to-one without broadcasting.
+        A 3D tensor can be thought of as a stack of matrices. The last two axes
+        form each matrix, and the first axis is the position in the stack.
 
-        In this test the left-hand array has shape:
+        In this test the left-hand array has shape (2, 2, 3), so it is a stack
+        of 2 matrices each with shape (2, 3). The right-hand array has shape
+        (2, 3, 2), so it is also a stack of 2 matrices each with shape (3, 2).
 
-        (2, 2, 3)
+        Because both stacks have the same length, matmul pairs up the matrices
+        by position: the first matrix on the left is multiplied by the first
+        matrix on the right, and the second by the second.
 
-        This means it contains 2 matrices, each with shape:
+        As with a normal 2D @ 2D matmul, the matrices in this case can be
+        multiplied because each left-hand matrix has shape (2, 3) and each
+        right-hand matrix has shape (3, 2). I.e. the number of columns in the
+        left-hand matrix matches the number of rows in the right-hand matrix,
+        so each row on the left can be paired with each column on the right.
 
-        (2, 3)
-
-        The right-hand array has shape:
-
-        (2, 3, 2)
-
-        This means it also contains 2 matrices, each with shape:
-
-        (3, 2)
-
-        The first matrix in the left-hand array is multiplied by the first
-        matrix in the right-hand array, and the second left-hand matrix is
-        multiplied by the second right-hand matrix.
-
-        The first chunk of the left-hand array is:
+        The first matrix in the left-hand array is:
 
         [[1.0, 2.0, 3.0],
-         [4.0, 5.0, 6.0]]
+        [4.0, 5.0, 6.0]]
 
-        The first chunk of the right-hand array is:
+        The first matrix in the right-hand array is:
 
         [[1.0, 2.0],
-         [3.0, 4.0],
-         [5.0, 6.0]]
+        [3.0, 4.0],
+        [5.0, 6.0]]
 
         So the top-left value in the first result matrix is:
 
@@ -229,15 +352,9 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         = 1.0*2.0 + 2.0*4.0 + 3.0*6.0
         = 28.0
 
-        The same pattern is then repeated for the second pair of chunks. So
-        the leading axis of length 2 is preserved, and the result contains 2
-        output matrices, each with shape:
-
-        (2, 2)
-
-        The overall result therefore has shape:
-
-        (2, 2, 2)
+        The same calculation is then applied to the second pair of matrices.
+        Each result matrix has shape (2, 2), and there are 2 of them, so the
+        overall result has shape (2, 2, 2).
         """
         backend = self.make_backend()
 
@@ -264,47 +381,29 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_matmul_multiplies_each_3D_chunk_of_the_left_hand_tensor_by_the_same_2D_tensor(
+    def test_matmul_multiplies_a_2D_matrix_by_each_matrix_in_a_3D_stack(
         self,
     ):
         """
-        Matrix multiplication still works when one or both operands have more
-        than 2 dimensions (a wide range of combinations are possible as long
-        as specific axes in each operand match, in this case the last axis of
-        the left-hand operand and the second-to-last axis of the right-hand
-        operand, which both have a length of 3).
+        When one operand is a 3D tensor (i.e. a stack of matrices) and the
+        other is a 2D tensor (matrix), matmul multiplies the single matrix
+        by each matrix in the 3D stack in turn.
 
-        The matrix part of the calculation is always taken from the last axes.
-        Any earlier axes are not multiplied together. Instead, they are used to
-        group the matrices into separate chunks, and the same matrix
-        multiplication is repeated for each chunk.
+        In this test the left-hand tensor has shape (2, 2, 3), so it is a stack
+        of 2 matrices each with shape (2, 3). The right-hand matrix has shape
+        (3, 2). Because each left-hand matrix has 3 columns and the right-hand
+        matrix has 3 rows, the multiplication is valid for each pair.
 
-        In this test the left-hand array has shape:
-
-        (2, 2, 3)
-
-        This means:
-
-        - the first axis has length 2, so there are 2 chunks
-        - each chunk is a matrix with shape (2, 3)
-
-        The right-hand array has shape:
-
-        (3, 2)
-
-        So each (2, 3) matrix in the left-hand array can be multiplied by the
-        same (3, 2) matrix on the right.
-
-        The first chunk of the left-hand array is:
+        The first matrix in the left-hand tensor is:
 
         [[1.0, 2.0, 3.0],
-         [4.0, 5.0, 6.0]]
+        [4.0, 5.0, 6.0]]
 
         The right-hand matrix is:
 
         [[1.0, 2.0],
-         [3.0, 4.0],
-         [5.0, 6.0]]
+        [3.0, 4.0],
+        [5.0, 6.0]]
 
         So the top-left value in the first result matrix is:
 
@@ -318,15 +417,9 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         = 1.0*2.0 + 2.0*4.0 + 3.0*6.0
         = 28.0
 
-        The same calculation is then repeated for the second chunk of the
-        left-hand array. So the leading axis of length 2 is preserved, and the
-        result contains 2 output matrices, each with shape:
-
-        (2, 2)
-
-        The overall result therefore has shape:
-
-        (2, 2, 2)
+        The same right-hand matrix is then applied to the second matrix in the
+        stack. Each result matrix has shape (2, 2), and there are 2 of them, so
+        the overall result has shape (2, 2, 2).
         """
         backend = self.make_backend()
 
@@ -348,37 +441,46 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_matmul_multiplies_the_same_2D_tensor_by_each_3D_chunk_on_the_right(
+    def test_matmul_multiplies_each_matrix_in_a_3D_stack_by_a_2D_matrix(
         self,
     ):
         """
-        Matrix multiplication also works when the right-hand operand has more
-        than 2 dimensions.
+        The mirror case of the previous test: when the left-hand operand is a
+        plain 2D matrix and the right-hand operand is a 3D tensor (a stack of
+        matrices), matmul multiplies the single matrix by each matrix in the
+        3D stack in turn.
 
-        The matrix part of the calculation is still taken from the last axes.
-        Any earlier axes are used to group the matrices into separate chunks.
+        In this test the left-hand matrix has shape (2, 3). The right-hand
+        tensor has shape (2, 3, 2), so it is a stack of 2 matrices each with
+        shape (3, 2). Because the left-hand matrix has 3 columns and each
+        right-hand matrix has 3 rows, the multiplication is valid for each pair.
 
-        In this test the left-hand matrix has shape:
+        The left-hand matrix is:
 
-        (2, 3)
+        [[1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0]]
 
-        The right-hand tensor has shape:
+        The first matrix in the right-hand stack is:
 
-        (2, 3, 2)
+        [[1.0, 2.0],
+        [3.0, 4.0],
+        [5.0, 6.0]]
 
-        This means the right-hand tensor contains 2 matrices, each with shape:
+        So the top-left value in the first result matrix is:
 
-        (3, 2)
+        [1.0, 2.0, 3.0] with [1.0, 3.0, 5.0]
+        = 1.0*1.0 + 2.0*3.0 + 3.0*5.0
+        = 22.0
 
-        So the same (2, 3) matrix on the left is multiplied by each (3, 2)
-        matrix in the right-hand tensor. The result therefore contains 2 output
-        matrices, each with shape:
+        The top-right value in the first result matrix is:
 
-        (2, 2)
+        [1.0, 2.0, 3.0] with [2.0, 4.0, 6.0]
+        = 1.0*2.0 + 2.0*4.0 + 3.0*6.0
+        = 28.0
 
-        The overall result therefore has shape:
-
-        (2, 2, 2)
+        The same left-hand matrix is then applied to the second matrix in the
+        stack. Each result matrix has shape (2, 2), and there are 2 of them, so
+        the overall result has shape (2, 2, 2).
         """
         backend = self.make_backend()
 
@@ -400,11 +502,10 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_matmul_raises_when_2D_and_2D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_2D_columns_do_not_match_2D_rows(self):
         """
-        Matrix multiplication works by taking one row from the left matrix and
-        one column from the right matrix, multiplying the values by index, and
-        adding the results.
+        Matrix multiplication requires the number of columns in the left matrix
+        to equal the number of rows in the right matrix.
 
         So if the shapes are:
 
@@ -415,33 +516,35 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         - each row in the left matrix contains k values
         - each column in the right matrix also contains k values
 
-        Those lengths must match, otherwise the row and column cannot be
-        multiplied together.
+        Those lengths must match, otherwise each row and column cannot be
+        multiplied together element by element and summed.
 
         For example, if we multiply:
 
-        [[a, b, c],
-        [g, h, i]]
+        [[A, B, C],
+        [D, E, F]]
 
         by:
 
-        [[d, j],
-        [e, k],
-        [f, l]]
+        [[P, Q],
+        [R, S],
+        [T, U]]
 
         then the top-left value in the result is built from the first row of
         the left matrix and the first column of the right matrix:
 
-        [a, b, c] with [d, e, f]
-        = a*d + b*e + c*f
+        [A, B, C] with [P, R, T]
+        = A*P + B*R + C*T
 
         The top-right value is built from the first row of the left matrix and
         the second column of the right matrix:
 
-        [a, b, c] with [j, k, l]
-        = a*j + b*k + c*l
+        [A, B, C] with [Q, S, U]
+        = A*Q + B*S + C*U
 
-        This is why the middle dimensions must match.
+        The number of columns in the left matrix must equal the number of rows
+        in the right matrix, because each value in a row must be paired with
+        exactly one value from a column.
 
         In this test we try to multiply matrices with shapes:
 
@@ -459,10 +562,10 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_1D_and_2D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_1D_length_does_not_match_2D_rows(self):
         """
-        A 1D array can only be multiplied by a matrix if the length of the
-        1D array matches the number of rows in the matrix.
+        A 1D tensor can only be multiplied by a matrix if the length of the
+        1D tensor matches the number of rows in the matrix.
         """
         backend = self.make_backend()
 
@@ -472,10 +575,10 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_2D_and_1D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_2D_columns_do_not_match_1D_length(self):
         """
-        A matrix can only be multiplied by a 1D array if the number of
-        columns in the matrix matches the length of the 1D array.
+        A matrix can only be multiplied by a 1D tensor if the number of
+        columns in the matrix matches the length of the 1D tensor.
         """
         backend = self.make_backend()
 
@@ -485,9 +588,9 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_1D_and_1D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_two_1D_tensors_have_different_lengths(self):
         """
-        A 1D array can only be multiplied by another 1D array if both arrays
+        A 1D tensor can only be multiplied by another 1D tensor if both tensors
         have the same length.
         """
         backend = self.make_backend()
@@ -498,30 +601,23 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_3D_and_2D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_3D_stack_columns_do_not_match_2D_rows(self):
         """
-        A 3D array can only be multiplied by a matrix if the last axis of
-        the 3D array matches the second-to-last axis of the matrix.
+        When a 3D tensor (a stack of matrices) is multiplied by a 2D matrix,
+        the number of columns in each matrix in the stack must equal the number
+        of rows in the right-hand matrix.
 
-        In this test the left-hand array has shape:
+        In this test the left-hand tensor has shape (2, 2, 3), so it is a stack
+        of 2 matrices each with shape (2, 3). The right-hand matrix has shape
+        (4, 2).
 
-        (2, 2, 3)
+        For the multiplication to work, the rows of each left-hand matrix must
+        be able to multiply the columns of the right-hand matrix element by
+        element and be summed.
 
-        So each chunk in the left-hand array is a matrix with shape:
-
-        (2, 3)
-
-        The right-hand matrix has shape:
-
-        (4, 2)
-
-        For the multiplication to work, each row of a (2, 3) matrix on the
-        left must be able to multiply a column of the (4, 2) matrix on the
-        right.
-
-        But the rows on the left have length 3, while the columns on the right
-        have length 4. So there is no way to pair up all the values by index
-        for the calculation.
+        But the rows of each left-hand matrix have length 3, while the columns
+        of the right-hand matrix have length 4. So there is no way to pair up
+        all the values for the calculation.
 
         The multiplication should therefore raise an exception.
         """
@@ -538,26 +634,23 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_2D_and_3D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_2D_columns_do_not_match_3D_stack_rows(self):
         """
-        A matrix can only be multiplied by a 3D array if the last axis of
-        the matrix matches the second-to-last axis of each matrix in the
-        3D array.
+        When a 2D matrix is multiplied by a 3D tensor (a stack of matrices),
+        the number of columns in the left-hand matrix must equal the number of
+        rows in each matrix in the stack.
 
-        The left-hand matrix has shape:
+        In this test the left-hand matrix has shape (2, 3). The right-hand
+        array has shape (2, 4, 2), so it is a stack of 2 matrices each with
+        shape (4, 2).
 
-        (2, 3)
+        For the multiplication to work, the rows of the left-hand matrix must
+        be able to multiply the columns of each right-hand matrix element by
+        element and be summed.
 
-        Each matrix in the right-hand array has shape:
-
-        (4, 2)
-
-        For the multiplication to work, each row of the left-hand matrix must be
-        able to multiply a column from one of the right-hand matrices.
-
-        But the rows on the left have length 3, while the columns on the right
-        have length 4. So there is no way to pair up all the values by index for
-        the calculation.
+        But the rows of the left-hand matrix have length 3, while the columns
+        of each right-hand matrix have length 4. So there is no way to pair up
+        all the values for the calculation.
 
         The multiplication should therefore raise an exception.
         """
@@ -574,35 +667,23 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
-    def test_matmul_raises_when_3D_and_3D_inner_dimensions_do_not_match(self):
+    def test_matmul_raises_when_3D_stack_columns_do_not_match_3D_stack_rows(self):
         """
-        A 3D array can only be multiplied by another 3D array if the last axis
-        of each matrix in the left-hand array matches the second-to-last axis
-        of each matrix in the right-hand array.
+        When both operands are 3D tensors (stacks of matrices), the number of
+        columns in each matrix in the left-hand stack must equal the number of
+        rows in each matrix in the right-hand stack.
 
-        In this test the left-hand array has shape:
+        In this test the left-hand array has shape (2, 2, 3), so it is a stack
+        of 2 matrices each with shape (2, 3). The right-hand array has shape
+        (2, 4, 2), so it is also a stack of 2 matrices each with shape (4, 2).
 
-        (2, 2, 3)
+        For the multiplication to work, the rows of each left-hand matrix must
+        be able to multiply the columns of the corresponding right-hand matrix
+        element by element and be summed.
 
-        So each chunk in the left-hand array is a matrix with shape:
-
-        (2, 3)
-
-        The right-hand array has shape:
-
-        (2, 4, 2)
-
-        So each chunk in the right-hand array is a matrix with shape:
-
-        (4, 2)
-
-        For the multiplication to work, each row of a (2, 3) matrix on the
-        left must be able to multiply a column of a (4, 2) matrix on the
-        right.
-
-        But the rows on the left have length 3, while the columns on the right
-        have length 4. So there is no way to pair up all the values by index
-        for the calculation.
+        But the rows of each left-hand matrix have length 3, while the columns
+        of each right-hand matrix have length 4. So there is no way to pair up
+        all the values for the calculation.
 
         The multiplication should therefore raise an exception.
         """
@@ -628,60 +709,56 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
 @EnforceSharedNumericFixtures()
 class BackendContractMatmulBroadcastingMixin(BackendContractBase):
     """
-    Broadcasting in matmul applies only to the leading axes. It can help when
-    those axes differ, but only if one of them has length 1 and can be reused.
-    It cannot help if the matrix dimensions themselves do not match, because
-    the row-by-column multiplication would still be impossible. The
-    higher-dimensional tests in this class, taken together, try to demonstrate
-    this.
+    The 3D @ 3D tests in BackendContractMatmulSemanticsMixin always use two
+    stacks of the same length. The tests in this class cover what happens
+    when the two stacks have different lengths.
+
+    When both operands are 3D tensors with stacks of the same length, matmul
+    pairs up the matrices by position. When the stack lengths differ, there
+    is no straightforward pairing — unless one of the stacks has length 1.
+
+    A stack of length 1 contains just a single matrix. When one stack has
+    length 1, matmul reuses that single matrix for every position in the
+    other stack. This reuse is called broadcasting. The two happy-path tests
+    in this class demonstrate this, one for each side (left and right) having
+    the stack of length 1.
+
+    If neither stack has length 1 and the lengths are unequal, there is no
+    valid pairing and no reuse is possible. The raises test in this class
+    demonstrates this.
+
+    Broadcasting only resolves the stack length mismatch. Even when one stack
+    has length 1, the matrix dimensions themselves must still be compatible:
+    the number of columns in each left-hand matrix must equal the number of
+    rows in each right-hand matrix. A mismatch there will still raise an
+    exception.
     """
 
-    def test_matmul_reuses_the_only_right_hand_3D_chunk_when_leading_axis_broadcasting_applies(
+    def test_matmul_reuses_single_right_hand_matrix_when_3D_stack_lengths_differ(
         self,
     ):
         """
-        Matrix multiplication can also reuse chunks from one operand when a
-        leading axis has length 1.
+        When the right-hand stack has length 1, its single matrix is reused
+        for each matrix in the left-hand stack.
 
-        In this test the left-hand array has shape:
+        In this test the left-hand tensor has shape (2, 2, 3), so it is a
+        stack of 2 matrices each with shape (2, 3). The right-hand tensor has
+        shape (1, 3, 2), so it is a stack containing just 1 matrix with shape
+        (3, 2).
 
-        (2, 2, 3)
-
-        so it contains 2 matrices, each with shape:
-
-        (2, 3)
-
-        The right-hand array has shape:
-
-        (1, 3, 2)
-
-        so it contains just 1 matrix, with shape:
-
-        (3, 2)
-
-        The matrix dimensions are valid because:
+        The matrix dimensions are compatible:
 
         (2, 3) @ (3, 2)
 
-        The leading axes do not match, but they are still compatible
-        because one of them has length 1 and, with broadcasting, a leading
-        axis of length 1 can be reused. In this case, the single matrix in
-        the right-hand array is used for both matrices in the left-hand
-        array.
+        Because the right-hand stack has length 1, the single right-hand
+        matrix is used for both matrices in the left-hand stack.
 
-        Broadcasting works here because the leading axes are:
-
-        2 and 1
-
-        This is allowed. A case such as 2 and 3 would not be allowed, because
-        neither axis has length 1 and so neither can be reused.
-
-        The first chunk of the left-hand array is:
+        The first matrix in the left-hand stack is:
 
         [[1.0, 2.0, 3.0],
          [4.0, 5.0, 6.0]]
 
-        The only chunk of the right-hand array is:
+        The only matrix in the right-hand stack is:
 
         [[1.0, 2.0],
          [3.0, 4.0],
@@ -693,15 +770,9 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         = 1.0*1.0 + 2.0*3.0 + 3.0*5.0
         = 22.0
 
-        The same right-hand matrix is then reused for the second chunk on the
-        left. The result therefore contains 2 output matrices, each with
-        shape:
-
-        (2, 2)
-
-        The overall result therefore has shape:
-
-        (2, 2, 2)
+        The same right-hand matrix is then reused for the second matrix in
+        the left-hand stack. Each result matrix has shape (2, 2), and there
+        are 2 of them, so the overall result has shape (2, 2, 2).
         """
         backend = self.make_backend()
 
@@ -727,42 +798,31 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_matmul_reuses_the_only_left_hand_3D_chunk_when_leading_axis_broadcasting_applies(
+    def test_matmul_reuses_single_left_hand_matrix_when_3D_stack_lengths_differ(
         self,
     ):
         """
-        Leading-axis broadcasting also works the other way round, when the
-        left-hand tensor has the axis of length 1.
+        When the left-hand stack has length 1, its single matrix is reused for
+        each matrix in the right-hand stack.
 
-        In this test the left-hand tensor has shape:
+        In this test the left-hand tensor has shape (1, 2, 3), so it is a
+        stack containing just 1 matrix with shape (2, 3). The right-hand
+        tensor has shape (2, 3, 2), so it is a stack of 2 matrices each with
+        shape (3, 2).
 
-        (1, 2, 3)
-
-        so it contains just 1 matrix, with shape:
-
-        (2, 3)
-
-        The right-hand tensor has shape:
-
-        (2, 3, 2)
-
-        so it contains 2 matrices, each with shape:
-
-        (3, 2)
-
-        The matrix dimensions are valid because:
+        The matrix dimensions are compatible:
 
         (2, 3) @ (3, 2)
 
-        The same broadcasting rules apply as when the right-hand tensor has the
-        axis of length 1.
+        Because the left-hand stack has length 1, the single left-hand matrix
+        is used for both matrices in the right-hand stack.
 
-        The only chunk of the left-hand tensor is:
+        The only matrix in the left-hand stack is:
 
         [[1.0, 2.0, 3.0],
          [4.0, 5.0, 6.0]]
 
-        The first chunk of the right-hand tensor is:
+        The first matrix in the right-hand stack is:
 
         [[1.0, 2.0],
          [3.0, 4.0],
@@ -774,15 +834,9 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         = 1.0*1.0 + 2.0*3.0 + 3.0*5.0
         = 22.0
 
-        The same left-hand matrix is then reused for the second chunk on the
-        right. The result therefore contains 2 output matrices, each with
-        shape:
-
-        (2, 2)
-
-        The overall result therefore has shape:
-
-        (2, 2, 2)
+        The same left-hand matrix is then reused for the second matrix in
+        the right-hand stack. Each result matrix has shape (2, 2), and there
+        are 2 of them, so the overall result has shape (2, 2, 2).
         """
         backend = self.make_backend()
 
@@ -808,40 +862,24 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
-    def test_matmul_raises_when_3D_and_3D_leading_axes_do_not_match(self):
+    def test_matmul_raises_when_3D_stack_lengths_differ_and_neither_is_1(self):
         """
-        A 3D array can also fail to multiply with another 3D array when
-        the matrix dimensions are valid.
+        When two 3D stacks have different lengths and neither length is 1,
+        matmul cannot pair up the matrices and cannot broadcast, so it raises
+        an exception.
 
-        In this test the left-hand array has shape:
+        In this test the left-hand tensor has shape (2, 2, 3), so it is a
+        stack of 2 matrices each with shape (2, 3). The right-hand tensor has
+        shape (3, 3, 2), so it is a stack of 3 matrices each with shape (3, 2).
 
-        (2, 2, 3)
-
-        and the right-hand array has shape:
-
-        (3, 3, 2)
-
-        The matrix part of the shapes is compatible:
+        The matrix dimensions are compatible:
 
         (2, 3) @ (3, 2)
 
-        If we looked at just one matrix from the left-hand array and one
-        matrix from the right-hand array, the multiplication would work.
-
-        But the earlier axes do not match. The left-hand array is grouped into
-        2 chunks, while the right-hand array is grouped into 3 chunks.
-
-        If the leading axes did match, the first matrix in the left-hand array
-        would be multiplied by the first matrix in the right-hand array, the
-        second by the second etc
-
-        So there is no one-to-one pairing between the matrices in the
-        left-hand array and the matrices in the right-hand array for this
-        calculation: the right-hand array contains a third chunk with no
-        matching chunk on the left.
-
-        Broadcasting does not help here because the leading axes are 2 and 3,
-        (neither of them is 1).
+        So the failure is not caused by the matrix dimensions. It is caused
+        by the stack lengths: 2 and 3. Neither is 1, so there is no single
+        matrix that can be reused, and the stacks are not the same length,
+        so there is no position-by-position pairing.
 
         The multiplication should therefore raise an exception.
         """
@@ -858,6 +896,49 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
                 [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
                 [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
                 [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+            ]
+        )
+
+        with self.assertRaises(ValueError):
+            backend.matmul(a, b)
+
+    def test_matmul_raises_when_3D_stack_matrix_dimensions_incompatible_despite_broadcastable_lengths(
+        self,
+    ):
+        """
+        Broadcasting resolves a stack length mismatch, but it cannot fix
+        incompatible matrix dimensions. Even when one stack has length 1, the
+        number of columns in each left-hand matrix must still equal the number
+        of rows in each right-hand matrix.
+
+        In this test the left-hand tensor has shape (2, 2, 3), so it is a
+        stack of 2 matrices each with shape (2, 3). The right-hand tensor has
+        shape (1, 2, 2), so it is a stack containing just 1 matrix with shape
+        (2, 2).
+
+        The stack lengths are 2 and 1, so broadcasting would normally allow
+        the single right-hand matrix to be reused. But the matrix dimensions
+        are not compatible:
+
+        (2, 3) @ (2, 2)
+
+        The rows of each left-hand matrix have length 3, while the columns of
+        the right-hand matrix have length 2. So there is no way to pair up all
+        the values for the calculation.
+
+        The multiplication should therefore raise an exception.
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor(
+            [
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [[1.0, 2.0], [3.0, 4.0]],
             ]
         )
 
