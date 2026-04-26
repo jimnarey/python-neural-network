@@ -142,55 +142,188 @@ class BackendContractElementwiseSemanticsMixin(BackendContractBase):
 class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase):
     """
     The tests in BackendContractElementwiseSemanticsMixin only use operands
-    with identical shapes. The tests in this class cover what happens when
-    the shapes differ.
+    with identical shapes. The tests in this class cover the case where both
+    operands have the same number of dimensions, but the shapes are not
+    identical.
 
-    Elementwise operations work by pairing up values at the same position.
-    When both operands have the same shape this is straightforward. When
-    they have different shapes, it is only possible if the shapes are
-    compatible for broadcasting.
+    When the shapes differ, the operation is only possible if the shapes are
+    compatible for broadcasting. Compatibility is checked by comparing the
+    shapes from right to left, one axis at a time. At each position, the
+    axis lengths are compatible if they are equal, or if one of them is 1.
 
-    Broadcasting compatibility is checked by comparing the two shapes from
-    right to left, one axis at a time. At each position, the axis lengths
-    are compatible if they are equal, or if one of them is 1. When an axis
-    has length 1 on one side but a longer length on the other, the shorter
-    operand is reused along that axis — the same values are used for each
-    position in the longer operand.
+    When an axis has length 1 on one side but a longer length on the other,
+    the length 1 axis is 'stretched' to match — the single value is repeated
+    enough times that the axis has the same length as its counterpart in the
+    other operand.
 
-    The same rule extends to cases where one operand has fewer dimensions.
-    The right-to-left comparison still applies, but the lower-rank operand
-    runs out of axes first. The remaining axes — those present only in the
-    higher-rank operand — are treated as though the lower-rank operand had
-    extra leading axes of length 1.
-
-    An extra leading axis of length 1 simply wraps the existing data in one
-    more layer: the added axis contains only the operand itself as its
-    single element. For example, a 2D operand of shape (2, 3):
-
-        [1.0, 2.0, 3.0]
-        [4.0, 5.0, 6.0]
-
-    treated as shape (1, 2, 3) still contains the same two rows — the
-    operand itself is now the single element along the added axis. During
-    the operation, it is reused for every corresponding position in the
-    other operand, exactly as a length-1 axis is reused in any other
-    context. It does not matter how many fewer dimensions the lower-rank
-    operand has.
-
-    This is broader than the broadcasting in matmul, where only the leading
-    axes (the stack length) can be broadcast. Here, any axis can be
-    broadcast, as long as the rule is satisfied at every position.
-
-    If it is not — i.e. if two axes at the same position have lengths
-    that are neither equal nor one is 1 — the operation should  raise an
-    exception.
+    If two axes at the same position have lengths that are neither equal nor
+    one of them is 1, the shapes are not compatible and the operation should
+    raise an exception.
     """
 
     def test_elementwise_methods_broadcast_when_an_end_axis_has_length_1(self):
-        pass
+        """
+        This tests broadcasting where an end axis has length 1.
+
+        The two operands have the same number of dimensions. Broadcasting
+        of the 'axis stretching' variety is possible because the rightmost
+        axis of a has length 1 while the rightmost axis of b has length 3.
+
+        The tensor a has shape (2, 1) and the tensor b has shape (2, 3).
+        Comparing shapes from right to left, the rightmost axes have
+        lengths 1 and 3, so the single value in each row of a is repeated
+        across that axis. The leftmost axes both have length 2, so they
+        already match.
+
+        The tensor a is:
+
+            [12.0]
+            [18.0]
+
+        The tensor b is:
+
+            [3.0, 4.0, 6.0]
+            [2.0, 3.0, 6.0]
+
+        For add, the first value in a, 12.0, is repeated across the first
+        row and added to the first row of b:
+
+            [12.0 + 3.0, 12.0 + 4.0, 12.0 + 6.0] = [15.0, 16.0, 18.0]
+
+        The second value in a, 18.0, is repeated across the second row and
+        added to the second row of b:
+
+            [18.0 + 2.0, 18.0 + 3.0, 18.0 + 6.0] = [20.0, 21.0, 24.0]
+
+        The result therefore has shape (2, 3). All six elementwise methods
+        are tested with the same operands.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor([[12.0], [18.0]])
+        b = backend.to_tensor([[3.0, 4.0, 6.0], [2.0, 3.0, 6.0]])
+
+        elementwise_methods = [
+            ("add", backend.add, [[15.0, 16.0, 18.0], [20.0, 21.0, 24.0]]),
+            ("subtract", backend.subtract, [[9.0, 8.0, 6.0], [16.0, 15.0, 12.0]]),
+            ("multiply", backend.multiply, [[36.0, 48.0, 72.0], [36.0, 54.0, 108.0]]),
+            ("divide", backend.divide, [[4.0, 3.0, 2.0], [9.0, 6.0, 3.0]]),
+            ("maximum", backend.maximum, [[12.0, 12.0, 12.0], [18.0, 18.0, 18.0]]),
+            ("minimum", backend.minimum, [[3.0, 4.0, 6.0], [2.0, 3.0, 6.0]]),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 3))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_broadcast_when_a_middle_axis_has_length_1(self):
-        pass
+        """
+        This tests broadcasting where a middle axis has length 1.
+
+        The tensor a has shape (2, 1, 2) and the tensor b has shape
+        (2, 3, 2). Comparing shapes from right to left, the rightmost
+        axes both have length 2, so they already match. The middle axes
+        have lengths 1 and 3, so the single row in each 2D tensor in a is
+        repeated three times to match the corresponding 2D tensor in b.
+        The leftmost axes both have length 2, so they also match.
+
+        The tensor a is:
+
+            [[12.0, 24.0]]
+            [[18.0, 30.0]]
+
+        The tensor b is:
+
+            [[3.0, 6.0], [4.0, 8.0], [6.0, 12.0]]
+            [[2.0, 5.0], [3.0, 6.0], [6.0, 10.0]]
+
+        For add, the only row in the first 2D tensor in a,
+        [12.0, 24.0], is repeated three times and added to the first
+        2D tensor in b:
+
+            [12.0 + 3.0, 24.0 + 6.0] = [15.0, 30.0]
+            [12.0 + 4.0, 24.0 + 8.0] = [16.0, 32.0]
+            [12.0 + 6.0, 24.0 + 12.0] = [18.0, 36.0]
+
+        The same happens for the second 2D tensor in a, whose only row
+        [18.0, 30.0] is repeated across the three rows of the second
+        2D tensor in b.
+
+        The result therefore has shape (2, 3, 2).
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor(
+            [
+                [[12.0, 24.0]],
+                [[18.0, 30.0]],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [[3.0, 6.0], [4.0, 8.0], [6.0, 12.0]],
+                [[2.0, 5.0], [3.0, 6.0], [6.0, 10.0]],
+            ]
+        )
+
+        elementwise_methods = [
+            (
+                "add",
+                backend.add,
+                [
+                    [[15.0, 30.0], [16.0, 32.0], [18.0, 36.0]],
+                    [[20.0, 35.0], [21.0, 36.0], [24.0, 40.0]],
+                ],
+            ),
+            (
+                "subtract",
+                backend.subtract,
+                [
+                    [[9.0, 18.0], [8.0, 16.0], [6.0, 12.0]],
+                    [[16.0, 25.0], [15.0, 24.0], [12.0, 20.0]],
+                ],
+            ),
+            (
+                "multiply",
+                backend.multiply,
+                [
+                    [[36.0, 144.0], [48.0, 192.0], [72.0, 288.0]],
+                    [[36.0, 150.0], [54.0, 180.0], [108.0, 300.0]],
+                ],
+            ),
+            (
+                "divide",
+                backend.divide,
+                [
+                    [[4.0, 4.0], [3.0, 3.0], [2.0, 2.0]],
+                    [[9.0, 6.0], [6.0, 5.0], [3.0, 3.0]],
+                ],
+            ),
+            (
+                "maximum",
+                backend.maximum,
+                [
+                    [[12.0, 24.0], [12.0, 24.0], [12.0, 24.0]],
+                    [[18.0, 30.0], [18.0, 30.0], [18.0, 30.0]],
+                ],
+            ),
+            (
+                "minimum",
+                backend.minimum,
+                [
+                    [[3.0, 6.0], [4.0, 8.0], [6.0, 12.0]],
+                    [[2.0, 5.0], [3.0, 6.0], [6.0, 10.0]],
+                ],
+            ),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 3, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_raise_when_tensor_shapes_are_not_broadcast_compatible(
         self,
@@ -226,14 +359,87 @@ class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase)
                 with self.assertRaises(ValueError):
                     method(a, b)
 
-    def test_elementwise_methods_raise_when_higher_rank_tensor_shapes_are_not_broadcast_compatible(
+    def test_elementwise_methods_raise_when_3D_tensor_shapes_are_not_broadcast_compatible(
         self,
     ):
-        pass
+        """
+        This tests that elementwise operations raise when higher-rank
+        operand shapes are not compatible for broadcasting.
+
+        The left-hand tensor a has shape (2, 3, 2) and the right-hand
+        tensor b has shape (2, 2, 2). Comparing shapes from right to left,
+        the rightmost axes both have length 2, so they match. The middle
+        axis has of a has length 3 and b has length 2. Because these
+        lengths are neither equal nor one of them is 1, there is no valid
+        way to stretch either operand to make the values line up along
+        that axis.
+
+        This means the operations cannot be carried out elementwise and
+        should therefore raise an exception.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor(
+            [
+                [[2.0, 6.0], [12.0, 20.0], [4.0, 12.0]],
+                [[3.0, 9.0], [8.0, 15.0], [5.0, 15.0]],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [[1.0, 3.0], [4.0, 5.0]],
+                [[2.0, 4.0], [5.0, 6.0]],
+            ]
+        )
+
+        elementwise_methods = [
+            ("add", backend.add),
+            ("subtract", backend.subtract),
+            ("multiply", backend.multiply),
+            ("divide", backend.divide),
+            ("maximum", backend.maximum),
+            ("minimum", backend.minimum),
+        ]
+
+        for method_name, method in elementwise_methods:
+            with self.subTest(method=method_name):
+                with self.assertRaises(ValueError):
+                    method(a, b)
 
 
 @EnforceSharedNumericFixtures()
 class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase):
+    """
+    The tests in BackendContractElementwiseStretchingBroadcastingMixin cover
+    the case where both operands have the same number of dimensions. The
+    tests in this class cover what happens when the operands have different
+    numbers of dimensions.
+
+    When one operand has fewer dimensions, the right-to-left shape
+    comparison still applies, but the lower-rank operand runs out of axes
+    first. The remaining axes — those present only in the higher-rank
+    operand — are treated as though the lower-rank operand had extra leading
+    axes of length 1 prepended to its shape. This left-padding step gives
+    this class its name.
+
+    An extra leading axis of length 1 simply wraps the existing data in one
+    more layer: the added axis contains only the operand itself as its
+    single element. For example, a 2D operand of shape (2, 3):
+
+        [1.0, 2.0, 3.0]
+        [4.0, 5.0, 6.0]
+
+    treated as shape (1, 2, 3) still contains the same two rows — the
+    operand itself is now the single element along the added axis. During
+    the operation, it is reused for every corresponding position in the
+    other operand, exactly as a length-1 axis is stretched in
+    BackendContractElementwiseStretchingBroadcastingMixin. It does not
+    matter how many fewer dimensions the lower-rank operand has.
+
+    The case where one operand already has an explicit leading axis of
+    length 1 is also covered here: it behaves identically to the implicit
+    left-padding case, and can arise naturally after operations such as
+    reshape or a reduction with keepdims=True.
+    """
 
     def test_elementwise_methods_broadcast_1D_tensor_across_2D_tensor(self):
         """
@@ -594,8 +800,3 @@ class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase
                 result = backend.to_python(result_tensor)
                 self.assertEqual(backend.shape(result_tensor), (2, 2, 2))
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
-
-    def test_elementwise_methods_raise_when_higher_rank_tensor_shapes_are_not_broadcast_compatible(
-        self,
-    ):
-        pass
