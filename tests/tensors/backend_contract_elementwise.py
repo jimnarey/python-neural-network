@@ -44,6 +44,15 @@ from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 @EnforceSharedNumericFixtures()
 class BackendContractElementwiseSemanticsMixin(BackendContractBase):
+    """
+    This class tests the straightforward cases of elementwise operations where
+    the two tensors being operated on have the same shape. In such cases each
+    element in the left-hand tensor is added, subtracted etc from the element
+    in the same position in the right-hand tensor. This is distinct from
+    matmul where an entire row on the left-hand side is combined with an entire
+    column on the right-hand side.
+    """
+
     def test_elementwise_methods_apply_elementwise_to_same_shape_1D_tensors(self):
         backend = self.make_backend()
         a = backend.to_tensor([2.0, 6.0, 12.0])
@@ -160,21 +169,286 @@ class BackendContractElementwiseSemanticsMixin(BackendContractBase):
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_apply_elementwise_to_same_shape_4D_tensors(self):
-        pass
+        backend = self.make_backend()
+        a = backend.to_tensor(
+            [
+                [
+                    [[2.0, 6.0], [12.0, 20.0]],
+                    [[4.0, 8.0], [10.0, 18.0]],
+                ],
+                [
+                    [[3.0, 9.0], [15.0, 21.0]],
+                    [[6.0, 12.0], [16.0, 24.0]],
+                ],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [
+                    [[1.0, 3.0], [4.0, 5.0]],
+                    [[2.0, 4.0], [5.0, 6.0]],
+                ],
+                [
+                    [[1.0, 3.0], [5.0, 7.0]],
+                    [[3.0, 4.0], [4.0, 6.0]],
+                ],
+            ]
+        )
+
+        elementwise_methods = [
+            (
+                "add",
+                backend.add,
+                [
+                    [
+                        [[3.0, 9.0], [16.0, 25.0]],
+                        [[6.0, 12.0], [15.0, 24.0]],
+                    ],
+                    [
+                        [[4.0, 12.0], [20.0, 28.0]],
+                        [[9.0, 16.0], [20.0, 30.0]],
+                    ],
+                ],
+            ),
+            (
+                "subtract",
+                backend.subtract,
+                [
+                    [
+                        [[1.0, 3.0], [8.0, 15.0]],
+                        [[2.0, 4.0], [5.0, 12.0]],
+                    ],
+                    [
+                        [[2.0, 6.0], [10.0, 14.0]],
+                        [[3.0, 8.0], [12.0, 18.0]],
+                    ],
+                ],
+            ),
+            (
+                "multiply",
+                backend.multiply,
+                [
+                    [
+                        [[2.0, 18.0], [48.0, 100.0]],
+                        [[8.0, 32.0], [50.0, 108.0]],
+                    ],
+                    [
+                        [[3.0, 27.0], [75.0, 147.0]],
+                        [[18.0, 48.0], [64.0, 144.0]],
+                    ],
+                ],
+            ),
+            (
+                "divide",
+                backend.divide,
+                [
+                    [
+                        [[2.0, 2.0], [3.0, 4.0]],
+                        [[2.0, 2.0], [2.0, 3.0]],
+                    ],
+                    [
+                        [[3.0, 3.0], [3.0, 3.0]],
+                        [[2.0, 3.0], [4.0, 4.0]],
+                    ],
+                ],
+            ),
+            (
+                "maximum",
+                backend.maximum,
+                [
+                    [
+                        [[2.0, 6.0], [12.0, 20.0]],
+                        [[4.0, 8.0], [10.0, 18.0]],
+                    ],
+                    [
+                        [[3.0, 9.0], [15.0, 21.0]],
+                        [[6.0, 12.0], [16.0, 24.0]],
+                    ],
+                ],
+            ),
+            (
+                "minimum",
+                backend.minimum,
+                [
+                    [
+                        [[1.0, 3.0], [4.0, 5.0]],
+                        [[2.0, 4.0], [5.0, 6.0]],
+                    ],
+                    [
+                        [[1.0, 3.0], [5.0, 7.0]],
+                        [[3.0, 4.0], [4.0, 6.0]],
+                    ],
+                ],
+            ),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2, 2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_accept_a_scalar_right_hand_operand(self):
-        pass
+        """
+        Elementwise operations can be performed on a tensor using just a single
+        scalar value as the other operand. In such cases the scalar value is
+        added, subtracted etc to/from each of the values in the tensor as though
+        the scalar operanf was a tensor with a single value in all positions.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor([[4.0, 8.0], [12.0, 20.0]])
+        b = 4.0
 
-    def test_elementwise_methods_accept_a_scalar_right_hand_operand_for_3D_tensor(
+        elementwise_methods = [
+            ("add", backend.add, [[8.0, 12.0], [16.0, 24.0]]),
+            ("subtract", backend.subtract, [[0.0, 4.0], [8.0, 16.0]]),
+            ("multiply", backend.multiply, [[16.0, 32.0], [48.0, 80.0]]),
+            ("divide", backend.divide, [[1.0, 2.0], [3.0, 5.0]]),
+            ("maximum", backend.maximum, [[4.0, 8.0], [12.0, 20.0]]),
+            ("minimum", backend.minimum, [[4.0, 4.0], [4.0, 4.0]]),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_elementwise_methods_accept_a_scalar_right_hand_operand_for_4D_tensor(
         self,
     ):
-        pass
+        """
+        As with many of the 4D tests elsewhere in the test suite, this is really
+        just checking that backends adopt a genuinely generalised approach to
+        handling dimensions and are not implemented in such a way that they treat
+        tensors with 1 or 2 dimensions as special cases.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor(
+            [
+                [
+                    [[4.0, 8.0], [12.0, 20.0]],
+                    [[6.0, 10.0], [14.0, 18.0]],
+                ],
+                [
+                    [[16.0, 24.0], [28.0, 32.0]],
+                    [[22.0, 26.0], [30.0, 34.0]],
+                ],
+            ]
+        )
+        b = 2.0
+
+        elementwise_methods = [
+            (
+                "add",
+                backend.add,
+                [
+                    [
+                        [[6.0, 10.0], [14.0, 22.0]],
+                        [[8.0, 12.0], [16.0, 20.0]],
+                    ],
+                    [
+                        [[18.0, 26.0], [30.0, 34.0]],
+                        [[24.0, 28.0], [32.0, 36.0]],
+                    ],
+                ],
+            ),
+            (
+                "subtract",
+                backend.subtract,
+                [
+                    [
+                        [[2.0, 6.0], [10.0, 18.0]],
+                        [[4.0, 8.0], [12.0, 16.0]],
+                    ],
+                    [
+                        [[14.0, 22.0], [26.0, 30.0]],
+                        [[20.0, 24.0], [28.0, 32.0]],
+                    ],
+                ],
+            ),
+            (
+                "multiply",
+                backend.multiply,
+                [
+                    [
+                        [[8.0, 16.0], [24.0, 40.0]],
+                        [[12.0, 20.0], [28.0, 36.0]],
+                    ],
+                    [
+                        [[32.0, 48.0], [56.0, 64.0]],
+                        [[44.0, 52.0], [60.0, 68.0]],
+                    ],
+                ],
+            ),
+            (
+                "divide",
+                backend.divide,
+                [
+                    [
+                        [[2.0, 4.0], [6.0, 10.0]],
+                        [[3.0, 5.0], [7.0, 9.0]],
+                    ],
+                    [
+                        [[8.0, 12.0], [14.0, 16.0]],
+                        [[11.0, 13.0], [15.0, 17.0]],
+                    ],
+                ],
+            ),
+            (
+                "maximum",
+                backend.maximum,
+                [
+                    [
+                        [[4.0, 8.0], [12.0, 20.0]],
+                        [[6.0, 10.0], [14.0, 18.0]],
+                    ],
+                    [
+                        [[16.0, 24.0], [28.0, 32.0]],
+                        [[22.0, 26.0], [30.0, 34.0]],
+                    ],
+                ],
+            ),
+            (
+                "minimum",
+                backend.minimum,
+                [
+                    [
+                        [[2.0, 2.0], [2.0, 2.0]],
+                        [[2.0, 2.0], [2.0, 2.0]],
+                    ],
+                    [
+                        [[2.0, 2.0], [2.0, 2.0]],
+                        [[2.0, 2.0], [2.0, 2.0]],
+                    ],
+                ],
+            ),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2, 2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_divide_raises_when_scalar_right_hand_operand_is_zero(self):
-        pass
+        backend = self.make_backend()
+        a = backend.to_tensor([[4.0, 8.0], [12.0, 20.0]])
+        b = 0.0
+
+        with self.assertRaises(ValueError):
+            backend.divide(a, b)
 
     def test_divide_raises_when_tensor_right_hand_operand_contains_zero(self):
-        pass
+        backend = self.make_backend()
+        a = backend.to_tensor([[4.0, 8.0], [12.0, 20.0]])
+        b = backend.to_tensor([[2.0, 4.0], [0.0, 5.0]])
+
+        with self.assertRaises(ValueError):
+            backend.divide(a, b)
 
 
 @EnforceSharedNumericFixtures()
