@@ -50,6 +50,7 @@ from tests.tensors.backend_contract_elementwise import (
     BackendContractElementwiseSemanticsMixin,
     BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseDualBroadcastingMixin,
 )
 
 from tests.tensors.backend_reference_matmul import BackendReferenceMatmulArithmeticMixin
@@ -114,6 +115,7 @@ class TestNumpyBackendContract(
     BackendContractElementwiseSemanticsMixin,
     BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseDualBroadcastingMixin,
 ):
     pass
 
