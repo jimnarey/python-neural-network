@@ -139,7 +139,7 @@ class BackendContractElementwiseSemanticsMixin(BackendContractBase):
 
 
 @EnforceSharedNumericFixtures()
-class BackendContractElementwiseBroadcastingMixin(BackendContractBase):
+class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase):
     """
     The tests in BackendContractElementwiseSemanticsMixin only use operands
     with identical shapes. The tests in this class cover what happens when
@@ -225,6 +225,15 @@ class BackendContractElementwiseBroadcastingMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 with self.assertRaises(ValueError):
                     method(a, b)
+
+    def test_elementwise_methods_raise_when_higher_rank_tensor_shapes_are_not_broadcast_compatible(
+        self,
+    ):
+        pass
+
+
+@EnforceSharedNumericFixtures()
+class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase):
 
     def test_elementwise_methods_broadcast_1D_tensor_across_2D_tensor(self):
         """
