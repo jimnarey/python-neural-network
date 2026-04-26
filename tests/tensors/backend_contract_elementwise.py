@@ -139,7 +139,7 @@ class BackendContractElementwiseSemanticsMixin(BackendContractBase):
 
 
 @EnforceSharedNumericFixtures()
-class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase):
+class BackendContractElementwiseLengthOneAxisBroadcastingMixin(BackendContractBase):
     """
     The tests in BackendContractElementwiseSemanticsMixin only use operands
     with identical shapes. The tests in this class cover the case where both
@@ -152,9 +152,8 @@ class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase)
     axis lengths are compatible if they are equal, or if one of them is 1.
 
     When an axis has length 1 on one side but a longer length on the other,
-    the length 1 axis is 'stretched' to match — the single value is repeated
-    enough times that the axis has the same length as its counterpart in the
-    other operand.
+    the single value along that axis is reused for each position in the longer
+    operand — as though the length-1 axis were expanded to match.
 
     If two axes at the same position have lengths that are neither equal nor
     one of them is 1, the shapes are not compatible and the operation should
@@ -166,8 +165,8 @@ class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase)
         This tests broadcasting where an end axis has length 1.
 
         The two operands have the same number of dimensions. Broadcasting
-        of the 'axis stretching' variety is possible because the rightmost
-        axis of a has length 1 while the rightmost axis of b has length 3.
+        is possible because the rightmost axis of a has length 1 while the
+        rightmost axis of b has length 3.
 
         The tensor a has shape (2, 1) and the tensor b has shape (2, 3).
         Comparing shapes from right to left, the rightmost axes have
@@ -371,8 +370,7 @@ class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase)
         the rightmost axes both have length 2, so they match. The middle
         axis has of a has length 3 and b has length 2. Because these
         lengths are neither equal nor one of them is 1, there is no valid
-        way to stretch either operand to make the values line up along
-        that axis.
+        way to extend either of the counterpart axes.
 
         This means the operations cannot be carried out elementwise and
         should therefore raise an exception.
@@ -409,7 +407,7 @@ class BackendContractElementwiseStretchingBroadcastingMixin(BackendContractBase)
 @EnforceSharedNumericFixtures()
 class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase):
     """
-    The tests in BackendContractElementwiseStretchingBroadcastingMixin cover
+    The tests in BackendContractElementwiseLengthOneAxisBroadcastingMixin cover
     the case where both operands have the same number of dimensions. The
     tests in this class cover what happens when the operands have different
     numbers of dimensions.
@@ -431,8 +429,8 @@ class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase
     treated as shape (1, 2, 3) still contains the same two rows — the
     operand itself is now the single element along the added axis. During
     the operation, it is reused for every corresponding position in the
-    other operand, exactly as a length-1 axis is stretched in
-    BackendContractElementwiseStretchingBroadcastingMixin. It does not
+    other operand, exactly as a length-1 axis is broadcast in
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin. It does not
     matter how many fewer dimensions the lower-rank operand has.
 
     The case where one operand already has an explicit leading axis of

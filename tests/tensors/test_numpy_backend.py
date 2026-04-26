@@ -48,7 +48,7 @@ from tests.tensors.backend_contract_transpose import BackendContractTransposeMix
 
 from tests.tensors.backend_contract_elementwise import (
     BackendContractElementwiseSemanticsMixin,
-    BackendContractElementwiseStretchingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
 )
 
@@ -112,7 +112,7 @@ class TestNumpyBackendContract(
     BackendContractReductionEmptyInputMixin,
     BackendContractReductionInvalidAxisMixin,
     BackendContractElementwiseSemanticsMixin,
-    BackendContractElementwiseStretchingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
 ):
     pass
