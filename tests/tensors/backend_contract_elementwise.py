@@ -181,12 +181,82 @@ class BackendContractElementwiseBroadcastingMixin(BackendContractBase):
     axes (the stack length) can be broadcast. Here, any axis can be
     broadcast, as long as the rule is satisfied at every position.
 
-    If it is not — that is, if two axes at the same position have lengths
-    that are neither equal nor either of them 1, such as 2 and 3 — the
-    operation should raise an exception.
+    If it is not — i.e. if two axes at the same position have lengths
+    that are neither equal nor one is 1 — the operation should  raise an
+    exception.
     """
 
+    def test_elementwise_methods_broadcast_when_an_end_axis_has_length_1(self):
+        pass
+
+    def test_elementwise_methods_broadcast_when_a_middle_axis_has_length_1(self):
+        pass
+
+    def test_elementwise_methods_raise_when_tensor_shapes_are_not_broadcast_compatible(
+        self,
+    ):
+        """
+        This tests that elementwise operations raise when the operand shapes
+        are not compatible for broadcasting.
+
+        The left-hand tensor a has shape (2, 3) and the right-hand tensor b
+        has shape (2, 2). Comparing shapes from right to left, the rightmost
+        axes have lengths 3 and 2. Because these lengths are neither equal
+        nor one of them is 1, there is no valid way to pair the values at
+        those positions.
+
+        This means the operations cannot be carried out elementwise and
+        should therefore raise an exception.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor([[2.0, 6.0, 12.0], [4.0, 12.0, 16.0]])
+        b = backend.to_tensor([[1.0, 3.0], [4.0, 5.0]])
+
+        elementwise_methods = [
+            ("add", backend.add),
+            ("subtract", backend.subtract),
+            ("multiply", backend.multiply),
+            ("divide", backend.divide),
+            ("maximum", backend.maximum),
+            ("minimum", backend.minimum),
+        ]
+
+        for method_name, method in elementwise_methods:
+            with self.subTest(method=method_name):
+                with self.assertRaises(ValueError):
+                    method(a, b)
+
     def test_elementwise_methods_broadcast_1D_tensor_across_2D_tensor(self):
+        """
+        When a 1D tensor is combined with a 2D tensor, the 1D tensor is reused
+        for each row of the 2D tensor.
+
+        The 2D operand a has shape (2, 3) and the 1D operand b has shape (3,).
+        Comparing shapes from right to left, the rightmost axes (both 3) are
+        equal. The 1D tensor then has no more axes; the remaining axis of a
+        (length 2) is treated as though b had shape (1, 3), so b is reused once
+        for each row.
+
+        The 2D operand a is:
+
+            [2.0,  6.0, 12.0]
+            [4.0, 12.0, 16.0]
+
+        The 1D operand b is:
+
+            [1.0, 3.0, 4.0]
+
+        For add, the first row of the result is b added to the first row of a:
+
+            [2.0 + 1.0,  6.0 + 3.0, 12.0 + 4.0] = [3.0, 9.0, 16.0]
+
+        b is then reused for the second row:
+
+            [4.0 + 1.0, 12.0 + 3.0, 16.0 + 4.0] = [5.0, 15.0, 20.0]
+
+        The result has shape (2, 3). All six elementwise methods are tested with
+        the same operands.
+        """
         backend = self.make_backend()
         a = backend.to_tensor([[2.0, 6.0, 12.0], [4.0, 12.0, 16.0]])
         b = backend.to_tensor([1.0, 3.0, 4.0])
@@ -208,6 +278,43 @@ class BackendContractElementwiseBroadcastingMixin(BackendContractBase):
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_broadcast_2D_tensor_across_3D_tensor(self):
+        """
+        When a 2D tensor is combined with a 3D tensor, the 2D tensor is reused
+        for each position along the leading axis of the 3D tensor.
+
+        The 3D operand a has shape (2, 2, 2) and the 2D operand b has shape
+        (2, 2). Comparing shapes from right to left, the two rightmost axes
+        match (both 2, then both 2). The 2D tensor then has no more axes; the
+        remaining leading axis of a (length 2) is treated as though b had shape
+        (1, 2, 2), so b is reused once for each position along that axis.
+
+        The first 2D tensor in a is:
+
+            [2.0,  6.0]
+            [12.0, 20.0]
+
+        The second 2D tensor in a is:
+
+            [2.0,  9.0]
+            [8.0,  15.0]
+
+        The 2D operand b is:
+
+            [1.0, 3.0]
+            [4.0, 5.0]
+
+        For add, b is added to the first 2D tensor in a:
+
+            [2.0 + 1.0,  6.0 + 3.0]  = [3.0,  9.0]
+            [12.0 + 4.0, 20.0 + 5.0] = [16.0, 25.0]
+
+        b is then reused and added to the second 2D tensor in a:
+
+            [2.0 + 1.0,  9.0 + 3.0]  = [3.0,  12.0]
+            [8.0 + 4.0,  15.0 + 5.0] = [12.0, 20.0]
+
+        The result has shape (2, 2, 2).
+        """
         backend = self.make_backend()
         a = backend.to_tensor(
             [
@@ -275,16 +382,209 @@ class BackendContractElementwiseBroadcastingMixin(BackendContractBase):
                 self.assertEqual(backend.shape(result_tensor), (2, 2, 2))
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
+    def test_elementwise_methods_broadcast_2D_tensor_across_4D_tensor(self):
+        """
+        This tests broadcasting a 2D tensor across a 4D tensor.
+
+        Each of the previous broadcasting tests involving added dimensions
+        only requires one extra dimension to be added to the lower-rank operand.
+        This test requires two.
+
+        This helps guard against future backend implementations accidentally
+        treating 1D tensors, or tensors only one dimension smaller than the
+        other operand, as special cases.
+
+        Otherwise, the principle under test is the same: compare the shapes
+        from right to left, then treat the lower-rank operand as though
+        leading axes of length 1 had been added.
+        """
+        backend = self.make_backend()
+        a = backend.to_tensor(
+            [
+                [
+                    [[2.0, 6.0], [12.0, 20.0]],
+                    [[4.0, 12.0], [16.0, 25.0]],
+                ],
+                [
+                    [[3.0, 9.0], [8.0, 15.0]],
+                    [[5.0, 15.0], [24.0, 30.0]],
+                ],
+            ]
+        )
+        b = backend.to_tensor([[1.0, 3.0], [4.0, 5.0]])
+
+        elementwise_methods = [
+            (
+                "add",
+                backend.add,
+                [
+                    [
+                        [[3.0, 9.0], [16.0, 25.0]],
+                        [[5.0, 15.0], [20.0, 30.0]],
+                    ],
+                    [
+                        [[4.0, 12.0], [12.0, 20.0]],
+                        [[6.0, 18.0], [28.0, 35.0]],
+                    ],
+                ],
+            ),
+            (
+                "subtract",
+                backend.subtract,
+                [
+                    [
+                        [[1.0, 3.0], [8.0, 15.0]],
+                        [[3.0, 9.0], [12.0, 20.0]],
+                    ],
+                    [
+                        [[2.0, 6.0], [4.0, 10.0]],
+                        [[4.0, 12.0], [20.0, 25.0]],
+                    ],
+                ],
+            ),
+            (
+                "multiply",
+                backend.multiply,
+                [
+                    [
+                        [[2.0, 18.0], [48.0, 100.0]],
+                        [[4.0, 36.0], [64.0, 125.0]],
+                    ],
+                    [
+                        [[3.0, 27.0], [32.0, 75.0]],
+                        [[5.0, 45.0], [96.0, 150.0]],
+                    ],
+                ],
+            ),
+            (
+                "divide",
+                backend.divide,
+                [
+                    [
+                        [[2.0, 2.0], [3.0, 4.0]],
+                        [[4.0, 4.0], [4.0, 5.0]],
+                    ],
+                    [
+                        [[3.0, 3.0], [2.0, 3.0]],
+                        [[5.0, 5.0], [6.0, 6.0]],
+                    ],
+                ],
+            ),
+            (
+                "maximum",
+                backend.maximum,
+                [
+                    [
+                        [[2.0, 6.0], [12.0, 20.0]],
+                        [[4.0, 12.0], [16.0, 25.0]],
+                    ],
+                    [
+                        [[3.0, 9.0], [8.0, 15.0]],
+                        [[5.0, 15.0], [24.0, 30.0]],
+                    ],
+                ],
+            ),
+            (
+                "minimum",
+                backend.minimum,
+                [
+                    [
+                        [[1.0, 3.0], [4.0, 5.0]],
+                        [[1.0, 3.0], [4.0, 5.0]],
+                    ],
+                    [
+                        [[1.0, 3.0], [4.0, 5.0]],
+                        [[1.0, 3.0], [4.0, 5.0]],
+                    ],
+                ],
+            ),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2, 2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_elementwise_methods_broadcast_when_a_leading_axis_has_length_1(self):
-        pass
+        """
+        This tests broadcasting where one operand already has an explicit leading
+        axis of length 1.
 
-    def test_elementwise_methods_broadcast_1D_tensor_across_4D_tensor(self):
-        pass
+        This is a slightly less natural case than broadcasting a lower-rank
+        operand across a higher-rank one, because the length-1 axis is already
+        present rather than being treated as implicitly added on the left.
+        Even so, it is a real broadcasting case and could arise naturally after
+        an operation such as reshape, or after using keepdims=True in a reduction.
+        """
 
-    def test_elementwise_methods_raise_when_tensor_shapes_are_not_broadcast_compatible(
-        self,
-    ):
-        pass
+        backend = self.make_backend()
+        a = backend.to_tensor([[[12.0, 24.0], [18.0, 20.0]]])
+        b = backend.to_tensor(
+            [
+                [[3.0, 6.0], [6.0, 5.0]],
+                [[2.0, 4.0], [3.0, 4.0]],
+            ]
+        )
+
+        elementwise_methods = [
+            (
+                "add",
+                backend.add,
+                [
+                    [[15.0, 30.0], [24.0, 25.0]],
+                    [[14.0, 28.0], [21.0, 24.0]],
+                ],
+            ),
+            (
+                "subtract",
+                backend.subtract,
+                [
+                    [[9.0, 18.0], [12.0, 15.0]],
+                    [[10.0, 20.0], [15.0, 16.0]],
+                ],
+            ),
+            (
+                "multiply",
+                backend.multiply,
+                [
+                    [[36.0, 144.0], [108.0, 100.0]],
+                    [[24.0, 96.0], [54.0, 80.0]],
+                ],
+            ),
+            (
+                "divide",
+                backend.divide,
+                [
+                    [[4.0, 4.0], [3.0, 4.0]],
+                    [[6.0, 6.0], [6.0, 5.0]],
+                ],
+            ),
+            (
+                "maximum",
+                backend.maximum,
+                [
+                    [[12.0, 24.0], [18.0, 20.0]],
+                    [[12.0, 24.0], [18.0, 20.0]],
+                ],
+            ),
+            (
+                "minimum",
+                backend.minimum,
+                [
+                    [[3.0, 6.0], [6.0, 5.0]],
+                    [[2.0, 4.0], [3.0, 4.0]],
+                ],
+            ),
+        ]
+
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_raise_when_higher_rank_tensor_shapes_are_not_broadcast_compatible(
         self,
