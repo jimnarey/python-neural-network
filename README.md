@@ -26,8 +26,6 @@ The backend contract does (or will) enforce the following:
 
 #### Done
 
-
-
 ##### Types
 
 - Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`. TODO - should this be 'must'? Probably
@@ -42,6 +40,10 @@ The backend contract does (or will) enforce the following:
 
 ##### Numeric operations
 
+- The backend contract does not currently prescribe the behaviour of conventionally forbidden floating-point operations such as division by zero, taking the logarithm of zero or a negative value, or taking the square root of a negative value.
+- When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
+- Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
+
 ##### Shape
 
 - Tensors must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular tensors must raise `ValueError` when passed to any method which accepts a tensor as an input.
@@ -49,6 +51,7 @@ The backend contract does (or will) enforce the following:
 - Zero-length dimensions are allowed in the target shape when calling `reshape`, provided the total number of elements is unchanged.
 - `reshape` must reject any negative value in the target shape.
 > This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
+- Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise `ValueError`.
 
 ##### Axes Rules
 
@@ -59,28 +62,22 @@ The backend contract does (or will) enforce the following:
 
 ##### Broadcasting
 
+- The elementwise binary methods `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must all follow the same broadcasting rules.
+- Where a method signature allows a scalar argument, backends must support applying that scalar elementwise across the tensor.
+- The order of arguments is part of the contract: backends are only required to support scalar arguments in the positions explicitly allowed by the method signature.
+- For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
+- If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
+- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
+- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise `ValueError`.
+
 ##### Aliasing/Views
 
 - The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
 - Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
 
-
 ##### Other
 
-
-
 #### To do
-
-##### Types
-
-
-##### Numeric operations
-- Conventionally forbidden numeric operations, such as division by zero or taking the logarithm of a non-positive value, must raise `ValueError` rather than returning special values.
-- When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
-- Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
-
-##### Shape
-- Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise `ValueError`.
 
 ##### Axes Rules
 - Where a method takes an axes `tuple` to reorder axes, the order of the axes in the `tuple` is part of the contract and must be followed exactly.
@@ -91,15 +88,6 @@ The backend contract does (or will) enforce the following:
 - `keepdims` is accepted only by the reduction methods `sum`, `mean`, `max`, `min` and `std`.
 - `argmax` does not support the `keepdims` parameter.
 - `argmax` must accept `None` or a single `int` for the axis argument.
-
-##### Broadcasting
-- The elementwise binary methods `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must all follow the same broadcasting rules.
-- Where a method signature allows a scalar argument, backends must support applying that scalar elementwise across the tensor.
-- The order of arguments is part of the contract: backends are only required to support scalar arguments in the positions explicitly allowed by the method signature.
-- For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
-- If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
-- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
-- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise `ValueError`.
 
 ##### Aliasing/Views
 
@@ -144,6 +132,8 @@ The reference design does (or will) enforce the following:
 
 - Arithmetic follows ordinary floating-point behaviour, subject to the tolerances used in the backend contract tests.
 - Tests using non-integer `float` values are reference-design tests. They are not expected to be reusable unchanged for quantised or integer-valued backends.
+- Conventionally forbidden floating-point operations complete rather than raising in reference-design backends, which must surface the resulting special values at the Python boundary using ordinary Python `float` values, namely `float("nan")`, `float("inf")` and `float("-inf")`.
+- Reduction methods return float-valued tensors when the result is not scalar.
 
 ##### Random Tensor Creation
 
@@ -156,8 +146,7 @@ The reference design does (or will) enforce the following:
 
 - Elementwise arithmetic methods such as `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must return float-valued tensors.
 - Unary methods such as `exp`, `log`, `sqrt`, `absolute`, `sign` and `clip` must return float-valued tensors.
-- Reduction methods must return plain Python `float`s when the result is scalar.
-- Reduction methods must return float-valued tensors when the result is not scalar.
+- Where conventionally forbidden floating-point operations produce special values, scalar-returning methods may return those values and `to_python` may include them within returned Python lists.
 
 ##### Creation Methods
 
@@ -167,7 +156,10 @@ The reference design does (or will) enforce the following:
 - `empty` and `empty_like` must return tensors with the requested shape, but their values are not part of the contract.
 - Any dtype or native-representation expectations for `empty` and `empty_like` belong to reference-design or implementation-level tests, not the universal backend contract.
 
+#### No decision(s) made
 
+- No decision has yet been made about whether reference-design backends should provide additional shared operations for detecting or replacing non-finite values within tensors, such as `isfinite`, `isnan`, `isinf` or `nan_to_num`.
+- No decision has yet been made about how much shared behaviour should be required for later operations on tensors which already contain such special values, beyond surfacing them consistently at the Python boundary.
 
 #### Relationship With The Backend Contract
 
@@ -227,6 +219,7 @@ The tensor-backend design is intended to leave room for future backends with dif
 - This applies to values passed into `to_tensor` and to values checked with `assert_nested_close`.
 - Tests which use non-integer `float` values are treated as part of the `float`-based reference design and are not intended to be shared unchanged with non-`float` backends.
 - Shared-test decorators are used to enforce these rules in the test suite, including the requirement that shared `assert_nested_close` tests use `rel_tol=0` and `abs_tol=0`.
+- Behaviour for conventionally forbidden floating-point operations is not pinned down in the universal backend contract tests. Where shared behaviour is required across the float-based reference backends, it belongs in the reference-design tests instead.
 - Some overlap between arithmetic and structural or semantic testing is accepted where separating them further would make the tests less clear or less useful.
 - The tests are written to cover at least some higher-rank work, including 4D tensors, not because every immediate use case requires them, but to ensure that the network and tensor backends are adaptable to a range of use cases.
 
@@ -261,7 +254,7 @@ There are a lot. In some cases these represent my description of what a function
 
 ## Use of AI to complete this project
 
-A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs to write much code. AI coding tools, specifically GitHub Co-pilot and OpenAI Codex, were used to:
+A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs write much code. AI coding tools, specifically GitHub Co-pilot (using Sonnet 4.x) and OpenAI Codex (GPT 5.x), were used to:
 
 - Fix small, tedious problems e.g. headaches with the pre-commit hooks
 - Answer many hundreds of questions, especially about:
@@ -271,8 +264,11 @@ A chief purpose of this project was to learn how neural networks really work. Th
      - whether my comments and docstrings were accurate
      - what needed to be tested, especially with more complex calculations, e.g. matmul
 - Lay down boilerpate code, e.g. test method stubs which I could then work through one-by-one
+- Propose text for docstrings but barely ever simply write them
+> Codex was great at reading test methods and producing text which stepped through the operations using actual values. It was less good at explanations and there was a lot of back and forth to get the docstrings both accurate and easy to follow. Claude was noticibly better at striking a balance. None of this was helped by the fact that I was learning as I went.
 - Quickly produce things like arrays for tests and make close copies of existing tests, especially in the backend contract tests where the reference implementation (NumPy) was certain and the purpose of the tests was to fully describe its behaviour
 > Codex did remarkably well at producing both input and output arrays for tests. I had assumed I would have to ask it to quickly knock up some input arrays then run (e.g.) `np.matmul` in REPL to get the expected results but it was often able to produce the results as well. That said, I can't stress enough how much of a bad idea this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends). Interestingly, when the tests turned to higher-rank tensors, Codex started running Python commands to get the tensors without being asked. It also became clear, as I started work on the backend tests, that it's trivial to generate input tensors manually with numpy with something like `np.random.randn(2, 3)`.
+> As the project grew I became more relaxed about Codex writing whole test methods in the contract tests (stress: I knew the implementation worked because it was effectively testing NumPy). It was good but weaker on organising the tests and suggesting appropriate test coverage for individual operations.
 - Carry out simple but laborious refactoring, e.g. splitting code out into different modules as the project grew and I became more sure of the design.
 > I stopped using Codex for this once the project reached approx 15+ modules as it became quicker to do it than explain it.
 - Parse the source from the NNfSiP book to help answer questions about the code needed to be adapted. E.g. NNfSiP makes a lot of use of dot product which I decided not to implement in the backend, in favour of the more generic `matmul`.
