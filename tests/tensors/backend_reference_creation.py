@@ -7,6 +7,10 @@ def _all_values_are_floats(value) -> bool:
     return isinstance(value, float)
 
 
+# TODO - Add stubs and consider whether any native representation tests
+# are needed for empty, empty-like.
+
+
 class BackendReferenceCreationValueTypeMixin(BackendContractBase):
     def test_zeros_returns_float_values(self):
         backend = self.make_backend()

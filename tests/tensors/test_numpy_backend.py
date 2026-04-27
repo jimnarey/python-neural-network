@@ -53,6 +53,12 @@ from tests.tensors.backend_contract_elementwise import (
     BackendContractElementwiseDualBroadcastingMixin,
 )
 
+from tests.tensors.backend_reference_elementwise import (
+    BackendReferenceElementwiseFloatValueMixin,
+    BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseSpecialValueMixin,
+)
+
 from tests.tensors.backend_reference_matmul import BackendReferenceMatmulArithmeticMixin
 from tests.tensors.backend_reference_reduction import (
     BackendReferenceReductionArithmeticMixin,
@@ -128,6 +134,9 @@ class TestNumpyBackendReference(
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceCreationValueTypeMixin,
     BackendReferenceRandnMixin,
+    BackendReferenceElementwiseFloatValueMixin,
+    BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseSpecialValueMixin,
 ):
     pass
 
