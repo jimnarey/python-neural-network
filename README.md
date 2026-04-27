@@ -158,8 +158,10 @@ The reference design does (or will) enforce the following:
 
 #### No decision(s) made
 
-- No decision has yet been made about whether reference-design backends should provide additional shared operations for detecting or replacing non-finite values within tensors, such as `isfinite`, `isnan`, `isinf` or `nan_to_num`.
-- No decision has yet been made about how much shared behaviour should be required for later operations on tensors which already contain such special values, beyond surfacing them consistently at the Python boundary.
+- Whether reference-design backends should provide additional shared operations for detecting or replacing non-finite values within tensors, such as `isfinite`, `isnan`, `isinf` or `nan_to_num`.
+- `isfinite` and `nan_to_num` seem to be the common handlers in other tensor implementations, so these are probably the priority.
+- How much shared behaviour should be required for later operations on tensors which already contain such special values, beyond surfacing them consistently at the Python boundary.
+- Whether to implement methods for masking, clipping, replacement or other approaches to dealing with special values.
 
 #### Relationship With The Backend Contract
 
