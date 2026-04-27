@@ -280,6 +280,58 @@ A chief purpose of this project was to learn how neural networks really work. Th
 
 The final code from the NNfSiP book, which encompasses all the concepts taught in the book, can be found [here](https://github.com/Sentdex/nnfs_book/blob/main/Chapter_22/Ch22_Final.py).
 
+## Handling special values
+
+Writing tests for the elementwise operations in the backend contract and reference tests required some careful thinking about how to handle 'special values' such as `inf` and `nan`. These are produced by NumPy in cases where a conventionally forbidden operation takes place. E.g. `1 / 0 = inf` and `0 / 0 = nan`. This section summarises the considerations which went into determining how these are handled in the tensor backends and the network code.
+
+Where a tensor operation produces `nan`, `inf` or `-inf` the usual objectives are:
+
+- prevent special values appearing where possible by using safe versions of the operations concerned;
+- detect them quickly if they appear unexpectedly;
+- decide, at the level of the network or application, whether the right response is to stop, mask, clip, replace, or otherwise handle them.
+
+> 'mask' means treating certain positions in a tensor as special, usually by keeping a separate true/false structure saying which values are valid and which are not. This lets later code ignore, replace or handle only those positions while keeping the tensor’s shape unchanged.
+> 'clip' means forcing values into a chosen range. For example, clipping probabilities to stay between `1e-7` and `1 - 1e-7` avoids values like `0.0` or `1.0` which would otherwise cause problems for operations such as log(...).
+
+This matters because a small number of `nan`/`inf` values can spread quickly. One bad activation can make a loss `nan`; one bad gradient can make a weight `nan`; and one bad weight can then affect many later outputs through `matmul`.
+
+The NNfSiP code already handles this mainly by prevention rather than cleanup. For example, the softmax activation avoids overflow by subtracting the maximum value before exponentiation:
+
+```python
+exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
+probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
+```
+
+The categorical and binary cross-entropy losses clip predicted probabilities before taking logarithms, so they do not evaluate `log(0)`:
+
+```python
+y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+negative_log_likelihoods = -np.log(correct_confidences)
+```
+
+```python
+y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+sample_losses = -(
+    y_true * np.log(y_pred_clipped) + (1 - y_true) * np.log(1 - y_pred_clipped)
+)
+```
+
+The adaptive optimizers add a small epsilon before division, so they do not divide by zero when normalising updates:
+
+> 'epsilon' means a very small positive constant added for numerical safety. It is not intended to change the calculation in any meaningful way when the denominator is already a sensible size; its job is to stop the denominator from becoming exactly zero, or so close to zero that the change to a parameter such as a weight or bias becomes extremely large.
+
+```python
+layer.weights += (
+    -self.current_learning_rate
+    * layer.dweights
+    / (np.sqrt(layer.weight_cache) + self.epsilon)
+)
+```
+
+These examples show the normal pattern: if there is a well-understood safe version of an operation, that is usually preferred to allowing special values to appear and then trying to recover afterwards.
+
+If special values do appear unexpectedly, the right response depends on what the tensor represents. In training code, an unexpected `nan` or `inf` is often a sign that something has gone wrong in optimisation and the best response is to stop and diagnose the problem. In inference code, a fallback such as clipping or replacement may be acceptable. In such cases, handling such values should be the responsibility of the network code rather than the tensor backend.
+
 ## Notes
 
 Some important things I learned as part of this project which are not obviously expressed by the code/comments:
