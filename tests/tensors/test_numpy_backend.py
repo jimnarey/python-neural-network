@@ -43,7 +43,12 @@ from tests.tensors.backend_contract_reduction import (
 
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 
-from tests.tensors.backend_contract_argmax import BackendContractArgMaxMixin
+from tests.tensors.backend_contract_argmax import (
+    BackendContractArgMaxSemanticsMixin,
+    BackendContractArgMaxAxisArgumentMixin,
+    BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxTieBehaviourMixin,
+)
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
 from tests.tensors.backend_contract_elementwise import (
@@ -112,7 +117,10 @@ class TestNumpyBackendContract(
     BackendContractMatmulSemanticsMixin,
     BackendContractMatmulBroadcastingMixin,
     BackendContractReshapeMixin,
-    BackendContractArgMaxMixin,
+    BackendContractArgMaxSemanticsMixin,
+    BackendContractArgMaxAxisArgumentMixin,
+    BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxTieBehaviourMixin,
     BackendContractTransposeMixin,
     BackendContractReductionBehaviourMixin,
     BackendContractReductionKeepdimsMixin,
