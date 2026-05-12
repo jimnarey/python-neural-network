@@ -3,8 +3,8 @@
 This contains a runner class for the shared backend contract tests
 and one for the shared reference design tests.
 
-It also has tests for to_tensor and to_python, which it is critical
-be tested thoroughly as the shared tests rely on them.
+It also has tests for to_tensor, to_python and shape, which it is
+critical be tested thoroughly as the shared tests rely on them.
 
 We import numpy within each test method individually to enable the
 skipUnless checks which apply to each class. It also helps with test
@@ -684,3 +684,103 @@ class TestNumpyBackendToPython(NumpyBackendTestCase):
                     ),
                 ):
                     backend.to_python(data)
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendShape(NumpyBackendTestCase):
+    """
+    Test the NumPy backend's shape method since it is relied upon
+    in the backend contract tests.
+
+    We can be pretty certain that the NumPy backend's shape method
+    works because it just returns np.array.shape following a simple
+    rank 0 check. This class really exists as a template for future
+    tensor backends.
+    """
+
+    def test_shape_returns_expected_tuple_for_1D_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        test_cases = [
+            ("length_3", np.empty((3,), dtype=float), (3,)),
+            ("zero_length", np.empty((0,), dtype=float), (0,)),
+        ]
+        for case_name, tensor, expected_shape in test_cases:
+            with self.subTest(case=case_name):
+                result = backend.shape(tensor)
+                self.assertEqual(result, expected_shape)
+
+    def test_shape_returns_expected_tuple_for_2D_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        test_cases = [
+            ("two_by_three", np.empty((2, 3), dtype=float), (2, 3)),
+            ("two_by_zero", np.empty((2, 0), dtype=float), (2, 0)),
+        ]
+        for case_name, tensor, expected_shape in test_cases:
+            with self.subTest(case=case_name):
+                result = backend.shape(tensor)
+                self.assertEqual(result, expected_shape)
+
+    def test_shape_returns_expected_tuple_for_3D_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        test_cases = [
+            ("two_by_three_by_two", np.empty((2, 3, 2), dtype=float), (2, 3, 2)),
+            ("two_by_zero_by_three", np.empty((2, 0, 3), dtype=float), (2, 0, 3)),
+        ]
+        for case_name, tensor, expected_shape in test_cases:
+            with self.subTest(case=case_name):
+                result = backend.shape(tensor)
+                self.assertEqual(result, expected_shape)
+
+    def test_shape_returns_expected_tuple_for_4D_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        test_cases = [
+            (
+                "one_by_two_by_three_by_four",
+                np.empty((1, 2, 3, 4), dtype=float),
+                (1, 2, 3, 4),
+            ),
+            (
+                "two_by_one_by_four_by_three",
+                np.empty((2, 1, 4, 3), dtype=float),
+                (2, 1, 4, 3),
+            ),
+            (
+                "three_by_two_by_zero_by_one",
+                np.empty((3, 2, 0, 1), dtype=float),
+                (3, 2, 0, 1),
+            ),
+        ]
+        for case_name, tensor, expected_shape in test_cases:
+            with self.subTest(case=case_name):
+                result = backend.shape(tensor)
+                self.assertEqual(result, expected_shape)
+
+    def test_shape_rejects_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        test_cases = [
+            ("rank_0_float", np.empty((), dtype=float), True, None),
+            ("rank_0_int", np.empty((), dtype=int), True, None),
+        ]
+        for case_name, tensor, should_raise, expected_shape in test_cases:
+            with self.subTest(case=case_name):
+                if should_raise:
+                    with self.assertRaises(ValueError):
+                        backend.shape(tensor)
+
+    def test_shape_accepts_zero_length_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.empty((0,), dtype=float)
+        result = backend.shape(tensor)
+        self.assertEqual(result, (0,))
