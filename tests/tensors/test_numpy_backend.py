@@ -18,7 +18,16 @@ import unittest
 
 from src.tensors.tensor_backend import TensorBackend
 from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
-from tests.tensors.backend_contract_creation import BackendContractCreationMixin
+from tests.tensors.backend_contract_creation import (
+    BackendContractCreationShapeMixin,
+    BackendContractCreationValueMixin,
+    BackendContractCreationLikeSemanticsMixin,
+    BackendContractCreationEmptyMixin,
+    BackendContractCopyMixin,
+    BackendContractEyeMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractCreationInputValidationMixin,
+)
 
 from tests.tensors.backend_contract_to_tensor import (
     BackendContractToTensorTypeInputMixin,
@@ -109,7 +118,14 @@ class NumpyBackendTestCase(unittest.TestCase):
 class TestNumpyBackendContract(
     NumpyBackendTestCase,
     BackendContractConstructionMixin,
-    BackendContractCreationMixin,
+    BackendContractCreationShapeMixin,
+    BackendContractCreationValueMixin,
+    BackendContractCreationLikeSemanticsMixin,
+    BackendContractCreationEmptyMixin,
+    BackendContractCopyMixin,
+    BackendContractEyeMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractCreationInputValidationMixin,
     BackendContractToTensorTypeInputMixin,
     BackendContractToTensorShapeInputMixin,
     BackendContractToPythonMixin,
@@ -784,3 +800,39 @@ class TestNumpyBackendShape(NumpyBackendTestCase):
         tensor = np.empty((0,), dtype=float)
         result = backend.shape(tensor)
         self.assertEqual(result, (0,))
+
+
+@unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
+class TestNumpyBackendCopy(NumpyBackendTestCase):
+    """
+    We test that copy does not give us the same Python object in the contrac
+    tests but this is not sufficient to know that we do not have separate
+    objects referring to the same underlying memory/data.
+
+    This class provides real assurance by mutating the source and copy tensors
+    and checking that in each case the other is unchanged.
+    """
+
+    def test_copy_does_not_share_values_with_original_after_original_is_mutated(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        source_tensor = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        copy_tensor = backend.copy(source_tensor)
+        source_tensor[0, 0] = 0
+        self.assertEqual(
+            copy_tensor.tolist(),
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+        )
+
+    def test_copy_does_not_share_values_with_original_after_copy_is_mutated(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        source_tensor = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        copy_tensor = backend.copy(source_tensor)
+        copy_tensor[0, 0] = 0
+        self.assertEqual(
+            source_tensor.tolist(),
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+        )
