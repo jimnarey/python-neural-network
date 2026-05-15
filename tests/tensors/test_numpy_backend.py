@@ -80,6 +80,8 @@ from tests.tensors.backend_reference_reduction import (
 )
 from tests.tensors.backend_reference_creation import (
     BackendReferenceCreationValueTypeMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCopyMixin,
 )
 from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 
@@ -157,6 +159,8 @@ class TestNumpyBackendReference(
     BackendReferenceReductionFloatValueMixin,
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceCreationValueTypeMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCopyMixin,
     BackendReferenceRandnMixin,
     BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseArithmeticMixin,
