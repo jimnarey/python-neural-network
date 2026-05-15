@@ -17,73 +17,64 @@ import importlib.util
 import unittest
 
 from src.tensors.tensor_backend import TensorBackend
-from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
-from tests.tensors.backend_contract_creation import (
-    BackendContractCreationShapeMixin,
-    BackendContractCreationValueMixin,
-    BackendContractCreationLikeSemanticsMixin,
-    BackendContractCreationEmptyMixin,
-    BackendContractCopyMixin,
-    BackendContractEyeMixin,
-    BackendContractCreationZeroLengthDimensionMixin,
-    BackendContractCreationInputValidationMixin,
-)
-
-from tests.tensors.backend_contract_to_tensor import (
-    BackendContractToTensorTypeInputMixin,
-    BackendContractToTensorShapeInputMixin,
-)
-
-from tests.tensors.backend_contract_to_python import BackendContractToPythonMixin
-
-from tests.tensors.backend_contract_matmul import (
-    BackendContractMatmulSemanticsMixin,
-    BackendContractMatmulBroadcastingMixin,
-)
-
-from tests.tensors.backend_contract_randn import BackendContractRandnMixin
-
-from tests.tensors.backend_contract_reduction import (
-    BackendContractReductionBehaviourMixin,
-    BackendContractReductionKeepdimsMixin,
-    BackendContractReductionEmptyInputMixin,
-    BackendContractReductionInvalidAxisMixin,
-)
-
-from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
-
 from tests.tensors.backend_contract_argmax import (
-    BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxAxisArgumentMixin,
     BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
+)
+from tests.tensors.backend_contract_creation import (
+    BackendContractCopyMixin,
+    BackendContractCreationEmptyMixin,
+    BackendContractCreationInputValidationMixin,
+    BackendContractCreationLikeSemanticsMixin,
+    BackendContractCreationShapeMixin,
+    BackendContractCreationValueMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractEyeMixin,
+)
+from tests.tensors.backend_contract_elementwise import (
+    BackendContractElementwiseDualBroadcastingMixin,
+    BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
+    BackendContractElementwiseSemanticsMixin,
+)
+from tests.tensors.backend_contract_matmul import (
+    BackendContractMatmulBroadcastingMixin,
+    BackendContractMatmulSemanticsMixin,
+)
+from tests.tensors.backend_contract_randn import BackendContractRandnMixin
+from tests.tensors.backend_contract_reduction import (
+    BackendContractReductionBehaviourMixin,
+    BackendContractReductionEmptyInputMixin,
+    BackendContractReductionInvalidAxisMixin,
+    BackendContractReductionKeepdimsMixin,
+)
+from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
+from tests.tensors.backend_contract_shared import BackendContractConstructionMixin
+from tests.tensors.backend_contract_to_python import BackendContractToPythonMixin
+from tests.tensors.backend_contract_to_tensor import (
+    BackendContractToTensorShapeInputMixin,
+    BackendContractToTensorTypeInputMixin,
 )
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
-from tests.tensors.backend_contract_elementwise import (
-    BackendContractElementwiseSemanticsMixin,
-    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
-    BackendContractElementwiseLeftPaddingBroadcastingMixin,
-    BackendContractElementwiseDualBroadcastingMixin,
+from tests.tensors.backend_reference_creation import (
+    BackendReferenceCopyMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCreationValueTypeMixin,
 )
-
 from tests.tensors.backend_reference_elementwise import (
-    BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
 )
-
 from tests.tensors.backend_reference_matmul import BackendReferenceMatmulArithmeticMixin
+from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 from tests.tensors.backend_reference_reduction import (
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceReductionFloatValueMixin,
 )
-from tests.tensors.backend_reference_creation import (
-    BackendReferenceCreationValueTypeMixin,
-    BackendReferenceCreationLikeValueTypeMixin,
-    BackendReferenceCopyMixin,
-)
-from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -119,35 +110,35 @@ class NumpyBackendTestCase(unittest.TestCase):
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendContract(
     NumpyBackendTestCase,
-    BackendContractConstructionMixin,
-    BackendContractCreationShapeMixin,
-    BackendContractCreationValueMixin,
-    BackendContractCreationLikeSemanticsMixin,
-    BackendContractCreationEmptyMixin,
-    BackendContractCopyMixin,
-    BackendContractEyeMixin,
-    BackendContractCreationZeroLengthDimensionMixin,
-    BackendContractCreationInputValidationMixin,
-    BackendContractToTensorTypeInputMixin,
-    BackendContractToTensorShapeInputMixin,
-    BackendContractToPythonMixin,
-    BackendContractRandnMixin,
-    BackendContractMatmulSemanticsMixin,
-    BackendContractMatmulBroadcastingMixin,
-    BackendContractReshapeMixin,
-    BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxAxisArgumentMixin,
     BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
-    BackendContractTransposeMixin,
+    BackendContractConstructionMixin,
+    BackendContractCopyMixin,
+    BackendContractCreationEmptyMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractCreationInputValidationMixin,
+    BackendContractCreationLikeSemanticsMixin,
+    BackendContractCreationShapeMixin,
+    BackendContractCreationValueMixin,
+    BackendContractEyeMixin,
+    BackendContractElementwiseDualBroadcastingMixin,
+    BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
+    BackendContractElementwiseSemanticsMixin,
+    BackendContractMatmulBroadcastingMixin,
+    BackendContractMatmulSemanticsMixin,
+    BackendContractRandnMixin,
     BackendContractReductionBehaviourMixin,
-    BackendContractReductionKeepdimsMixin,
     BackendContractReductionEmptyInputMixin,
     BackendContractReductionInvalidAxisMixin,
-    BackendContractElementwiseSemanticsMixin,
-    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
-    BackendContractElementwiseLeftPaddingBroadcastingMixin,
-    BackendContractElementwiseDualBroadcastingMixin,
+    BackendContractReductionKeepdimsMixin,
+    BackendContractReshapeMixin,
+    BackendContractToPythonMixin,
+    BackendContractToTensorShapeInputMixin,
+    BackendContractToTensorTypeInputMixin,
+    BackendContractTransposeMixin,
 ):
     pass
 
@@ -155,16 +146,16 @@ class TestNumpyBackendContract(
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendReference(
     NumpyBackendTestCase,
-    BackendReferenceMatmulArithmeticMixin,
-    BackendReferenceReductionFloatValueMixin,
-    BackendReferenceReductionArithmeticMixin,
-    BackendReferenceCreationValueTypeMixin,
-    BackendReferenceCreationLikeValueTypeMixin,
     BackendReferenceCopyMixin,
-    BackendReferenceRandnMixin,
-    BackendReferenceElementwiseFloatValueMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCreationValueTypeMixin,
     BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
+    BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceRandnMixin,
+    BackendReferenceReductionArithmeticMixin,
+    BackendReferenceReductionFloatValueMixin,
 ):
     pass
 
