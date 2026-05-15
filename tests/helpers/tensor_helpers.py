@@ -20,6 +20,12 @@ DEFAULT_REL_TOL: Final = 1e-7
 DEFAULT_ABS_TOL: Final = 1e-8
 
 
+def all_values_are_floats(value) -> bool:
+    if isinstance(value, list):
+        return all(all_values_are_floats(item) for item in value)
+    return isinstance(value, float)
+
+
 def assert_nested_close(
     actual: Any,
     expected: Any,

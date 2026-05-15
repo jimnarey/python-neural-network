@@ -37,8 +37,8 @@ from tests.helpers.shared_tests_enforcement import (
     _restore_make_backend,
     _wrap_test_methods,
 )
-from tests.helpers import tensor_assertions
-from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers import tensor_helpers
+from tests.helpers.tensor_helpers import assert_nested_close
 
 SELF_TEST_CONTEXT = "SELF TEST"
 
@@ -136,10 +136,10 @@ class TestPatchMethodAssertNestedClose(TestCase):
         def replacement(*args, **kwargs):
             return None
 
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
 
         with patch.object(
-            tensor_assertions,
+            tensor_helpers,
             "assert_nested_close",
             module_assert_nested_close,
         ):
@@ -161,7 +161,7 @@ class TestPatchMethodAssertNestedClose(TestCase):
                     original_value=None,
                 ),
             )
-            self.assertIs(tensor_assertions.assert_nested_close, replacement)
+            self.assertIs(tensor_helpers.assert_nested_close, replacement)
             self.assertNotIn("assert_nested_close", method.__globals__)
 
     def test_replaces_assert_nested_close_and_returns_original_state_when_assert_nested_close_is_in_function_globals(
@@ -174,11 +174,11 @@ class TestPatchMethodAssertNestedClose(TestCase):
         def replacement(*args, **kwargs):
             return None
 
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
 
         with (
             patch.object(
-                tensor_assertions,
+                tensor_helpers,
                 "assert_nested_close",
                 module_assert_nested_close,
             ),
@@ -206,13 +206,13 @@ class TestPatchMethodAssertNestedClose(TestCase):
                     original_value=globals_assert_nested_close,
                 ),
             )
-            self.assertIs(tensor_assertions.assert_nested_close, replacement)
+            self.assertIs(tensor_helpers.assert_nested_close, replacement)
             self.assertIs(method.__globals__["assert_nested_close"], replacement)
 
     def test_raises_runtime_error_with_warning_message_when_patching_globals_fails_after_module_helper_is_patched(
         self,
     ):
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
 
         def globals_assert_nested_close():
             return None
@@ -239,7 +239,7 @@ class TestPatchMethodAssertNestedClose(TestCase):
         method = FunctionType(template.__code__, method_globals)
 
         with patch.object(
-            tensor_assertions,
+            tensor_helpers,
             "assert_nested_close",
             module_assert_nested_close,
         ):
@@ -249,7 +249,7 @@ class TestPatchMethodAssertNestedClose(TestCase):
             ):
                 _patch_assert_nested_close(method, replacement)
 
-            self.assertIs(tensor_assertions.assert_nested_close, replacement)
+            self.assertIs(tensor_helpers.assert_nested_close, replacement)
             self.assertIs(
                 method.__globals__["assert_nested_close"],
                 globals_assert_nested_close,
@@ -264,14 +264,14 @@ class TestRestoreMethodAssertNestedClose(TestCase):
     ):
         method = method_without_assert_nested_close_in_globals
 
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
 
         def replacement_module_helper(*args, **kwargs):
             return None
 
         with (
             patch.object(
-                tensor_assertions,
+                tensor_helpers,
                 "assert_nested_close",
                 replacement_module_helper,
             ),
@@ -294,7 +294,7 @@ class TestRestoreMethodAssertNestedClose(TestCase):
             )
 
             self.assertIs(
-                tensor_assertions.assert_nested_close, module_assert_nested_close
+                tensor_helpers.assert_nested_close, module_assert_nested_close
             )
             self.assertNotIn("assert_nested_close", method.__globals__)
 
@@ -303,7 +303,7 @@ class TestRestoreMethodAssertNestedClose(TestCase):
     ):
         method = method_with_assert_nested_close_in_globals
 
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
         globals_assert_nested_close = method.__globals__["assert_nested_close"]
 
         def replacement_module_helper(*args, **kwargs):
@@ -311,7 +311,7 @@ class TestRestoreMethodAssertNestedClose(TestCase):
 
         with (
             patch.object(
-                tensor_assertions,
+                tensor_helpers,
                 "assert_nested_close",
                 replacement_module_helper,
             ),
@@ -334,7 +334,7 @@ class TestRestoreMethodAssertNestedClose(TestCase):
             )
 
             self.assertIs(
-                tensor_assertions.assert_nested_close, module_assert_nested_close
+                tensor_helpers.assert_nested_close, module_assert_nested_close
             )
             self.assertIs(
                 method.__globals__["assert_nested_close"], globals_assert_nested_close
@@ -538,7 +538,7 @@ class TestEnforceIntegerValuedFloatsAndIntsInAssertNestedClose(TestCase):
         @EnforceIntegerValuedFloatsAndIntsInAssertNestedClose()
         class DecoratedDummy:
             def test_example(self, actual, expected):
-                tensor_assertions.assert_nested_close(
+                tensor_helpers.assert_nested_close(
                     actual,
                     expected,
                     rel_tol=0,
@@ -567,7 +567,7 @@ class TestEnforceIntegerValuedFloatsAndIntsInAssertNestedClose(TestCase):
         @EnforceIntegerValuedFloatsAndIntsInAssertNestedClose()
         class DecoratedDummy:
             def test_example(self, actual, expected):
-                tensor_assertions.assert_nested_close(
+                tensor_helpers.assert_nested_close(
                     actual,
                     expected,
                     rel_tol=0,
@@ -588,21 +588,20 @@ class TestEnforceIntegerValuedFloatsAndIntsInAssertNestedClose(TestCase):
     def test_enforce_integer_valued_floats_in_assert_nested_close_restores_assert_nested_close_when_wrapped_test_method_raises(
         self,
     ):
-        module_assert_nested_close = tensor_assertions.assert_nested_close
+        module_assert_nested_close = tensor_helpers.assert_nested_close
 
         @EnforceIntegerValuedFloatsAndIntsInAssertNestedClose()
         class DecoratedDummy:
             def test_example(self):
                 assert (
-                    tensor_assertions.assert_nested_close
-                    is not module_assert_nested_close
+                    tensor_helpers.assert_nested_close is not module_assert_nested_close
                 )
                 raise RuntimeError("wrapped test method failed")
 
         with self.assertRaisesRegex(RuntimeError, "wrapped test method failed"):
             DecoratedDummy().test_example()
 
-        self.assertIs(tensor_assertions.assert_nested_close, module_assert_nested_close)
+        self.assertIs(tensor_helpers.assert_nested_close, module_assert_nested_close)
 
     def test_enforce_integer_valued_floats_in_assert_nested_close_applies_to_directly_imported_assert_nested_close(
         self,
@@ -628,7 +627,7 @@ class TestEnforceZeroTolerancesInAssertNestedClose(TestCase):
         @EnforceZeroTolerancesInAssertNestedClose()
         class DecoratedDummy:
             def test_example(self):
-                tensor_assertions.assert_nested_close(
+                tensor_helpers.assert_nested_close(
                     [1.0, 2.0],
                     [1.0, 2.0],
                     rel_tol=0,
@@ -645,10 +644,10 @@ class TestEnforceZeroTolerancesInAssertNestedClose(TestCase):
         class DecoratedDummy:
             def test_example(self, call_style):
                 if call_style == "default":
-                    tensor_assertions.assert_nested_close([1.0, 2.0], [1.0, 2.0])
+                    tensor_helpers.assert_nested_close([1.0, 2.0], [1.0, 2.0])
                     return
                 if call_style == "non_zero_rel_tol":
-                    tensor_assertions.assert_nested_close(
+                    tensor_helpers.assert_nested_close(
                         [1.0, 2.0],
                         [1.0, 2.0],
                         rel_tol=1e-7,
@@ -656,7 +655,7 @@ class TestEnforceZeroTolerancesInAssertNestedClose(TestCase):
                     )
                     return
                 if call_style == "non_zero_abs_tol":
-                    tensor_assertions.assert_nested_close(
+                    tensor_helpers.assert_nested_close(
                         [1.0, 2.0],
                         [1.0, 2.0],
                         rel_tol=0,
@@ -700,7 +699,7 @@ class TestEnforceSharedNumericFixtures(TestCase):
                 return TensorBackendDummy()
 
             def test_example(self):
-                tensor_assertions.assert_nested_close(
+                tensor_helpers.assert_nested_close(
                     [1.0, 2.0],
                     [1, 2],
                     rel_tol=0,
@@ -724,7 +723,7 @@ class TestEnforceSharedNumericFixtures(TestCase):
 
             def test_example(self, call_style):
                 if call_style == "non-integer-valued float":
-                    tensor_assertions.assert_nested_close(
+                    tensor_helpers.assert_nested_close(
                         [1.0, 2.5],
                         [1.0, 2.5],
                         rel_tol=0,
@@ -732,7 +731,7 @@ class TestEnforceSharedNumericFixtures(TestCase):
                     )
                     return
                 if call_style == "default_tolerances":
-                    tensor_assertions.assert_nested_close(
+                    tensor_helpers.assert_nested_close(
                         [1.0, 2.0],
                         [1.0, 2.0],
                     )
@@ -760,7 +759,7 @@ class TestEnforceSharedNumericFixtures(TestCase):
                 return TensorBackendDummy()
 
             def test_example(self):
-                tensor_assertions.assert_nested_close(
+                tensor_helpers.assert_nested_close(
                     [1.0, 2.5],
                     [1.0, 2.5],
                     rel_tol=1e-7,

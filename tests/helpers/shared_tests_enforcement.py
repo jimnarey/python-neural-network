@@ -39,8 +39,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Generic, TypeVar
 
 from src.tensors.tensor_backend import TensorBackend
-from tests.helpers import tensor_assertions
-from tests.helpers.tensor_assertions import DEFAULT_ABS_TOL, DEFAULT_REL_TOL
+from tests.helpers import tensor_helpers
+from tests.helpers.tensor_helpers import DEFAULT_ABS_TOL, DEFAULT_REL_TOL
 
 T = TypeVar("T")
 type AssertNestedClose = Callable[[Any, Any, float, float], None]
@@ -132,15 +132,15 @@ def _patch_assert_nested_close(
     that the patch works indpendently of how assert_nested_close
     was imported and used:
 
-    from tests.helpers import tensor_assertions
+    from tests.helpers import tensor_helpers
     tensor_assertions.assert_nested_close(x, y)
 
-    from tests.helpers.tensor_assertions import assert_nested_close
+    from tests.helpers.tensor_helpers import assert_nested_close
     assert_nested_close(x, y)
     """
     module_patch_state = PatchState[AssertNestedClose](
         had_original=True,
-        original_value=tensor_assertions.assert_nested_close,
+        original_value=tensor_helpers.assert_nested_close,
     )
     globals_patch_state = PatchState[AssertNestedClose | None](
         had_original="assert_nested_close" in test_method.__globals__,
@@ -148,7 +148,7 @@ def _patch_assert_nested_close(
     )
 
     try:
-        setattr(tensor_assertions, "assert_nested_close", wrapped_assert_nested_close)
+        setattr(tensor_helpers, "assert_nested_close", wrapped_assert_nested_close)
         if globals_patch_state.had_original:
             test_method.__globals__["assert_nested_close"] = wrapped_assert_nested_close
     except Exception as exc:
@@ -182,7 +182,7 @@ def _patch_assert_nested_close_to_enforce_integer_valued_floats(
     The return value is the patch state needed later to restore the original
     bindings.
     """
-    original_module_assert_nested_close = tensor_assertions.assert_nested_close
+    original_module_assert_nested_close = tensor_helpers.assert_nested_close
 
     def checked_assert_nested_close(
         actual: Any,
@@ -218,7 +218,7 @@ def _patch_assert_nested_close_to_enforce_zero_tolerances(
     The return value is the patch state needed later to restore the original
     bindings.
     """
-    original_module_assert_nested_close = tensor_assertions.assert_nested_close
+    original_module_assert_nested_close = tensor_helpers.assert_nested_close
 
     def checked_assert_nested_close(
         actual: Any,
@@ -266,7 +266,7 @@ def _restore_assert_nested_close(
     before patching, and whether each copy was present at all. That lets the
     restore step put things back exactly as they were.
     """
-    setattr(tensor_assertions, "assert_nested_close", module_patch_state.original_value)
+    setattr(tensor_helpers, "assert_nested_close", module_patch_state.original_value)
     if globals_patch_state.had_original:
         method.__globals__["assert_nested_close"] = globals_patch_state.original_value
     else:

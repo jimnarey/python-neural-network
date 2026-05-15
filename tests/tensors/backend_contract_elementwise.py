@@ -38,7 +38,7 @@ shapes.
 """
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.tensor_helpers import assert_nested_close
 from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 

@@ -1,14 +1,7 @@
 import math
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import assert_nested_close
-
-
-# TODO -  this is duplicated. Move it with the assert_nested_close function
-def _all_values_are_floats(value) -> bool:
-    if isinstance(value, list):
-        return all(_all_values_are_floats(item) for item in value)
-    return isinstance(value, float)
+from tests.helpers.tensor_helpers import assert_nested_close, all_values_are_floats
 
 
 class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
@@ -39,7 +32,7 @@ class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 result_tensor = method(a, b)
                 result = backend.to_python(result_tensor)
-                self.assertTrue(_all_values_are_floats(result))
+                self.assertTrue(all_values_are_floats(result))
 
     def test_elementwise_methods_return_float_valued_tensors_when_broadcasting(self):
         """
@@ -90,7 +83,7 @@ class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 result_tensor = method(a, b)
                 result = backend.to_python(result_tensor)
-                self.assertTrue(_all_values_are_floats(result))
+                self.assertTrue(all_values_are_floats(result))
 
     def test_elementwise_methods_return_float_valued_tensors_when_given_int_scalar_rhs(
         self,
@@ -124,7 +117,7 @@ class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 result_tensor = method(a, b)
                 result = backend.to_python(result_tensor)
-                self.assertTrue(_all_values_are_floats(result))
+                self.assertTrue(all_values_are_floats(result))
 
     def test_elementwise_methods_return_float_valued_tensors_when_given_float_scalar_rhs(
         self,
@@ -158,7 +151,7 @@ class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
             with self.subTest(method=method_name):
                 result_tensor = method(a, b)
                 result = backend.to_python(result_tensor)
-                self.assertTrue(_all_values_are_floats(result))
+                self.assertTrue(all_values_are_floats(result))
 
 
 class BackendReferenceElementwiseArithmeticMixin(BackendContractBase):
@@ -257,7 +250,7 @@ class BackendReferenceElementwiseSpecialValueMixin(BackendContractBase):
 
         result_tensor = backend.divide(a, 0.0)
         result = backend.to_python(result_tensor)
-        self.assertTrue(_all_values_are_floats(result))
+        self.assertTrue(all_values_are_floats(result))
         self.assertTrue(math.isinf(result[0][0]))
         self.assertGreater(result[0][0], 0.0)
         self.assertTrue(math.isinf(result[0][1]))
@@ -289,7 +282,7 @@ class BackendReferenceElementwiseSpecialValueMixin(BackendContractBase):
         result_tensor = backend.divide(a, b)
         result = backend.to_python(result_tensor)
 
-        self.assertTrue(_all_values_are_floats(result))
+        self.assertTrue(all_values_are_floats(result))
         self.assertEqual(result[0][0], 2.0)
         self.assertTrue(math.isinf(result[0][1]))
         self.assertLess(result[0][1], 0.0)

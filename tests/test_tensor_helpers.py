@@ -9,7 +9,7 @@ combinations of values and thresholds.
 
 from unittest import TestCase
 
-from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.tensor_helpers import assert_nested_close
 
 
 class TestAssertNestedClose(TestCase):

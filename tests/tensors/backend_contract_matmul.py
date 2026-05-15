@@ -47,7 +47,7 @@ matmul behaviour using, as always, NumPy as the reference.
 # (2, 2, 2, 3) @ (3, 2, 3, 2) should raise in broadcasting mixin
 
 from tests.tensors.backend_contract_shared import BackendContractBase
-from tests.helpers.tensor_assertions import assert_nested_close
+from tests.helpers.tensor_helpers import assert_nested_close
 from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 
