@@ -25,13 +25,12 @@ from tests.tensors.backend_contract_argmax import (
 )
 from tests.tensors.backend_contract_creation import (
     BackendContractCopyMixin,
-    BackendContractCreationEmptyMixin,
     BackendContractCreationInputValidationMixin,
-    BackendContractCreationLikeSemanticsMixin,
-    BackendContractCreationShapeMixin,
-    BackendContractCreationValueMixin,
     BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractEmptyMixin,
     BackendContractEyeMixin,
+    BackendContractLikeCreationMixin,
+    BackendContractZerosOnesAndFullMixin,
 )
 from tests.tensors.backend_contract_elementwise import (
     BackendContractElementwiseDualBroadcastingMixin,
@@ -59,6 +58,14 @@ from tests.tensors.backend_contract_to_tensor import (
 )
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
+from tests.tensors.backend_contract_unary import (
+    BackendContractAbsoluteSemanticsMixin,
+    BackendContractClipSemanticsMixin,
+    BackendContractSignSemanticsMixin,
+    BackendContractSqrtSemanticsMixin,
+    BackendContractUnaryShapeMixin,
+)
+
 from tests.tensors.backend_reference_creation import (
     BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
@@ -74,6 +81,14 @@ from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 from tests.tensors.backend_reference_reduction import (
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceReductionFloatValueMixin,
+)
+from tests.tensors.backend_reference_unary import (
+    BackendReferenceExpArithmeticMixin,
+    BackendReferenceLogArithmeticMixin,
+    BackendReferenceLogSpecialValueMixin,
+    BackendReferenceSqrtArithmeticMixin,
+    BackendReferenceSqrtSpecialValueMixin,
+    BackendReferenceUnaryValueTypeMixin,
 )
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
@@ -114,19 +129,19 @@ class TestNumpyBackendContract(
     BackendContractArgMaxKeepdimsMixin,
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
+    BackendContractAbsoluteSemanticsMixin,
+    BackendContractClipSemanticsMixin,
     BackendContractConstructionMixin,
     BackendContractCopyMixin,
-    BackendContractCreationEmptyMixin,
-    BackendContractCreationZeroLengthDimensionMixin,
     BackendContractCreationInputValidationMixin,
-    BackendContractCreationLikeSemanticsMixin,
-    BackendContractCreationShapeMixin,
-    BackendContractCreationValueMixin,
-    BackendContractEyeMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
     BackendContractElementwiseDualBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
     BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseSemanticsMixin,
+    BackendContractEmptyMixin,
+    BackendContractEyeMixin,
+    BackendContractLikeCreationMixin,
     BackendContractMatmulBroadcastingMixin,
     BackendContractMatmulSemanticsMixin,
     BackendContractRandnMixin,
@@ -135,10 +150,14 @@ class TestNumpyBackendContract(
     BackendContractReductionInvalidAxisMixin,
     BackendContractReductionKeepdimsMixin,
     BackendContractReshapeMixin,
+    BackendContractSignSemanticsMixin,
+    BackendContractSqrtSemanticsMixin,
     BackendContractToPythonMixin,
     BackendContractToTensorShapeInputMixin,
     BackendContractToTensorTypeInputMixin,
     BackendContractTransposeMixin,
+    BackendContractUnaryShapeMixin,
+    BackendContractZerosOnesAndFullMixin,
 ):
     pass
 
@@ -152,10 +171,16 @@ class TestNumpyBackendReference(
     BackendReferenceElementwiseArithmeticMixin,
     BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
+    BackendReferenceExpArithmeticMixin,
+    BackendReferenceLogArithmeticMixin,
+    BackendReferenceLogSpecialValueMixin,
     BackendReferenceMatmulArithmeticMixin,
     BackendReferenceRandnMixin,
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceReductionFloatValueMixin,
+    BackendReferenceSqrtArithmeticMixin,
+    BackendReferenceSqrtSpecialValueMixin,
+    BackendReferenceUnaryValueTypeMixin,
 ):
     pass
 
