@@ -65,6 +65,14 @@ The backend contract enforces the following:
 - `keepdims` is accepted only by the reduction methods `sum`, `mean`, `max`, `min` and `std`.
 - `argmax` does not support the `keepdims` parameter.
 - `argmax` must accept `None` or a single `int` for the axis argument.
+- `concatenate` joins tensors along an existing axis. It must accept a non-empty sequence of tensors and an axis which may be negative.
+- `concatenate` must also accept a sequence containing a single tensor, in which case the returned tensor has the same shape and values.
+- For `concatenate`, all tensors must have the same rank and all dimensions must match except along the chosen axis.
+- `concatenate` leaves the rank unchanged. The size of the chosen axis in the result is the sum of the sizes of that axis in the input tensors.
+- `stack` joins tensors along a new axis. It must accept a non-empty sequence of tensors and an axis which may be negative.
+- For `stack`, all tensors must have exactly the same shape.
+- `stack` must also accept a sequence containing a single tensor, in which case the returned tensor has the same values but with a new axis of length `1` inserted at the chosen position.
+- `stack` increases the rank by `1`. The result shape is formed by inserting a new axis of length equal to the number of input tensors.
 
 #### Broadcasting
 
@@ -86,9 +94,6 @@ The backend contract enforces the following:
 
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
 - When input violates the contract for a method, the method must raise `ValueError` rather than guessing or silently adjusting the input. Where the violation is fundamentally about Python input type rather than value or shape, `TypeError` is also acceptable.
-
-#### No decision(s) made
-- No decisions have yet been made about the exact contract for stack, concatenate, vstack and hstack. This includes which input shapes and ranks they must accept, how the axis argument should work where relevant, and what should happen when the inputs are empty or their shapes do not match. These decisions have been deferred until the methods themselves are being tested and implemented.
 
 #### Interoperability
 

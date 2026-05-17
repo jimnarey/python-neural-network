@@ -23,6 +23,11 @@ from tests.tensors.backend_contract_argmax import (
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
 )
+from tests.tensors.backend_contract_composition import (
+    BackendContractConcatenateSemanticsMixin,
+    BackendContractStackSemanticsMixin,
+)
+
 from tests.tensors.backend_contract_creation import (
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
@@ -130,6 +135,8 @@ class TestNumpyBackendContract(
     BackendContractArgMaxKeepdimsMixin,
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
+    BackendContractConcatenateSemanticsMixin,
+    BackendContractStackSemanticsMixin,
     BackendContractAbsoluteSemanticsMixin,
     BackendContractClipSemanticsMixin,
     BackendContractConstructionMixin,
