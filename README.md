@@ -22,11 +22,9 @@ Ultimately, my aim was to build a neural network which, for classifying numerica
 
 The contract for the tensor backends is expressed using a Protocol class (TensorBackend). When a layer is instantiated it must be passed a backend class which conforms to the TensorBackend contract. The Protocol can't do everything. A lot of the contract is defined through the backend contract tests which were built using NumPy's array methods as a reference implementation.
 
-The backend contract does (or will) enforce the following:
+The backend contract enforces the following:
 
-#### Done
-
-##### Types
+#### Types and Values
 
 - Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`. TODO - should this be 'must'? Probably
 - Backend methods only receive and return standard Python types for scalar values (`float`, `int`) and never implementation-specific types (`np.float64`).
@@ -38,13 +36,13 @@ The backend contract does (or will) enforce the following:
 - Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
 - The values returned by this method (within the `list`) must be `float`s or `int`s.
 
-##### Numeric operations
+#### Numeric operations
 
 - The backend contract does not currently prescribe the behaviour of conventionally forbidden floating-point operations such as division by zero, taking the logarithm of zero or a negative value, or taking the square root of a negative value.
 - When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
 - Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
 
-##### Shape
+#### Shape
 
 - Tensors must be rectangular: along each axis, every nested sub-array must have the same length. Non-rectangular tensors must raise `ValueError` when passed to any method which accepts a tensor as an input.
 - `reshape` must preserve the total number of elements. If the target shape would require a different number of elements, it must raise `ValueError`.
@@ -53,33 +51,12 @@ The backend contract does (or will) enforce the following:
 > This is a feature of NumPy which causes the method to infer the size of a single dimension from the number of elements and the size of the other dimensions if `-1` is passed as the size of that dimension. It is not needed and makes an already complex method more difficult to implement.
 - Where a method requires tensors to have the same shape, or shapes which are compatible under the relevant broadcasting rules, any mismatch must raise `ValueError`.
 
-##### Axes Rules
+#### Axes Rules
 
 - `transpose` must accept either `None` or a full axes `tuple`. When an axes `tuple` is provided, it gives the new order of the axes.
 - `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, `axis=1` and `axis=(1,)` are equivalent.
 - When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank 0 tensor.
 - When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains a tensor.
-
-##### Broadcasting
-
-- The elementwise binary methods `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must all follow the same broadcasting rules.
-- Where a method signature allows a scalar argument, backends must support applying that scalar elementwise across the tensor.
-- The order of arguments is part of the contract: backends are only required to support scalar arguments in the positions explicitly allowed by the method signature.
-- For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
-- If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
-- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
-- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise `ValueError`.
-
-##### Aliasing/Views
-
-- The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
-- Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
-
-##### Other
-
-#### To do
-
-##### Axes Rules
 - Where a method takes an axes `tuple` to reorder axes, the order of the axes in the `tuple` is part of the contract and must be followed exactly.
 - Where a method takes an axes `tuple` to identify which axes to operate on, the `tuple` identifies the set of axes to use; the order of those axes is not part of the contract.
 - Negative axes are allowed wherever a method accepts an axis or axes `tuple`, and are interpreted by counting back from the end of the tensor shape.
@@ -89,11 +66,24 @@ The backend contract does (or will) enforce the following:
 - `argmax` does not support the `keepdims` parameter.
 - `argmax` must accept `None` or a single `int` for the axis argument.
 
-##### Aliasing/Views
+#### Broadcasting
 
+- The elementwise binary methods `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must all follow the same broadcasting rules.
+- Where a method signature allows a scalar argument, backends must support applying that scalar elementwise across the tensor.
+- The order of arguments is part of the contract: backends are only required to support scalar arguments in the positions explicitly allowed by the method signature.
+- For tensor-with-tensor operations, shapes are compared from the end. Two dimensions are compatible if they are equal, or if one of them is `1`.
+- If one tensor has fewer dimensions, it is treated as if dimensions of length `1` had been added on the left before comparison.
+- The result shape is built one axis at a time. Where two compatible dimensions differ because one of them is `1`, the result takes the other dimension.
+- If any pair of aligned dimensions is neither equal nor `1`, the operation must raise `ValueError`.
+
+#### Aliasing/Views
+
+- The backend contract does not guarantee whether a method returns a copy of a tensor or a view onto existing data.
+- Backends are free to avoid copying internally where they can, but code using the backend must not rely on mutating one tensor to affect another.
 - `copy` is the only method which guarantees an independent tensor with the same values.
 
-##### Other
+#### Other
+
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
 - When input violates the contract for a method, the method must raise `ValueError` rather than guessing or silently adjusting the input. Where the violation is fundamentally about Python input type rather than value or shape, `TypeError` is also acceptable.
 
@@ -111,11 +101,9 @@ The backend contract defines what every backend must do. The reference design is
 
 The reference design is float-based. It is intended for the NumPy backend, the first pure-Python backend, and any later full-fat CPU/GPU backend used for ordinary training or inference. Quantised backends may deliberately diverge from this design while still sharing as much of the backend contract and structural test coverage as possible.
 
-The reference design does (or will) enforce the following:
+The reference design enforces the following:
 
-#### Done
-
-##### Types And Values
+#### Types And Values
 
 - Tensor values are represented as `float`s internally.
 - Python `int` values may be accepted at the contract boundary where this is convenient, but they are normalised to `float` values inside tensors.
@@ -123,39 +111,34 @@ The reference design does (or will) enforce the following:
 - Methods which return scalar numeric results, other than index-returning methods, return plain Python `float`s.
 - Methods which return indices return plain Python `int`s.
 
-##### Conversion
-
-- `to_tensor` converts acceptable Python numeric values to the backend's native `float`-valued tensor representation.
-- `to_python` converts native tensors back to Python lists containing `float`s.
-
-##### Arithmetic
-
-- Arithmetic follows ordinary floating-point behaviour, subject to the tolerances used in the backend contract tests.
-- Tests using non-integer `float` values are reference-design tests. They are not expected to be reusable unchanged for quantised or integer-valued backends.
-- Conventionally forbidden floating-point operations complete rather than raising in reference-design backends, which must surface the resulting special values at the Python boundary using ordinary Python `float` values, namely `float("nan")`, `float("inf")` and `float("-inf")`.
-- Reduction methods return float-valued tensors when the result is not scalar.
-
-##### Random Tensor Creation
-
-- `randn` returns float-valued tensors.
-- Backends should support seeding so tests and examples can be reproduced, but different backends do not have to generate the same random values from the same seed.
-
-#### To do
-
-##### Numeric Operations
+#### Numeric Operations
 
 - Elementwise arithmetic methods such as `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must return float-valued tensors.
 - Unary methods such as `exp`, `log`, `sqrt`, `absolute`, `sign` and `clip` must return float-valued tensors.
 - Where conventionally forbidden floating-point operations produce special values, scalar-returning methods may return those values and `to_python` may include them within returned Python lists.
 - At the Python boundary, reference backends may surface special numeric values only as `float("inf")`, `float("-inf")` and `float("nan")`, whether returned directly as scalar results or appearing inside the Python lists produced by to_python.
 
-##### Creation Methods
+#### Conversion
+
+- `to_tensor` converts acceptable Python numeric values to the backend's native `float`-valued tensor representation.
+- `to_python` converts native tensors back to Python lists containing `float`s.
+
+#### Arithmetic
+
+- Arithmetic follows ordinary floating-point behaviour, subject to the tolerances used in the backend contract tests.
+- Tests using non-integer `float` values are reference-design tests. They are not expected to be reusable unchanged for quantised or integer-valued backends.
+- Conventionally forbidden floating-point operations complete rather than raising in reference-design backends, which must surface the resulting special values at the Python boundary using ordinary Python `float` values, namely `float("nan")`, `float("inf")` and `float("-inf")`.
+- Reduction methods return float-valued tensors when the result is not scalar.
+
+#### Creation Methods
 
 - `zeros_like`, `ones_like` and `full_like` must return float-valued tensors with the same shape as the input tensor.
 - `full_like` must normalise an `int` fill value to `float` values in the returned tensor.
 - `copy` must return an independent tensor with the same shape and values as the input tensor.
 - `empty` and `empty_like` must return tensors with the requested shape, but their values are not part of the contract.
 - Any dtype or native-representation expectations for `empty` and `empty_like` belong to reference-design or implementation-level tests, not the universal backend contract.
+- `randn` returns float-valued tensors.
+- Backends should support seeding so tests and examples can be reproduced, but different backends do not have to generate the same random values from the same seed.
 
 #### No decision(s) made
 
