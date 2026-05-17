@@ -250,6 +250,12 @@ The chosen design is:
 - Each backend capable of supporting quantization will need a different internal tensor representation and different arithmetic implementations.
 - Quantised implementations will share as much structural code and as much of the existing structural test coverage as possible, while adding only the extra representations, arithmetic logic, and tests needed for both.
 
+At that stage, the most likely direction is that the current single backend contract will be split conceptually into a smaller core contract and one or more extensions. The core contract would cover the operations and behaviours which every backend must share. The existing float-based reference design would then become a stricter extension of that core, with its own fuller Protocol. A quantised backend would be expected to satisfy the core contract but would only implement whichever further operations made sense for its own arithmetic model.
+
+This means that some tests which are currently described as backend contract tests would, in future, become reference-design tests or capability-specific tests instead. In many cases this should be a matter of moving and renaming existing test mixins rather than redesigning them from scratch. The current mixin-based structure is intended to make that kind of migration manageable: each mixin can later be classified as core, reference-only, or specific to some narrower backend family.
+
+If this happens, the Protocol design will probably follow the same pattern. A small core Protocol would define the minimum backend surface. A reference-backend Protocol would extend it with the full float-based operation set. A later quantised Protocol might also extend the core Protocol, but in a different direction. This should make it possible to keep maximum code and test reuse without pretending that all backend families need to expose exactly the same operations.
+
 
 ## Docstrings
 
