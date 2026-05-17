@@ -290,13 +290,5 @@ class NumpyBackend:
         self._validate_not_rank_0_sequence(xs)
         return np.concatenate(xs, axis=axis)
 
-    def vstack(self, xs: Sequence[Tensor]) -> Tensor:
-        self._validate_not_rank_0_sequence(xs)
-        return np.vstack(xs)
-
-    def hstack(self, xs: Sequence[Tensor]) -> Tensor:
-        self._validate_not_rank_0_sequence(xs)
-        return np.hstack(xs)
-
     def eye(self, n: int, m: int | None = None) -> Tensor:
         return np.eye(n, m, dtype=float)

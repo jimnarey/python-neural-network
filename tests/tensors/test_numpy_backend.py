@@ -354,8 +354,6 @@ class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
         sequence_tensor_methods = [
             ("stack", lambda: backend.stack([rank_0, matrix])),
             ("concatenate", lambda: backend.concatenate([rank_0, matrix])),
-            ("vstack", lambda: backend.vstack([rank_0, matrix])),
-            ("hstack", lambda: backend.hstack([rank_0, matrix])),
         ]
 
         for method_name, call in sequence_tensor_methods:

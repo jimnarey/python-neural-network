@@ -400,16 +400,6 @@ class TensorBackend(Protocol):
         Join tensors along an existing axis.
         """
 
-    def vstack(self, xs: Sequence[Tensor]) -> Tensor:
-        """
-        Stack tensors vertically.
-        """
-
-    def hstack(self, xs: Sequence[Tensor]) -> Tensor:
-        """
-        Stack tensors horizontally.
-        """
-
     def eye(self, n: int, m: int | None = None) -> Tensor:
         """
         Create a float-valued 2D identity matrix. Use of floats has to
