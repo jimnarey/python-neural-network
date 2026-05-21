@@ -42,22 +42,53 @@ class BackendReferenceExpArithmeticMixin(BackendContractBase):
         self.assertEqual(backend.shape(result_tensor), (2, 2))
         assert_nested_close(result, expected)
 
-    def test_exp_returns_expected_values_for_3D_tensor_when_one_dimension_is_1(self):
+    def test_exp_returns_expected_values_for_3D_tensors(self):
         backend = self.make_backend()
-        tensor = backend.to_tensor(
-            [
-                [[0.0, 1.0, 2.0]],
-                [[3.0, 4.0, 5.0]],
-            ]
-        )
-        result_tensor = backend.exp(tensor)
-        result = backend.to_python(result_tensor)
-        expected = [
-            [[math.exp(0.0), math.exp(1.0), math.exp(2.0)]],
-            [[math.exp(3.0), math.exp(4.0), math.exp(5.0)]],
+        test_cases = [
+            (
+                "singleton_dimension",
+                backend.to_tensor(
+                    [
+                        [[0.0, 1.0, 2.0]],
+                        [[3.0, 4.0, 5.0]],
+                    ]
+                ),
+                [
+                    [[math.exp(0.0), math.exp(1.0), math.exp(2.0)]],
+                    [[math.exp(3.0), math.exp(4.0), math.exp(5.0)]],
+                ],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]],
+                        [[6.0, 7.0], [8.0, 9.0], [10.0, 11.0]],
+                    ]
+                ),
+                [
+                    [
+                        [math.exp(0.0), math.exp(1.0)],
+                        [math.exp(2.0), math.exp(3.0)],
+                        [math.exp(4.0), math.exp(5.0)],
+                    ],
+                    [
+                        [math.exp(6.0), math.exp(7.0)],
+                        [math.exp(8.0), math.exp(9.0)],
+                        [math.exp(10.0), math.exp(11.0)],
+                    ],
+                ],
+                (2, 3, 2),
+            ),
         ]
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(result, expected)
+
+        for case_name, tensor, expected, expected_shape in test_cases:
+            result_tensor = backend.exp(tensor)
+            result = backend.to_python(result_tensor)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected)
 
 
 class BackendReferenceLogArithmeticMixin(BackendContractBase):
@@ -82,24 +113,53 @@ class BackendReferenceLogArithmeticMixin(BackendContractBase):
         self.assertEqual(backend.shape(result_tensor), (2, 2))
         assert_nested_close(result, expected)
 
-    def test_log_returns_expected_values_for_3D_tensor_when_one_dimension_is_1(
-        self,
-    ):
+    def test_log_returns_expected_values_for_3D_tensors(self):
         backend = self.make_backend()
-        tensor = backend.to_tensor(
-            [
-                [[1.0, 2.0, 4.0]],
-                [[8.0, 16.0, 32.0]],
-            ]
-        )
-        result_tensor = backend.log(tensor)
-        result = backend.to_python(result_tensor)
-        expected = [
-            [[math.log(1.0), math.log(2.0), math.log(4.0)]],
-            [[math.log(8.0), math.log(16.0), math.log(32.0)]],
+        test_cases = [
+            (
+                "singleton_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 2.0, 4.0]],
+                        [[8.0, 16.0, 32.0]],
+                    ]
+                ),
+                [
+                    [[math.log(1.0), math.log(2.0), math.log(4.0)]],
+                    [[math.log(8.0), math.log(16.0), math.log(32.0)]],
+                ],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 2.0], [4.0, 8.0], [16.0, 32.0]],
+                        [[64.0, 128.0], [256.0, 512.0], [1024.0, 2048.0]],
+                    ]
+                ),
+                [
+                    [
+                        [math.log(1.0), math.log(2.0)],
+                        [math.log(4.0), math.log(8.0)],
+                        [math.log(16.0), math.log(32.0)],
+                    ],
+                    [
+                        [math.log(64.0), math.log(128.0)],
+                        [math.log(256.0), math.log(512.0)],
+                        [math.log(1024.0), math.log(2048.0)],
+                    ],
+                ],
+                (2, 3, 2),
+            ),
         ]
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(result, expected)
+
+        for case_name, tensor, expected, expected_shape in test_cases:
+            result_tensor = backend.log(tensor)
+            result = backend.to_python(result_tensor)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected)
 
 
 class BackendReferenceUnaryValueTypeMixin(BackendContractBase):

@@ -64,6 +64,7 @@ from tests.tensors.backend_contract_unary import (
     BackendContractSignSemanticsMixin,
     BackendContractSqrtSemanticsMixin,
     BackendContractUnaryShapeMixin,
+    BackendContractUnaryZeroLengthDimensionMixin,
 )
 
 from tests.tensors.backend_reference_creation import (
@@ -157,6 +158,7 @@ class TestNumpyBackendContract(
     BackendContractToTensorTypeInputMixin,
     BackendContractTransposeMixin,
     BackendContractUnaryShapeMixin,
+    BackendContractUnaryZeroLengthDimensionMixin,
     BackendContractZerosOnesAndFullMixin,
 ):
     pass

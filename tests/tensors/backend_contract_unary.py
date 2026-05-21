@@ -77,46 +77,47 @@ class BackendContractUnaryShapeMixin(BackendContractBase):
                 result_tensor = method(tensor)
                 self.assertEqual(backend.shape(result_tensor), (2, 2))
 
-    def test_exp_and_log_return_3D_tensors_with_same_shape_as_input_when_one_dimension_is_1(
-        self,
-    ):
-        backend = self.make_backend()
-        input_tensors = {
-            "exp": (
-                backend.exp,
-                backend.to_tensor([[[1.0, 2.0, 4.0]], [[1.0, 2.0, 4.0]]]),
-            ),
-            "log": (
-                backend.log,
-                backend.to_tensor([[[1.0, 2.0, 4.0]], [[1.0, 2.0, 4.0]]]),
-            ),
-        }
-
-        for method_name, (method, tensor) in input_tensors.items():
-            with self.subTest(method=method_name):
-                result_tensor = method(tensor)
-                self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-
-    def test_exp_and_log_return_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
-        self,
-    ):
+    def test_exp_and_log_return_3D_tensors_with_same_shape_as_input(self):
         backend = self.make_backend()
         test_cases = [
-            ("leading_zero", (0, 2, 3)),
-            ("middle_zero", (2, 0, 3)),
-            ("trailing_zero", (2, 3, 0)),
+            (
+                "singleton_dimension",
+                {
+                    "exp": backend.to_tensor([[[1.0, 2.0, 4.0]], [[1.0, 2.0, 4.0]]]),
+                    "log": backend.to_tensor([[[1.0, 2.0, 4.0]], [[1.0, 2.0, 4.0]]]),
+                },
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                {
+                    "exp": backend.to_tensor(
+                        [
+                            [[1.0, 2.0], [4.0, 8.0], [16.0, 32.0]],
+                            [[1.0, 2.0], [4.0, 8.0], [16.0, 32.0]],
+                        ]
+                    ),
+                    "log": backend.to_tensor(
+                        [
+                            [[1.0, 2.0], [4.0, 8.0], [16.0, 32.0]],
+                            [[1.0, 2.0], [4.0, 8.0], [16.0, 32.0]],
+                        ]
+                    ),
+                },
+                (2, 3, 2),
+            ),
         ]
 
-        for case_name, shape in test_cases:
+        for case_name, tensors, expected_shape in test_cases:
             input_tensors = {
-                "exp": (backend.exp, backend.ones(shape)),
-                "log": (backend.log, backend.ones(shape)),
+                "exp": (backend.exp, tensors["exp"]),
+                "log": (backend.log, tensors["log"]),
             }
 
             for method_name, (method, tensor) in input_tensors.items():
                 with self.subTest(case=case_name, method=method_name):
                     result_tensor = method(tensor)
-                    self.assertEqual(backend.shape(result_tensor), shape)
+                    self.assertEqual(backend.shape(result_tensor), expected_shape)
 
 
 @EnforceSharedNumericFixtures()
@@ -144,43 +145,45 @@ class BackendContractSqrtSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(result_tensor), (2, 2))
         assert_nested_close(result, [[0.0, 1.0], [2.0, 3.0]], rel_tol=0, abs_tol=0)
 
-    def test_sqrt_returns_expected_values_for_3D_tensor_when_one_dimension_is_1(self):
-        backend = self.make_backend()
-        tensor = backend.to_tensor(
-            [
-                [[1.0, 4.0, 9.0]],
-                [[16.0, 25.0, 36.0]],
-            ]
-        )
-        result_tensor = backend.sqrt(tensor)
-        result = backend.to_python(result_tensor)
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(
-            result,
-            [
-                [[1.0, 2.0, 3.0]],
-                [[4.0, 5.0, 6.0]],
-            ],
-            rel_tol=0,
-            abs_tol=0,
-        )
-
-    def test_sqrt_returns_expected_3D_tensors_when_one_dimension_is_0(self):
+    def test_sqrt_returns_expected_3D_tensors(self):
         backend = self.make_backend()
         test_cases = [
-            ("leading_zero", (0, 2, 3)),
-            ("middle_zero", (2, 0, 3)),
-            ("trailing_zero", (2, 3, 0)),
+            (
+                "singleton_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 4.0, 9.0]],
+                        [[16.0, 25.0, 36.0]],
+                    ]
+                ),
+                [
+                    [[1.0, 2.0, 3.0]],
+                    [[4.0, 5.0, 6.0]],
+                ],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 4.0], [9.0, 16.0], [25.0, 36.0]],
+                        [[49.0, 64.0], [81.0, 100.0], [121.0, 144.0]],
+                    ]
+                ),
+                [
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]],
+                ],
+                (2, 3, 2),
+            ),
         ]
 
-        for case_name, shape in test_cases:
-            tensor = backend.ones(shape)
+        for case_name, tensor, expected, expected_shape in test_cases:
             result_tensor = backend.sqrt(tensor)
             result = backend.to_python(result_tensor)
-            expected = backend.to_python(backend.ones(shape))
             with self.subTest(case=case_name):
-                self.assertEqual(backend.shape(result_tensor), shape)
-                self.assertEqual(result, expected)
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
 
 @EnforceSharedNumericFixtures()
@@ -210,35 +213,37 @@ class BackendContractAbsoluteSemanticsMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_absolute_returns_expected_3D_tensor_when_one_dimension_is_1(self):
-        backend = self.make_backend()
-        tensor = backend.to_tensor([[[-3.0, 0.0, 2.0]], [[-4.0, 5.0, -6.0]]])
-        result_tensor = backend.absolute(tensor)
-        result = backend.to_python(result_tensor)
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(
-            result,
-            [[[3.0, 0.0, 2.0]], [[4.0, 5.0, 6.0]]],
-            rel_tol=0,
-            abs_tol=0,
-        )
-
-    def test_absolute_returns_expected_3D_tensors_when_one_dimension_is_0(self):
+    def test_absolute_returns_expected_3D_tensors(self):
         backend = self.make_backend()
         test_cases = [
-            ("leading_zero", (0, 2, 3)),
-            ("middle_zero", (2, 0, 3)),
-            ("trailing_zero", (2, 3, 0)),
+            (
+                "singleton_dimension",
+                backend.to_tensor([[[-3.0, 0.0, 2.0]], [[-4.0, 5.0, -6.0]]]),
+                [[[3.0, 0.0, 2.0]], [[4.0, 5.0, 6.0]]],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[-3.0, 0.0], [2.0, -4.0], [5.0, -6.0]],
+                        [[-7.0, 8.0], [-9.0, 10.0], [11.0, -12.0]],
+                    ]
+                ),
+                [
+                    [[3.0, 0.0], [2.0, 4.0], [5.0, 6.0]],
+                    [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]],
+                ],
+                (2, 3, 2),
+            ),
         ]
 
-        for case_name, shape in test_cases:
-            tensor = backend.ones(shape)
+        for case_name, tensor, expected, expected_shape in test_cases:
             result_tensor = backend.absolute(tensor)
             result = backend.to_python(result_tensor)
-            expected = backend.to_python(backend.ones(shape))
             with self.subTest(case=case_name):
-                self.assertEqual(backend.shape(result_tensor), shape)
-                self.assertEqual(result, expected)
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
 
 @EnforceSharedNumericFixtures()
@@ -273,35 +278,37 @@ class BackendContractSignSemanticsMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_sign_returns_expected_3D_tensor_when_one_dimension_is_1(self):
-        backend = self.make_backend()
-        tensor = backend.to_tensor([[[-3.0, 0.0, 2.0]], [[-4.0, 5.0, -6.0]]])
-        result_tensor = backend.sign(tensor)
-        result = backend.to_python(result_tensor)
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(
-            result,
-            [[[-1.0, 0.0, 1.0]], [[-1.0, 1.0, -1.0]]],
-            rel_tol=0,
-            abs_tol=0,
-        )
-
-    def test_sign_returns_expected_3D_tensors_when_one_dimension_is_0(self):
+    def test_sign_returns_expected_3D_tensors(self):
         backend = self.make_backend()
         test_cases = [
-            ("leading_zero", (0, 2, 3)),
-            ("middle_zero", (2, 0, 3)),
-            ("trailing_zero", (2, 3, 0)),
+            (
+                "singleton_dimension",
+                backend.to_tensor([[[-3.0, 0.0, 2.0]], [[-4.0, 5.0, -6.0]]]),
+                [[[-1.0, 0.0, 1.0]], [[-1.0, 1.0, -1.0]]],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[-3.0, 0.0], [2.0, -4.0], [5.0, -6.0]],
+                        [[-7.0, 8.0], [-9.0, 10.0], [11.0, -12.0]],
+                    ]
+                ),
+                [
+                    [[-1.0, 0.0], [1.0, -1.0], [1.0, -1.0]],
+                    [[-1.0, 1.0], [-1.0, 1.0], [1.0, -1.0]],
+                ],
+                (2, 3, 2),
+            ),
         ]
 
-        for case_name, shape in test_cases:
-            tensor = backend.ones(shape)
+        for case_name, tensor, expected, expected_shape in test_cases:
             result_tensor = backend.sign(tensor)
             result = backend.to_python(result_tensor)
-            expected = backend.to_python(backend.ones(shape))
             with self.subTest(case=case_name):
-                self.assertEqual(backend.shape(result_tensor), shape)
-                self.assertEqual(result, expected)
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
 
 @EnforceSharedNumericFixtures()
@@ -331,35 +338,37 @@ class BackendContractClipSemanticsMixin(BackendContractBase):
             abs_tol=0,
         )
 
-    def test_clip_returns_expected_3D_tensor_when_one_dimension_is_1(self):
-        backend = self.make_backend()
-        tensor = backend.to_tensor([[[-2.0, 1.0, 5.0]], [[4.0, -1.0, 3.0]]])
-        result_tensor = backend.clip(tensor, 0.0, 3.0)
-        result = backend.to_python(result_tensor)
-        self.assertEqual(backend.shape(result_tensor), (2, 1, 3))
-        assert_nested_close(
-            result,
-            [[[0.0, 1.0, 3.0]], [[3.0, 0.0, 3.0]]],
-            rel_tol=0,
-            abs_tol=0,
-        )
-
-    def test_clip_returns_expected_3D_tensors_when_one_dimension_is_0(self):
+    def test_clip_returns_expected_3D_tensors(self):
         backend = self.make_backend()
         test_cases = [
-            ("leading_zero", (0, 2, 3)),
-            ("middle_zero", (2, 0, 3)),
-            ("trailing_zero", (2, 3, 0)),
+            (
+                "singleton_dimension",
+                backend.to_tensor([[[-2.0, 1.0, 5.0]], [[4.0, -1.0, 3.0]]]),
+                [[[0.0, 1.0, 3.0]], [[3.0, 0.0, 3.0]]],
+                (2, 1, 3),
+            ),
+            (
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[-2.0, 1.0], [5.0, 3.0], [-4.0, 2.0]],
+                        [[4.0, -1.0], [3.0, 6.0], [0.0, 8.0]],
+                    ]
+                ),
+                [
+                    [[0.0, 1.0], [3.0, 3.0], [0.0, 2.0]],
+                    [[3.0, 0.0], [3.0, 3.0], [0.0, 3.0]],
+                ],
+                (2, 3, 2),
+            ),
         ]
 
-        for case_name, shape in test_cases:
-            tensor = backend.ones(shape)
+        for case_name, tensor, expected, expected_shape in test_cases:
             result_tensor = backend.clip(tensor, 0.0, 3.0)
             result = backend.to_python(result_tensor)
-            expected = backend.to_python(backend.ones(shape))
             with self.subTest(case=case_name):
-                self.assertEqual(backend.shape(result_tensor), shape)
-                self.assertEqual(result, expected)
+                self.assertEqual(backend.shape(result_tensor), expected_shape)
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_clip_accepts_int_bounds(self):
         backend = self.make_backend()
@@ -376,3 +385,92 @@ class BackendContractClipSemanticsMixin(BackendContractBase):
         result = backend.to_python(result_tensor)
         self.assertEqual(backend.shape(result_tensor), (3,))
         assert_nested_close(result, [0.0, 1.0, 3.0], rel_tol=0, abs_tol=0)
+
+
+@EnforceSharedNumericFixtures()
+class BackendContractUnaryZeroLengthDimensionMixin(BackendContractBase):
+
+    def test_exp_and_log_return_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
+        self,
+    ):
+        backend = self.make_backend()
+        test_cases = [
+            ("leading_zero", (0, 2, 3)),
+            ("middle_zero", (2, 0, 3)),
+            ("trailing_zero", (2, 3, 0)),
+        ]
+
+        for case_name, shape in test_cases:
+            input_tensors = {
+                "exp": (backend.exp, backend.ones(shape)),
+                "log": (backend.log, backend.ones(shape)),
+            }
+
+            for method_name, (method, tensor) in input_tensors.items():
+                with self.subTest(case=case_name, method=method_name):
+                    result_tensor = method(tensor)
+                    self.assertEqual(backend.shape(result_tensor), shape)
+
+    def test_sqrt_returns_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
+        self,
+    ):
+        backend = self.make_backend()
+        test_cases = [
+            ("leading_zero", (0, 2, 3)),
+            ("middle_zero", (2, 0, 3)),
+            ("trailing_zero", (2, 3, 0)),
+        ]
+
+        for case_name, shape in test_cases:
+            tensor = backend.ones(shape)
+            result_tensor = backend.sqrt(tensor)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), shape)
+
+    def test_absolute_returns_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
+        self,
+    ):
+        backend = self.make_backend()
+        test_cases = [
+            ("leading_zero", (0, 2, 3)),
+            ("middle_zero", (2, 0, 3)),
+            ("trailing_zero", (2, 3, 0)),
+        ]
+
+        for case_name, shape in test_cases:
+            tensor = backend.ones(shape)
+            result_tensor = backend.absolute(tensor)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), shape)
+
+    def test_sign_returns_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
+        self,
+    ):
+        backend = self.make_backend()
+        test_cases = [
+            ("leading_zero", (0, 2, 3)),
+            ("middle_zero", (2, 0, 3)),
+            ("trailing_zero", (2, 3, 0)),
+        ]
+
+        for case_name, shape in test_cases:
+            tensor = backend.ones(shape)
+            result_tensor = backend.sign(tensor)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), shape)
+
+    def test_clip_returns_3D_tensors_with_same_shape_as_input_when_one_dimension_is_0(
+        self,
+    ):
+        backend = self.make_backend()
+        test_cases = [
+            ("leading_zero", (0, 2, 3)),
+            ("middle_zero", (2, 0, 3)),
+            ("trailing_zero", (2, 3, 0)),
+        ]
+
+        for case_name, shape in test_cases:
+            tensor = backend.ones(shape)
+            result_tensor = backend.clip(tensor, 0.0, 3.0)
+            with self.subTest(case=case_name):
+                self.assertEqual(backend.shape(result_tensor), shape)

@@ -59,7 +59,7 @@ class BackendContractZerosOnesAndFullMixin(BackendContractBase):
                 self.assertEqual(backend.shape(tensor), requested_shape)
                 self.assertEqual(result, expected)
 
-    def test_zeros_ones_and_full_return_requested_3D_tensors_with_expected_values_when_one_dimension_is_1(
+    def test_zeros_ones_and_full_return_requested_3D_tensors_with_expected_values(
         self,
     ):
         """
@@ -67,40 +67,58 @@ class BackendContractZerosOnesAndFullMixin(BackendContractBase):
         number of dimensions as special.
         """
         backend = self.make_backend()
-        requested_shape = (2, 1, 4)
-        creation_methods = [
+        test_cases = [
             (
-                "zeros",
-                lambda: backend.zeros(requested_shape),
-                [
-                    [[0.0, 0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0, 0.0]],
-                ],
+                "singleton_dimension",
+                (2, 1, 4),
+                {
+                    "zeros": [
+                        [[0.0, 0.0, 0.0, 0.0]],
+                        [[0.0, 0.0, 0.0, 0.0]],
+                    ],
+                    "ones": [
+                        [[1.0, 1.0, 1.0, 1.0]],
+                        [[1.0, 1.0, 1.0, 1.0]],
+                    ],
+                    "full": [
+                        [[7.0, 7.0, 7.0, 7.0]],
+                        [[7.0, 7.0, 7.0, 7.0]],
+                    ],
+                },
             ),
             (
-                "ones",
-                lambda: backend.ones(requested_shape),
-                [
-                    [[1.0, 1.0, 1.0, 1.0]],
-                    [[1.0, 1.0, 1.0, 1.0]],
-                ],
-            ),
-            (
-                "full",
-                lambda: backend.full(requested_shape, 7.0),
-                [
-                    [[7.0, 7.0, 7.0, 7.0]],
-                    [[7.0, 7.0, 7.0, 7.0]],
-                ],
+                "larger_middle_dimension",
+                (2, 3, 2),
+                {
+                    "zeros": [
+                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                    ],
+                    "ones": [
+                        [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+                        [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+                    ],
+                    "full": [
+                        [[7.0, 7.0], [7.0, 7.0], [7.0, 7.0]],
+                        [[7.0, 7.0], [7.0, 7.0], [7.0, 7.0]],
+                    ],
+                },
             ),
         ]
 
-        for method_name, call, expected in creation_methods:
-            with self.subTest(method=method_name):
-                tensor = call()
-                result = backend.to_python(tensor)
-                self.assertEqual(backend.shape(tensor), requested_shape)
-                self.assertEqual(result, expected)
+        for case_name, requested_shape, expected_by_method in test_cases:
+            creation_methods = [
+                ("zeros", lambda: backend.zeros(requested_shape)),
+                ("ones", lambda: backend.ones(requested_shape)),
+                ("full", lambda: backend.full(requested_shape, 7.0)),
+            ]
+
+            for method_name, call in creation_methods:
+                with self.subTest(case=case_name, method=method_name):
+                    tensor = call()
+                    result = backend.to_python(tensor)
+                    self.assertEqual(backend.shape(tensor), requested_shape)
+                    self.assertEqual(result, expected_by_method[method_name])
 
     def test_full_accepts_int_fill_value(self):
         backend = self.make_backend()
@@ -178,49 +196,74 @@ class BackendContractLikeCreationMixin(BackendContractBase):
                 self.assertEqual(backend.shape(tensor), (2, 3))
                 self.assertEqual(result, expected)
 
-    def test_like_creation_methods_return_expected_values_with_same_shape_as_input_for_3D_tensor_when_one_dimension_is_1(
+    def test_like_creation_methods_return_expected_values_with_same_shape_as_input_for_3D_tensors(
         self,
     ):
         backend = self.make_backend()
-        source_tensor = backend.to_tensor(
-            [
-                [[1.0, 2.0, 3.0, 4.0]],
-                [[5.0, 6.0, 7.0, 8.0]],
-            ]
-        )
-        creation_methods = [
+        test_cases = [
             (
-                "zeros_like",
-                lambda: backend.zeros_like(source_tensor),
-                [
-                    [[0.0, 0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0, 0.0]],
-                ],
+                "singleton_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 2.0, 3.0, 4.0]],
+                        [[5.0, 6.0, 7.0, 8.0]],
+                    ]
+                ),
+                (2, 1, 4),
+                {
+                    "zeros_like": [
+                        [[0.0, 0.0, 0.0, 0.0]],
+                        [[0.0, 0.0, 0.0, 0.0]],
+                    ],
+                    "ones_like": [
+                        [[1.0, 1.0, 1.0, 1.0]],
+                        [[1.0, 1.0, 1.0, 1.0]],
+                    ],
+                    "full_like": [
+                        [[7.0, 7.0, 7.0, 7.0]],
+                        [[7.0, 7.0, 7.0, 7.0]],
+                    ],
+                },
             ),
             (
-                "ones_like",
-                lambda: backend.ones_like(source_tensor),
-                [
-                    [[1.0, 1.0, 1.0, 1.0]],
-                    [[1.0, 1.0, 1.0, 1.0]],
-                ],
-            ),
-            (
-                "full_like",
-                lambda: backend.full_like(source_tensor, 7.0),
-                [
-                    [[7.0, 7.0, 7.0, 7.0]],
-                    [[7.0, 7.0, 7.0, 7.0]],
-                ],
+                "larger_middle_dimension",
+                backend.to_tensor(
+                    [
+                        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                        [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]],
+                    ]
+                ),
+                (2, 3, 2),
+                {
+                    "zeros_like": [
+                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
+                    ],
+                    "ones_like": [
+                        [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+                        [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+                    ],
+                    "full_like": [
+                        [[7.0, 7.0], [7.0, 7.0], [7.0, 7.0]],
+                        [[7.0, 7.0], [7.0, 7.0], [7.0, 7.0]],
+                    ],
+                },
             ),
         ]
 
-        for method_name, call, expected in creation_methods:
-            with self.subTest(method=method_name):
-                tensor = call()
-                result = backend.to_python(tensor)
-                self.assertEqual(backend.shape(tensor), (2, 1, 4))
-                self.assertEqual(result, expected)
+        for case_name, source_tensor, expected_shape, expected_by_method in test_cases:
+            creation_methods = [
+                ("zeros_like", lambda: backend.zeros_like(source_tensor)),
+                ("ones_like", lambda: backend.ones_like(source_tensor)),
+                ("full_like", lambda: backend.full_like(source_tensor, 7.0)),
+            ]
+
+            for method_name, call in creation_methods:
+                with self.subTest(case=case_name, method=method_name):
+                    tensor = call()
+                    result = backend.to_python(tensor)
+                    self.assertEqual(backend.shape(tensor), expected_shape)
+                    self.assertEqual(result, expected_by_method[method_name])
 
     def test_full_like_accepts_int_fill_value(self):
         """
@@ -265,12 +308,19 @@ class BackendContractEmptyMixin(BackendContractBase):
         tensor = backend.empty((2, 3))
         self.assertEqual(backend.shape(tensor), (2, 3))
 
-    def test_empty_returns_tensor_with_requested_3D_shape_when_one_dimension_is_1(
+    def test_empty_returns_3D_tensor_with_requested_shape(
         self,
     ):
         backend = self.make_backend()
-        tensor = backend.empty((2, 1, 4))
-        self.assertEqual(backend.shape(tensor), (2, 1, 4))
+        requested_shapes = [
+            ("singleton_dimension", (2, 1, 4)),
+            ("larger_middle_dimension", (2, 3, 2)),
+        ]
+
+        for case_name, requested_shape in requested_shapes:
+            with self.subTest(case=case_name):
+                tensor = backend.empty(requested_shape)
+                self.assertEqual(backend.shape(tensor), requested_shape)
 
     def test_empty_like_returns_tensor_with_same_shape_as_input(self):
         backend = self.make_backend()
