@@ -1,26 +1,36 @@
 # python-neural-network
 
-A work-in-progress proof of concept neural network written in Python. This follows the book 'Neural Networks from Scratch in Python' (NNfSiP), adopting a more robust design and with the ultimate aim of extending the resulting network. In particular, the aim is to expose more of the underlying mathematical operations and where possible improve performance.
+A work-in-progress project to enable the building neural networks, written in Python.
+
+This uses the book 'Neural Networks from Scratch in Python' (NNfSiP) as a starting point but with the following additional aims:
+- Be more extensible, both in terms of extending the functionality of the network(s) themselves but also enabling the addition of operations such as tokenisation.
+- Include at least one complete tensor implementation, written from scratch. Like many guides to writing neural networks in Python the NNfSiP book relies on NumPy. While this is a sensible choice for many reasons it means that the result is not truly written 'from scratch'.
+- Add profiling so that various approaches to building networks/tensor backends can be compared in terms of performance.
 
 The final code from the NNfSiP book, which encompasses all the concepts taught in the book, can be found [here](https://github.com/Sentdex/nnfs_book/blob/main/Chapter_22/Ch22_Final.py).
 
 ## Python compatibility
 
-This project requires Python 3.13 or newer as it is designed with the the option of using free-threaded Python in mind. That aside, it uses typing features only available in 3.11+, e.g. `*tuple[int, ...]` to require a tuple with one `int` as a minimum, and uses 3.12+ `type` declarations.
+This project requires Python 3.13 or newer as it is designed with the the option of using free-threaded Python in mind. That aside, it uses:
+- typing features only available in 3.11+, e.g. `*tuple[int, ...]` to require a tuple with one `int` as a minimum; and
+- 3.12+ style`type` declarations.
 
 > NB this project currently uses poetry which doesn't yet support free-threaded Python, so will be transitioned to uv in due course.
 
 ## Tensor Backends
 
-NNfSiP and a lot of other Python-based resources on neural networks make heavy use of NumPy for tensor operations. I wanted to fully understand how tensors work and therefore write my own implementations, starting with one in pure Python (NNfSiP does a little work in Python at the beginning to explain weights before moving on to NumPy).
+To truly build a network from scratch means directly implementing the various tensor operations used by the network. This is not trivial but made much easier by using NumPy as a reference implementation and replicating its behaviour.
 
-The NumPy tensor backend is a very thin wrapper around the relevant NumPy functions. Producing this early meant it was possible to write a suite of backend contract tests to tightly pin down NumPy's behaviour (e.g. what you get when you multiply two 2D tensors), which could then be run against my own implementations. So although the objective was to wean myself off the convenience provided by NumPy, NumPy was essential to doing so.
+As development progressed it became clear that the behaviour of tensor operations might need to vary between networks designed for training and inference (float-based, running on CPU/GPU) and those which might be inference only (quantised, possibly running on NPUs/microcontrollers). This float-specific behaviour was split out into a separate 'reference design' with the 'contract' covering only behaviour required of all backends (the exact split remains unfinalised).
 
-Ultimately, my aim was to build a neural network which, for classifying numerical data at least, does not require any imports. It is designed to be runnable, using a pure-Python tensor backend, without the the dependencies required for the other backends (and their tests) installed. This means that, in places, there is some slightly complex import logic, e.g. in `__init__.py` in the `tensors` package. The NumPy-specific backend tests check whether NumPy is available and skip the tests if it isn't but this logic is much more simple.
+An aim of this project was to build a neural network which, for classifying numerical data at least, does not require any imports. It is designed to be runnable, using a pure-Python tensor backend, without the the dependencies required for the other backends (and their tests) installed.
+> This means that, in places, there is some slightly complex import logic, e.g. in `__init__.py` in the `tensors` package. The NumPy-specific backend tests check whether NumPy is available and skip the tests if it isn't but this logic is much more simple.
 
 ### Backend Contract
 
-The contract for the tensor backends is expressed using a Protocol class (TensorBackend). When a layer is instantiated it must be passed a backend class which conforms to the TensorBackend contract. The Protocol can't do everything. A lot of the contract is defined through the backend contract tests which were built using NumPy's array methods as a reference implementation.
+The contract for the tensor backends is expressed using a Protocol class (TensorBackend). When a layer is instantiated it must be passed a backend class which conforms to the TensorBackend contract. The Protocol can't do everything. A lot of the contract is defined through the backend contract tests which were built using NumPy-based tensor backend - a thin wrapper around NumPy's array methods - as a reference implementation.
+
+The project is designed such that only one backend will be used in the same instance of a network. The purpose of having multiple backends is to learn about tensor operations and provide a choice when a new network is instantiated.
 
 The backend contract enforces the following:
 
@@ -95,18 +105,15 @@ The backend contract enforces the following:
 - For `empty` and `empty_like`, only the shape is part of the contract; the values returned are not.
 - When input violates the contract for a method, the method must raise `ValueError` rather than guessing or silently adjusting the input. Where the violation is fundamentally about Python input type rather than value or shape, `TypeError` is also acceptable.
 
-#### Interoperability
-
-- The project is designed such that only one backend will be used in the same instance of a network. The purpose of having multiple backends is to learn about tensor operations and provide a choice when a new network is instantiated.
-- The shared backend contract tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against it with confidence. This means that where floating-point arithmetic is tested, the tests are designed to allow small differences between actual and expected values, within clearly defined tolerances.
-
 ### Reference Design
 
 The backend contract defines what every backend must do. The reference design is narrower: it describes the first family of backends this project is actually building towards.
 
 The reference design is float-based. It is intended for the NumPy backend, the first pure-Python backend, and any later full-fat CPU/GPU backend used for ordinary training or inference. Quantised backends may deliberately diverge from this design while still sharing as much of the backend contract and structural test coverage as possible.
 
-The reference design enforces the following:
+The shared backend contract/reference tests exist to pin down the behaviour of the reference implementation closely enough that other backends can be built against them with confidence. This means that where floating-point arithmetic is tested, the tests are designed to allow small differences between actual and expected values, within clearly defined tolerances.
+
+The reference design enforces the following, in addition to the requirements of the backend contract:
 
 #### Types And Values
 
@@ -204,7 +211,7 @@ The tensor-backend design is intended to leave room for future backends with dif
 
 - Testing will be comprehensive, but the design aims to minimise duplicated effort.
 - Tests must cover the functionality needed by NNfSiP as a minimum
-- [To Do!] The backend contract tests are, as far as possible split into shape/axes/other structural tests and arithmetic tests. This means that should the project evolve to accommodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
+- The backend contract tests are, as far as possible, split into shape/axes tests; arithmetic tests; semantics tests (overall behaviour, including shape and arithmetic). This means that should the project evolve to accommodate quantised neural networks, many of the tests can be shared. It means all 'full fat' tensor implementations can share exactly the same set of float-based tests.
 - Where backend contract tests are intended to be shared with future non-float or quantised backends, any input values and expected output values used in those tests must be integer-valued `float`s (e.g. `1.0`) or `int`s.
 > When requiring values to be `int`s it is important to account for the fact that in Python `bool` is a subclass of `int` so will pass a naive `isinstance()` check.
 - This applies to values passed into `to_tensor` and to values checked with `assert_nested_close`.
@@ -225,10 +232,10 @@ The chosen design is:
 - Backend contract tests for tensor operations such as `matmul` use each backend's own `to_tensor` and `to_python` methods to complete the round-trip between Python values and backend-native tensors.
 - The risk of relying on those methods within other tests is accepted in order to keep each conversion path implemented only once, in the backend itself.
 - `to_tensor` and `to_python` are therefore exceptions to the general rule that backend method tests are universal.
-- Each method has thorough implementation-specific tests, because the shared tests for those methods cannot by themselves catch all classes of implementation defect.
-> These tests are therefor critical. Problems here could result in false successes elsewhere in the test suite
+- Each method has thorough implementation-level tests which can view and manipulate each backend's native tensor representation in a way which the shared tests cannot.
+- Because we also need to use each backend's `shape` method as part of the shared tests this is also thoroughly tested at the implementation level.
+> These tests are therefore critical. Problems here could result in false successes elsewhere in the test suite
 - Each method also has shared contract tests, which define the universal behaviour expected of all backends.
-
 
 #### Quantised backends
 
@@ -244,28 +251,27 @@ This means that some tests which are currently described as backend contract tes
 
 If this happens, the Protocol design will probably follow the same pattern. A small core Protocol would define the minimum backend surface. A reference-backend Protocol would extend it with the full float-based operation set. A later quantised Protocol might also extend the core Protocol, but in a different direction. This should make it possible to keep maximum code and test reuse without pretending that all backend families need to expose exactly the same operations.
 
-
 ## Docstrings
 
-There are a lot. In some cases these represent my description of what a function/class is doing, i.e. like a docstring. In the cases of the more complex operations (e.g. the matmul backend tests), writing them was an important part of my learning process. In some of these cases I went over them again and again until I was sure I understood the operations concerned and they accurately reflected the code. I also worked hard to avoid needless mathematical notation or terminology. If you find they differ from explanations in authoritative sources trust the latter (and please raise an issue or PR!).
+There are a lot. In some cases these just describe what a function/class is doing, i.e. like a docstring. In the cases of the more complex tensor operations (e.g. the matmul backend tests), writing them part of the process of learning how the operations work. They should not be trusted over authoritative sources.
 
 ## Use of AI to complete this project
 
 A chief purpose of this project was to learn how neural networks really work. This would be completely undermined by letting coding agents/LLMs write much code. AI coding tools, specifically GitHub Co-pilot (using Sonnet 4.x) and OpenAI Codex (GPT 5.x), were used to:
 
-- Fix small, tedious problems e.g. headaches with the pre-commit hooks
+- Fix small, tedious problems largely autonomously e.g. headaches with the pre-commit hooks
 - Answer many hundreds of questions, especially about:
      - the operations implemented by the tensor backends, especially the more complex operations and how they work with higher-rank tensors
-     - whether my instincts about what to allow and not in the backend contract (e.g. forbidding zero rank arrays) were sensible
-     - whether design decisions were likely to cause headaches later when I came to implementing concepts I didn't yet understand
-     - whether my comments and docstrings were accurate
+     - whether instincts about what to allow and not in the backend contract (e.g. forbidding zero rank arrays) were sensible
+     - whether design decisions were likely to cause headaches it later came to implementing concepts not yet properly understood
+     - whether comments and docstrings were accurate
      - what needed to be tested, especially with more complex calculations, e.g. matmul
-- Lay down boilerpate code, e.g. test method stubs which I could then work through one-by-one
-- Propose text for docstrings but barely ever simply write them
-> Codex was great at reading test methods and producing text which stepped through the operations using actual values. It was less good at explanations and there was a lot of back and forth to get the docstrings both accurate and easy to follow. Claude was noticibly better at striking a balance. None of this was helped by the fact that I was learning as I went.
+- Lay down boilerpate code, e.g. test method stubs
+- Propose text for docstrings but never simply write them
+> Codex was great at reading test methods and producing text which stepped through the operations using actual values. It was less good at explanations and there was a lot of back and forth to get the docstrings both accurate and easy to follow. Claude was noticibly better at striking a balance.
 - Quickly produce things like arrays for tests and make close copies of existing tests, especially in the backend contract tests where the reference implementation (NumPy) was certain and the purpose of the tests was to fully describe its behaviour
-> Codex did remarkably well at producing both input and output arrays for tests. I had assumed I would have to ask it to quickly knock up some input arrays then run (e.g.) `np.matmul` in REPL to get the expected results but it was often able to produce the results as well. That said, I can't stress enough how much of a bad idea this would have been if I had not been writing tests around a known, good implementation (see the section on how I built the tensor backends). Interestingly, when the tests turned to higher-rank tensors, Codex started running Python commands to get the tensors without being asked. It also became clear, as I started work on the backend tests, that it's trivial to generate input tensors manually with numpy with something like `np.random.randn(2, 3)`.
-> As the project grew I became more relaxed about Codex writing whole test methods in the contract tests (stress: I knew the implementation worked because it was effectively testing NumPy). It was good but weaker on organising the tests and suggesting appropriate test coverage for individual operations.
+> Codex did remarkably well at producing both input and output arrays for tests. It was often able to produce the results as well, either directly or by running Python one-liners and taking the results. That said, it can't be stressed enough how bad an idea this would have been if not been for the purpose testing a known, good implementation.
+> As the project grew I became more relaxed about Codex writing whole test methods in the contract tests but only ever two at a time at most (stress: I knew the implementation worked because it was effectively testing NumPy). It was good but weaker on organising the tests and suggesting appropriate test coverage for individual operations.
 - Carry out simple but laborious refactoring, e.g. splitting code out into different modules as the project grew and I became more sure of the design.
 > I stopped using Codex for this once the project reached approx 15+ modules as it became quicker to do it than explain it.
 - Parse the source from the NNfSiP book to help answer questions about the code needed to be adapted. E.g. NNfSiP makes a lot of use of dot product which I decided not to implement in the backend, in favour of the more generic `matmul`.
