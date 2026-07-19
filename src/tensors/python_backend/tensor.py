@@ -1,6 +1,8 @@
+from __future__ import annotations
 import math
-from typing import Optional
+from typing import Iterator, Optional
 from array import array
+from itertools import product
 
 
 class PythonTensor:
@@ -176,3 +178,56 @@ class PythonTensor:
             indices, self.shape, self.strides, self.offset
         )
         self.data[flat_index] = value
+
+    def ndim(self) -> int:
+        return len(self.shape)
+
+    def size(self) -> int:
+        return math.prod(self.shape)
+
+    def indices(self) -> Iterator[tuple[int, ...]]:
+        return product(*(range(dim) for dim in self.shape))
+
+    def items(self) -> Iterator[tuple[tuple[int, ...], float]]:
+        for indices in self.indices():
+            yield indices, self.get_scalar(indices)
+
+    def to_list(self) -> list:
+        def build(indices):
+            if len(indices) == len(self.shape):
+                return self.get_scalar(indices)
+            dim = self.shape[len(indices)]
+            return [build(indices + (i,)) for i in range(dim)]
+
+        return build(())
+
+    def view(
+        self,
+        shape: tuple[int, ...],
+        offset: Optional[int] = None,
+        strides: Optional[tuple[int, ...]] = None,
+        writable: Optional[bool] = None,
+    ) -> PythonTensor:
+        """
+        Create a 'cheap' tensor using the same data buffer as the instance
+        on which the method is called.
+
+        The offset chooses where the view starts in that buffer, and the
+        strides describe how to move through the buffer for each axis. Together
+        they let us represent slices, transposes and other layout changes
+        without copying the underlying values.
+        """
+        return PythonTensor(
+            shape,
+            self.data,
+            self.offset if offset is None else offset,
+            strides,
+            self.writable if writable is None else writable,
+        )
+
+    def copy(self, writable: bool = True) -> PythonTensor:
+        copied_data = array(
+            "d",
+            (self.get_scalar(indices) for indices in self.indices()),
+        )
+        return PythonTensor(self.shape, copied_data, writable=writable)

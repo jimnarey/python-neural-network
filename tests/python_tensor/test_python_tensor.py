@@ -320,6 +320,57 @@ class TestFlatIndex(unittest.TestCase):
                     PythonTensor._flat_index(indices, shape, strides, offset)
 
 
+# The constructor is not especially complex and it would be defensible
+# not to test it directly. However, the view method relies on it heavily
+# and we want to avoid tests for view which are really tests for the
+# constructor in disguise.
+class TestConstructor(unittest.TestCase):
+
+    def test_assigns_shape_data_strides_offset_and_writable(self):
+        data = array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
+        tensor = PythonTensor((2, 3), data, offset=1, strides=(3, 1), writable=False)
+        self.assertEqual(tensor.shape, (2, 3))
+        self.assertIs(tensor.data, data)
+        self.assertEqual(tensor.strides, (3, 1))
+        self.assertEqual(tensor.offset, 1)
+        self.assertFalse(tensor.writable)
+
+    def test_uses_default_data_when_data_is_none(self):
+        tensor = PythonTensor((2, 3))
+        self.assertEqual(tensor.data.typecode, "d")
+        self.assertEqual(len(tensor.data), 6)
+        self.assertEqual(tensor.data.tolist(), [0.0] * 6)
+
+
+class TestNdimAndSize(unittest.TestCase):
+
+    def test_ndim_returns_number_of_dimensions(self):
+        cases = (
+            ((3,), 1),
+            ((2, 3), 2),
+            ((2, 3, 4), 3),
+            ((2, 3, 4, 5), 4),
+            ((2, 0, 3), 3),
+        )
+        for shape, expected in cases:
+            with self.subTest():
+                tensor = PythonTensor(shape)
+                self.assertEqual(tensor.ndim(), expected)
+
+    def test_size_returns_product_of_dimensions(self):
+        cases = (
+            ((3,), 3),
+            ((2, 3), 6),
+            ((2, 3, 4), 24),
+            ((2, 3, 4, 5), 120),
+            ((2, 0, 3), 0),
+        )
+        for shape, expected in cases:
+            with self.subTest():
+                tensor = PythonTensor(shape)
+                self.assertEqual(tensor.size(), expected)
+
+
 class TestGetScalar(unittest.TestCase):
     """
     A thin test class, given that this is just a thin wrapper
@@ -368,3 +419,338 @@ class TestSetScalar(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "tensor is not writable"):
             tensor.set_scalar((1, 2), 100.0)
+
+
+class TestIndicesAndItems(unittest.TestCase):
+
+    def test_indices_returns_1D_indices_in_order(self):
+        tensor = PythonTensor((3,))
+        result = list(tensor.indices())
+        self.assertEqual(result, [(0,), (1,), (2,)])
+
+    def test_indices_returns_2D_indices_in_order(self):
+        tensor = PythonTensor((2, 3))
+        result = list(tensor.indices())
+        self.assertEqual(
+            result,
+            [
+                (0, 0),
+                (0, 1),
+                (0, 2),
+                (1, 0),
+                (1, 1),
+                (1, 2),
+            ],
+        )
+
+    def test_indices_returns_3D_indices_in_order(self):
+        tensor = PythonTensor((2, 2, 3))
+        result = list(tensor.indices())
+        self.assertEqual(
+            result,
+            [
+                (0, 0, 0),
+                (0, 0, 1),
+                (0, 0, 2),
+                (0, 1, 0),
+                (0, 1, 1),
+                (0, 1, 2),
+                (1, 0, 0),
+                (1, 0, 1),
+                (1, 0, 2),
+                (1, 1, 0),
+                (1, 1, 1),
+                (1, 1, 2),
+            ],
+        )
+
+    def test_indices_returns_no_indices_for_empty_tensor(self):
+        tensor = PythonTensor((2, 0, 3))
+        result = list(tensor.indices())
+        self.assertEqual(result, [])
+
+    def test_items_returns_indices_and_values_in_order(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        result = list(tensor.items())
+        self.assertEqual(
+            result,
+            [
+                ((0, 0), 1.0),
+                ((0, 1), 2.0),
+                ((0, 2), 3.0),
+                ((1, 0), 4.0),
+                ((1, 1), 5.0),
+                ((1, 2), 6.0),
+            ],
+        )
+
+    def test_items_uses_tensor_layout_when_reading_values(self):
+        tensor = PythonTensor(
+            (2, 2),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            offset=1,
+            strides=(3, 1),
+        )
+        result = list(tensor.items())
+        self.assertEqual(
+            result,
+            [
+                ((0, 0), 2.0),
+                ((0, 1), 3.0),
+                ((1, 0), 5.0),
+                ((1, 1), 6.0),
+            ],
+        )
+
+    def test_items_returns_no_items_for_empty_tensor(self):
+        tensor = PythonTensor((2, 0, 3))
+        result = list(tensor.items())
+        self.assertEqual(result, [])
+
+
+class TestToList(unittest.TestCase):
+
+    def test_returns_1D_list(self):
+        tensor = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        result = tensor.to_list()
+        self.assertEqual(result, [1.0, 2.0, 3.0])
+
+    def test_returns_2D_nested_list(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        result = tensor.to_list()
+        self.assertEqual(result, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+
+    def test_returns_3D_nested_list(self):
+        tensor = PythonTensor(
+            (2, 2, 3),
+            array(
+                "d",
+                [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    11.0,
+                    12.0,
+                ],
+            ),
+        )
+        result = tensor.to_list()
+        self.assertEqual(
+            result,
+            [
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+            ],
+        )
+
+    def test_uses_tensor_layout_when_reading_values(self):
+        """
+        The 1D, 2D and 3D tests check that values are nested according to the
+        tensor shape. This test checks that to_list is using the offset and
+        strides to navigate the tensor, rather than just working through the
+        buffer sequentially.
+
+        The raw buffer is:
+
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+        The tensor has shape (2, 2), offset 1 and strides (3, 1), so it starts
+        reading at buffer index 1. Moving along the first axis advances by
+        3 positions, while moving along the second axis advances by 1 position.
+        The result is therefore:
+
+        [
+            [2.0, 3.0],
+            [5.0, 6.0]
+        ]
+        """
+        tensor = PythonTensor(
+            (2, 2),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            offset=1,
+            strides=(3, 1),
+        )
+        result = tensor.to_list()
+        self.assertEqual(result, [[2.0, 3.0], [5.0, 6.0]])
+
+    def test_returns_nested_empty_list_for_empty_tensor(self):
+        """
+        Empty tensors cannot always be represented uniquely as Python nested
+        lists. For example, shapes (0,), (0, 3) and (0, 3, 4) all convert to
+        [], because there are no outer items in which to express the later
+        dimensions.
+
+        The cases in this test are useful really just to illustrate this
+        limitation. This is behaviour we have to live with, rather than a
+        design choice we're confirming has been implemented correctly.
+        """
+        cases = (
+            ((0,), []),
+            ((0, 3), []),
+            ((0, 3, 4), []),
+            ((2, 0, 3), [[], []]),
+            ((2, 3, 0), [[[], [], []], [[], [], []]]),
+        )
+        for shape, expected in cases:
+            with self.subTest():
+                tensor = PythonTensor(shape)
+                result = tensor.to_list()
+                self.assertEqual(result, expected)
+
+
+class TestView(unittest.TestCase):
+
+    def test_returns_new_tensor_sharing_same_data_buffer(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((3, 2))
+        self.assertIsNot(view, tensor)
+        self.assertIs(view.data, tensor.data)
+
+    def test_returns_view_with_requested_offset_and_strides(self):
+        """
+        Test that we get the expected layout, including when we use a different
+        offset from the parent tensor.
+
+        Here the parent tensor starts at offset 0, but the view is explicitly
+        created with offset 1. The test checks that view uses that requested
+        starting point, along with the requested shape and strides.
+
+        The parent tensor has shape (2, 3), offset 0 and default strides
+        (3, 1), so the shared buffer is read as:
+
+        [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0]
+        ]
+
+        The view has shape (2, 2), offset 1 and strides (3, 1). The offset
+        moves the starting point to buffer index 1, and keeping the parent row
+        stride of 3 means the view reads the last two columns from each row:
+
+        [
+            [2.0, 3.0],
+            [5.0, 6.0]
+        ]
+        """
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((2, 2), offset=1, strides=(3, 1))
+        self.assertEqual(view.shape, (2, 2))
+        self.assertEqual(view.offset, 1)
+        self.assertEqual(view.strides, (3, 1))
+
+    def test_returns_view_with_transpose_style_strides(self):
+        """
+        Test that we can create a view whose strides read the same data in a
+        transpose-style layout.
+
+        The parent tensor has shape (2, 3), offset 0 and default strides
+        (3, 1), so the shared buffer is read as:
+
+        [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0]
+        ]
+
+        The view has shape (3, 2), offset 0 and strides (1, 3). Moving along
+        the first axis advances by 1 buffer position, while moving along the
+        second axis advances by 3 buffer positions. This means the view reads:
+
+        [
+            [1.0, 4.0],
+            [2.0, 5.0],
+            [3.0, 6.0]
+        ]
+        """
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((3, 2), strides=(1, 3))
+
+        self.assertEqual(view.shape, (3, 2))
+        self.assertEqual(view.offset, 0)
+        self.assertEqual(view.strides, (1, 3))
+
+    def test_preserves_offset_by_default(self):
+        """
+        If no offset is passed to view, the view should start in the same
+        position in the shared data buffer as the parent tensor.
+
+        The parent tensor has offset 1, so the view should also have offset 1
+        unless the caller explicitly asks for a different starting point.
+        """
+        tensor = PythonTensor(
+            (2, 3),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+            offset=1,
+            strides=(3, 1),
+        )
+        view = tensor.view((3, 2))
+
+        self.assertEqual(view.offset, 1)
+
+    def test_preserves_writable_flag_by_default(self):
+        tensor = PythonTensor(
+            (2, 3),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            writable=False,
+        )
+        view = tensor.view((3, 2))
+        self.assertFalse(view.writable)
+
+    def test_accepts_supplied_writable_flag(self):
+        tensor = PythonTensor(
+            (2, 3),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            writable=False,
+        )
+        view = tensor.view((3, 2), writable=True)
+        self.assertTrue(view.writable)
+
+
+class TestCopy(unittest.TestCase):
+
+    def test_returns_new_tensor_with_same_shape_and_values(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        tensor_copy = tensor.copy()
+        self.assertIsNot(tensor_copy, tensor)
+        self.assertEqual(tensor_copy.shape, (2, 3))
+        self.assertEqual(tensor_copy.get_scalar((0, 0)), 1.0)
+        self.assertEqual(tensor_copy.get_scalar((1, 2)), 6.0)
+
+    def test_returns_tensor_with_independent_data_buffer(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        tensor_copy = tensor.copy()
+        self.assertIsNot(tensor_copy.data, tensor.data)
+        tensor.set_scalar((1, 2), 100.0)
+        self.assertEqual(tensor_copy.get_scalar((1, 2)), 6.0)
+
+    def test_returns_default_layout_copy_when_source_layout_is_not_contiguous(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((2, 2), offset=1, strides=(3, 1))
+        tensor_copy = view.copy()
+        self.assertEqual(tensor_copy.shape, (2, 2))
+        self.assertEqual(tensor_copy.offset, 0)
+        self.assertEqual(tensor_copy.strides, (2, 1))
+        self.assertEqual(tensor_copy.data.tolist(), [2.0, 3.0, 5.0, 6.0])
+
+    def test_returns_empty_tensor_when_source_tensor_is_empty(self):
+        tensor = PythonTensor((2, 0, 3))
+        tensor_copy = tensor.copy()
+        self.assertEqual(tensor_copy.shape, (2, 0, 3))
+        self.assertEqual(tensor_copy.data.tolist(), [])
+
+    def test_returns_writable_tensor_by_default(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((3, 2), writable=False)
+        tensor_copy = view.copy()
+        self.assertTrue(tensor_copy.writable)
+
+    def test_accepts_supplied_writable_flag(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        tensor_copy = tensor.copy(writable=False)
+        self.assertFalse(tensor_copy.writable)
