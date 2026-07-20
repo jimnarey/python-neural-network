@@ -10,6 +10,11 @@ import numpy as np
 from typing import Sequence
 
 from src.tensors.tensor_backend import Scalar, Tensor
+from src.tensors.validation import (
+    parse_tensor_data,
+    validate_non_empty_shape,
+    validate_tensor_conversion_input,
+)
 
 
 class NumpyBackend:
@@ -21,10 +26,6 @@ class NumpyBackend:
         # - standard_normal defaults to float64 which is the same precision
         # as a Python float.
         self._random = np.random.default_rng(seed)
-
-    def _validate_non_empty_shape(self, shape: tuple[int, ...]) -> None:
-        if not shape:
-            raise ValueError("Tensor creation methods require a non-empty shape.")
 
     def _normalise_scalar_result(self, x: Tensor | Scalar) -> Tensor | Scalar:
         if isinstance(x, np.ndarray) and x.shape == ():
@@ -60,37 +61,9 @@ class NumpyBackend:
         for x in xs:
             self._validate_not_rank_0(x)
 
-    def _validate_tensor_input_values(self, data: object) -> None:
-        """
-        Check that values are a valid type. It is limited in a number of
-        ways. It will not catch cases like:
-
-        [[(), 0], 1, 2]
-        [[(1,), 0], 1, 2]
-
-        which are both invalid. We rely on NumPy's built-in behaviour to
-        catch such cases.
-
-        For this backend implementation we want to strictly use floats
-        internally. Again, we are relying on NumPy's built in behaviour
-        (setting the array dtype) and not this method to ensure ints are
-        converted to floats.
-
-        We use type rather than isinstance in the second check because
-        bool is a subclass of int and some NumPy-specific types are a
-        subclass of float.
-        """
-        if isinstance(data, (list, tuple)):
-            for item in data:
-                self._validate_tensor_input_values(item)
-            return
-        if type(data) not in (int, float):
-            raise ValueError("Tensor conversion requires numeric values.")
-
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
-        if not isinstance(data, (list, tuple)):
-            raise ValueError("Tensor conversion requires a list or tuple input.")
-        self._validate_tensor_input_values(data)
+        validate_tensor_conversion_input(data)
+        parse_tensor_data(data)
         tensor = np.array(data, dtype=float)
         self._validate_not_rank_0(tensor)
         return tensor
@@ -103,15 +76,15 @@ class NumpyBackend:
         return tensor.tolist()
 
     def randn(self, shape: tuple[int, ...]) -> Tensor:
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         return self._random.standard_normal(size=shape)
 
     def zeros(self, shape: tuple[int, ...]) -> Tensor:
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         return np.zeros(shape, dtype=float)
 
     def ones(self, shape: tuple[int, ...]) -> Tensor:
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         return np.ones(shape, dtype=float)
 
     def ones_like(self, x: Tensor) -> Tensor:
@@ -123,7 +96,7 @@ class NumpyBackend:
         return np.zeros_like(x, dtype=float)
 
     def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         return np.full(shape, fill_value, dtype=float)
 
     def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
@@ -131,7 +104,7 @@ class NumpyBackend:
         return np.full_like(x, fill_value, dtype=float)
 
     def empty(self, shape: tuple[int, ...]) -> Tensor:
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         return np.empty(shape, dtype=float)
 
     def empty_like(self, x: Tensor) -> Tensor:
@@ -149,7 +122,7 @@ class NumpyBackend:
 
     def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
         self._validate_not_rank_0(x)
-        self._validate_non_empty_shape(shape)
+        validate_non_empty_shape(shape)
         if any(dimension < 0 for dimension in shape):
             raise ValueError(
                 "reshape does not support negative values in the target shape"

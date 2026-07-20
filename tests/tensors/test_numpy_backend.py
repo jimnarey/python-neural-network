@@ -820,6 +820,8 @@ class TestNumpyBackendShape(NumpyBackendTestCase):
                     with self.assertRaises(ValueError):
                         backend.shape(tensor)
 
+    # This is now covered in test_shape_returns_expected_tuple_for_1D_tensor
+    # and can probably be removed.
     def test_shape_accepts_zero_length_tensor(self):
         import numpy as np
 

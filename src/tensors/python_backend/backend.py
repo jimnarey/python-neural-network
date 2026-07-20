@@ -6,7 +6,13 @@ understood. It also serves as a basis for more performant custom backends.
 """
 
 from src.tensors.tensor_backend import Tensor, TensorBackend
+from src.tensors.python_backend.tensor import PythonTensor
+from src.tensors.validation import (
+    parse_tensor_data,
+    validate_tensor_conversion_input,
+)
 from typing import Sequence, Optional
+from array import array
 import random
 
 
@@ -17,6 +23,18 @@ class PythonBackend(TensorBackend):
             # This is global. Needs to be changed, maybe self._random = random.Random(seed)
             # ...though it would be nice to avoid runtime imports altogether...
             random.seed(seed)
+
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+        validate_tensor_conversion_input(data)
+        shape, values = parse_tensor_data(data)
+        return PythonTensor(shape, array("d", values))
+
+    def to_python(self, tensor: Tensor) -> list:
+        # Maybe replace with try/except, since it's a touch ugly
+        # to have this within an annotated method. Also .shape()
+        if not isinstance(tensor, PythonTensor):
+            raise TypeError("to_python requires a PythonTensor input.")
+        return tensor.to_list()
 
     def randn(self, shape: tuple[int, ...]) -> Tensor:
         return None
@@ -49,7 +67,9 @@ class PythonBackend(TensorBackend):
         return None
 
     def shape(self, x: Tensor) -> tuple[int, ...]:
-        return ()
+        if not isinstance(x, PythonTensor):
+            raise TypeError("shape requires a PythonTensor input.")
+        return x.shape
 
     def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
         return None
