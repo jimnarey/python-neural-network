@@ -188,6 +188,10 @@ The tensor-backend design is intended to leave room for future backends with dif
 3. Individual implementations.
    Each backend has its own native tensor representation and may require a small amount of implementation-specific testing. NumPy is the reference implementation used to pin down the shared contract tests, but other backends are not required to reproduce every NumPy convenience or edge case.
 
+- Backends are not required to enforce the contract at the same internal layer. For example, one backend may rely on its native tensor representation to reject invalid shapes, while another may perform the same check inside each backend method or delegate it to an underlying library. This is acceptable because the shared contract and reference tests are behavioural: they test what the backend does at its public boundary, not how that behaviour is implemented internally.
+
+- Where a backend relies on an internal representation or helper to provide contract-critical behaviour, that component should have implementation-level tests. This keeps the shared tests implementation-agnostic while still giving confidence that backend-specific foundations such as conversion, shape handling, layout validation, or scalar access are sound.
+
 - Backends may be written in any language with good Python integration, though in practice only Python (including Cython) and C are planned.
 - The goal is that all backends which follow the reference design can run against the same unittest suite apart from a small number of implementation-specific tests.
 - Backends which diverge from the reference design, for example by using `int` values internally, should still be able to use most of the shared backend contract tests.
