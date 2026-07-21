@@ -1,8 +1,25 @@
 import unittest
 from array import array
+
 from tests.helpers.tensor_helpers import all_values_are_floats
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.tensor_backend import TensorBackend
+
+from tests.tensors.backend_contract_creation import (  # noqa: F401
+    BackendContractCopyMixin,
+    BackendContractCreationInputValidationMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractEmptyMixin,
+    BackendContractEyeMixin,
+    BackendContractLikeCreationMixin,
+    BackendContractZerosOnesAndFullMixin,
+)
+
+from tests.tensors.backend_reference_creation import (  # noqa: F401
+    BackendReferenceCopyMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCreationValueTypeMixin,
+)
 
 
 class TestPythonBackendProtocolConformance(unittest.TestCase):
@@ -29,6 +46,67 @@ class PythonBackendTestCase(unittest.TestCase):
         from src.tensors.python_backend.backend import PythonBackend
 
         return PythonBackend(seed=seed)
+
+
+class TestPythonBackendContract(
+    PythonBackendTestCase,
+    # BackendContractCopyMixin,
+    BackendContractCreationInputValidationMixin,
+    BackendContractCreationZeroLengthDimensionMixin,
+    BackendContractEmptyMixin,
+    BackendContractEyeMixin,
+    BackendContractLikeCreationMixin,
+    BackendContractZerosOnesAndFullMixin,
+):
+    pass
+
+
+class TestPythonBackendReference(
+    PythonBackendTestCase,
+    # BackendReferenceCopyMixin,
+    BackendReferenceCreationLikeValueTypeMixin,
+    BackendReferenceCreationValueTypeMixin,
+):
+    pass
+
+
+class TestPythonBackendFloatValuedTensorCreation(PythonBackendTestCase):
+
+    def _assert_is_float_typed_python_tensor(self, tensor):
+        self.assertIsInstance(tensor, PythonTensor)
+        self.assertEqual(tensor.data.typecode, "d")
+
+    def test_shape_based_creation_methods_return_float_typed_python_tensors(self):
+        backend = self.make_backend(seed=0)
+
+        creation_methods = [
+            # ("randn", lambda: backend.randn((2, 3))),
+            ("zeros", lambda: backend.zeros((2, 3))),
+            ("ones", lambda: backend.ones((2, 3))),
+            ("full", lambda: backend.full((2, 3), 7)),
+            ("empty", lambda: backend.empty((2, 3))),
+            ("eye", lambda: backend.eye(3)),
+        ]
+
+        for method_name, call in creation_methods:
+            with self.subTest(method=method_name):
+                self._assert_is_float_typed_python_tensor(call())
+
+    def test_tensor_based_creation_methods_return_float_typed_python_tensors(self):
+        backend = self.make_backend()
+        tensor = PythonTensor((2, 2), array("d", [1.0, 2.0, 3.0, 4.0]))
+
+        creation_methods = [
+            ("zeros_like", lambda: backend.zeros_like(tensor)),
+            ("ones_like", lambda: backend.ones_like(tensor)),
+            ("full_like", lambda: backend.full_like(tensor, 7)),
+            ("empty_like", lambda: backend.empty_like(tensor)),
+            # ("copy", lambda: backend.copy(tensor)),
+        ]
+
+        for method_name, call in creation_methods:
+            with self.subTest(method=method_name):
+                self._assert_is_float_typed_python_tensor(call())
 
 
 class TestPythonBackendToTensor(PythonBackendTestCase):
@@ -312,13 +390,3 @@ class TestPythonBackendShape(PythonBackendTestCase):
             with self.subTest(case=case_name):
                 result = backend.shape(tensor)
                 self.assertEqual(result, expected_shape)
-
-
-@unittest.skip(
-    "PythonBackend contract tests will be enabled with the first implementation."
-)
-class TestPythonBackend(
-    unittest.TestCase,
-):
-    def test_something(self):
-        pass

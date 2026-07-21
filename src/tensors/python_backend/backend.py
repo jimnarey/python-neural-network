@@ -13,6 +13,7 @@ from src.tensors.validation import (
 )
 from typing import Sequence, Optional
 from array import array
+import math
 import random
 
 
@@ -24,51 +25,58 @@ class PythonBackend(TensorBackend):
             # ...though it would be nice to avoid runtime imports altogether...
             random.seed(seed)
 
+    # A temporary measure until we tighten the type annotations in the Protocol
+    # and the classes conforming to it.
+    def _require_python_tensor(self, x: Tensor, method_name: str) -> PythonTensor:
+        if not isinstance(x, PythonTensor):
+            raise TypeError(f"{method_name} requires a PythonTensor input.")
+        return x
+
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
         validate_tensor_conversion_input(data)
         shape, values = parse_tensor_data(data)
         return PythonTensor(shape, array("d", values))
 
     def to_python(self, tensor: Tensor) -> list:
-        # Maybe replace with try/except, since it's a touch ugly
-        # to have this within an annotated method. Also .shape()
-        if not isinstance(tensor, PythonTensor):
-            raise TypeError("to_python requires a PythonTensor input.")
+        tensor = self._require_python_tensor(tensor, "to_python")
         return tensor.to_list()
 
     def randn(self, shape: tuple[int, ...]) -> Tensor:
         return None
 
     def zeros(self, shape: tuple[int, ...]) -> Tensor:
-        return None
+        return PythonTensor(shape)
 
     def zeros_like(self, x: Tensor) -> Tensor:
-        return None
+        x = self._require_python_tensor(x, "zeros_like")
+        return self.zeros(x.shape)
 
     def ones(self, shape: tuple[int, ...]) -> Tensor:
-        return None
+        return PythonTensor(shape, array("d", [1.0]) * math.prod(shape))
 
     def ones_like(self, x: Tensor) -> Tensor:
-        return None
+        x = self._require_python_tensor(x, "ones_like")
+        return self.ones(x.shape)
 
     def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
-        return None
+        return PythonTensor(shape, array("d", [float(fill_value)]) * math.prod(shape))
 
     def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
-        return None
+        x = self._require_python_tensor(x, "full_like")
+        return self.full(x.shape, fill_value)
 
     def empty(self, shape: tuple[int, ...]) -> Tensor:
-        return None
+        return PythonTensor(shape)
 
     def empty_like(self, x: Tensor) -> Tensor:
-        return None
+        x = self._require_python_tensor(x, "empty_like")
+        return PythonTensor(x.shape)
 
     def copy(self, x: Tensor) -> Tensor:
         return None
 
     def shape(self, x: Tensor) -> tuple[int, ...]:
-        if not isinstance(x, PythonTensor):
-            raise TypeError("shape requires a PythonTensor input.")
+        x = self._require_python_tensor(x, "shape")
         return x.shape
 
     def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
@@ -166,4 +174,9 @@ class PythonBackend(TensorBackend):
         return None
 
     def eye(self, n: int, m: int | None = None) -> Tensor:
-        return None
+        if m is None:
+            m = n
+        tensor = PythonTensor((n, m))
+        for i in range(min(n, m)):
+            tensor.set_scalar((i, i), 1.0)
+        return tensor
