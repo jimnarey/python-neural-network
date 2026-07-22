@@ -20,10 +20,7 @@ import random
 class PythonBackend(TensorBackend):
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed
-        if seed is not None:
-            # This is global. Needs to be changed, maybe self._random = random.Random(seed)
-            # ...though it would be nice to avoid runtime imports altogether...
-            random.seed(seed)
+        self._random = random.Random(seed)
 
     # A temporary measure until we tighten the type annotations in the Protocol
     # and the classes conforming to it.
@@ -32,6 +29,8 @@ class PythonBackend(TensorBackend):
             raise TypeError(f"{method_name} requires a PythonTensor input.")
         return x
 
+    # PythonTensor supports a writable flag which is not currently
+    # part of the Protocol class, so not used here.
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
         validate_tensor_conversion_input(data)
         shape, values = parse_tensor_data(data)
@@ -42,7 +41,16 @@ class PythonBackend(TensorBackend):
         return tensor.to_list()
 
     def randn(self, shape: tuple[int, ...]) -> Tensor:
-        return None
+        # Use .normalvariate here in place of .gauss because we know it's thread safe.
+        # It's also a little slower so possibly revisit, though the difference is
+        # likely to be marginal.
+        return PythonTensor(
+            shape,
+            array(
+                "d",
+                (self._random.normalvariate(0.0, 1.0) for _ in range(math.prod(shape))),
+            ),
+        )
 
     def zeros(self, shape: tuple[int, ...]) -> Tensor:
         return PythonTensor(shape)
@@ -72,8 +80,11 @@ class PythonBackend(TensorBackend):
         x = self._require_python_tensor(x, "empty_like")
         return PythonTensor(x.shape)
 
+    # PythonTensor.copy supports a writable flag which is not currently
+    # part of the Protocol class, so not used here.
     def copy(self, x: Tensor) -> Tensor:
-        return None
+        x = self._require_python_tensor(x, "copy")
+        return x.copy()
 
     def shape(self, x: Tensor) -> tuple[int, ...]:
         x = self._require_python_tensor(x, "shape")

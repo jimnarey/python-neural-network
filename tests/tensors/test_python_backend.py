@@ -5,7 +5,7 @@ from tests.helpers.tensor_helpers import all_values_are_floats
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.tensor_backend import TensorBackend
 
-from tests.tensors.backend_contract_creation import (  # noqa: F401
+from tests.tensors.backend_contract_creation import (
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
     BackendContractCreationZeroLengthDimensionMixin,
@@ -15,11 +15,15 @@ from tests.tensors.backend_contract_creation import (  # noqa: F401
     BackendContractZerosOnesAndFullMixin,
 )
 
-from tests.tensors.backend_reference_creation import (  # noqa: F401
+from tests.tensors.backend_contract_randn import BackendContractRandnMixin
+
+from tests.tensors.backend_reference_creation import (
     BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
     BackendReferenceCreationValueTypeMixin,
 )
+
+from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
 
 
 class TestPythonBackendProtocolConformance(unittest.TestCase):
@@ -50,22 +54,24 @@ class PythonBackendTestCase(unittest.TestCase):
 
 class TestPythonBackendContract(
     PythonBackendTestCase,
-    # BackendContractCopyMixin,
+    BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
     BackendContractCreationZeroLengthDimensionMixin,
     BackendContractEmptyMixin,
     BackendContractEyeMixin,
     BackendContractLikeCreationMixin,
     BackendContractZerosOnesAndFullMixin,
+    BackendContractRandnMixin,
 ):
     pass
 
 
 class TestPythonBackendReference(
     PythonBackendTestCase,
-    # BackendReferenceCopyMixin,
+    BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
     BackendReferenceCreationValueTypeMixin,
+    BackendReferenceRandnMixin,
 ):
     pass
 
@@ -80,7 +86,7 @@ class TestPythonBackendFloatValuedTensorCreation(PythonBackendTestCase):
         backend = self.make_backend(seed=0)
 
         creation_methods = [
-            # ("randn", lambda: backend.randn((2, 3))),
+            ("randn", lambda: backend.randn((2, 3))),
             ("zeros", lambda: backend.zeros((2, 3))),
             ("ones", lambda: backend.ones((2, 3))),
             ("full", lambda: backend.full((2, 3), 7)),
@@ -101,7 +107,7 @@ class TestPythonBackendFloatValuedTensorCreation(PythonBackendTestCase):
             ("ones_like", lambda: backend.ones_like(tensor)),
             ("full_like", lambda: backend.full_like(tensor, 7)),
             ("empty_like", lambda: backend.empty_like(tensor)),
-            # ("copy", lambda: backend.copy(tensor)),
+            ("copy", lambda: backend.copy(tensor)),
         ]
 
         for method_name, call in creation_methods:
@@ -390,3 +396,34 @@ class TestPythonBackendShape(PythonBackendTestCase):
             with self.subTest(case=case_name):
                 result = backend.shape(tensor)
                 self.assertEqual(result, expected_shape)
+
+
+class TestPythonBackendCopy(PythonBackendTestCase):
+
+    def test_copy_does_not_share_values_with_original_after_original_is_mutated(self):
+        backend = self.make_backend()
+        source_tensor = PythonTensor(
+            (2, 3),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        )
+        copy_tensor = backend.copy(source_tensor)
+        self.assertIsInstance(copy_tensor, PythonTensor)
+        source_tensor.data[0] = 0.0
+        self.assertEqual(
+            copy_tensor.data.tolist(),
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+
+    def test_copy_does_not_share_values_with_original_after_copy_is_mutated(self):
+        backend = self.make_backend()
+        source_tensor = PythonTensor(
+            (2, 3),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+        )
+        copy_tensor = backend.copy(source_tensor)
+        self.assertIsInstance(copy_tensor, PythonTensor)
+        copy_tensor.data[0] = 0.0
+        self.assertEqual(
+            source_tensor.data.tolist(),
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
