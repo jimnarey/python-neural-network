@@ -19,6 +19,8 @@ from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 
+from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
+
 from tests.tensors.backend_reference_creation import (
     BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
@@ -65,6 +67,7 @@ class TestPythonBackendContract(
     BackendContractZerosOnesAndFullMixin,
     BackendContractRandnMixin,
     BackendContractReshapeMixin,
+    BackendContractTransposeMixin,
 ):
     pass
 

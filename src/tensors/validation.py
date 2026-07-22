@@ -15,6 +15,13 @@ def validate_shape_has_no_negative_dimensions(
         )
 
 
+def validate_transpose_axes_are_permutation(axes: tuple[int, ...], ndim: int) -> None:
+    if len(axes) != ndim:
+        raise ValueError("transpose axes must include every tensor axis exactly once")
+    if set(axes) != set(range(ndim)):
+        raise ValueError("transpose axes must include every tensor axis exactly once")
+
+
 def validate_tensor_conversion_input(data: object) -> None:
     if not isinstance(data, (list, tuple)):
         raise ValueError("Tensor conversion requires a list or tuple input.")

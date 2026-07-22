@@ -6,11 +6,13 @@ understood. It also serves as a basis for more performant custom backends.
 """
 
 from src.tensors.python_backend.tensor import PythonTensor
+from src.tensors.axes import normalise_axes
 from src.tensors.validation import (
     parse_tensor_data,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
     validate_tensor_conversion_input,
+    validate_transpose_axes_are_permutation,
 )
 from typing import Sequence, Optional
 from array import array
@@ -91,7 +93,14 @@ class PythonBackend:
     def transpose(
         self, x: PythonTensor, axes: tuple[int, ...] | None = None
     ) -> PythonTensor:
-        raise NotImplementedError
+        if axes is None:
+            normalised_axes = tuple(reversed(range(x.ndim())))
+        else:
+            normalised_axes = normalise_axes(axes, x.ndim())
+            validate_transpose_axes_are_permutation(normalised_axes, x.ndim())
+        shape = tuple(x.shape[axis] for axis in normalised_axes)
+        strides = tuple(x.strides[axis] for axis in normalised_axes)
+        return x.view(shape, strides=strides)
 
     def add(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
         raise NotImplementedError
