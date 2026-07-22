@@ -9,7 +9,7 @@ being executed actually imports the NumpyBackend.
 
 from typing import TYPE_CHECKING
 
-from src.tensors.tensor_backend import Tensor, TensorBackend
+from src.tensors.tensor_backend import TensorBackend
 
 # This is needed to deal with a subtle problem whereby importing
 # NumpyBackend using the __getattr__ approach below prevented mypy
@@ -20,7 +20,7 @@ from src.tensors.tensor_backend import Tensor, TensorBackend
 if TYPE_CHECKING:
     from src.tensors.numpy_backend import NumpyBackend
 
-__all__ = ["Tensor", "TensorBackend", "NumpyBackend"]
+__all__ = ["TensorBackend", "NumpyBackend"]
 
 
 def __getattr__(name: str):

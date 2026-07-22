@@ -112,9 +112,10 @@ class TestNumpyBackendProtocolConformance(unittest.TestCase):
     # the instantiation of NumpyBackend
     def test_numpy_backend_implements_tensor_backend_protocol(self) -> None:
         from src.tensors import NumpyBackend
+        from src.tensors.numpy_backend import NumpyTensor
 
         # mypy check
-        backend: TensorBackend = NumpyBackend()
+        backend: TensorBackend[NumpyTensor] = NumpyBackend()
         # Test at runtime
         self.assertIsInstance(backend, TensorBackend)
 

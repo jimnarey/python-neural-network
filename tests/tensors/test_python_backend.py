@@ -2,8 +2,8 @@ import unittest
 from array import array
 
 from tests.helpers.tensor_helpers import all_values_are_floats
-from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.tensor_backend import TensorBackend
+from src.tensors.python_backend.tensor import PythonTensor
 
 from tests.tensors.backend_contract_creation import (
     BackendContractCopyMixin,
@@ -39,14 +39,14 @@ class TestPythonBackendProtocolConformance(unittest.TestCase):
         from src.tensors.python_backend.backend import PythonBackend
 
         # mypy check
-        backend: TensorBackend = PythonBackend()
+        backend: TensorBackend[PythonTensor] = PythonBackend()
         # Test at runtime
         self.assertIsInstance(backend, TensorBackend)
 
 
 class PythonBackendTestCase(unittest.TestCase):
 
-    def make_backend(self, seed: int | None = None) -> TensorBackend:
+    def make_backend(self, seed: int | None = None) -> TensorBackend[PythonTensor]:
         from src.tensors.python_backend.backend import PythonBackend
 
         return PythonBackend(seed=seed)
@@ -316,18 +316,6 @@ class TestPythonBackendToPython(PythonBackendTestCase):
             with self.subTest(shape=tensor.shape):
                 result = backend.to_python(tensor)
                 self.assertEqual(result, expected)
-
-    def test_to_python_rejects_non_python_tensor_input(self):
-        backend = self.make_backend()
-        invalid_inputs = (
-            [1.0, 2.0, 3.0],
-            ((1.0, 2.0), (3.0, 4.0)),
-            array("d", [1.0, 2.0, 3.0]),
-        )
-        for tensor in invalid_inputs:
-            with self.subTest(tensor_type=type(tensor).__name__):
-                with self.assertRaisesRegex(TypeError, "PythonTensor input"):
-                    backend.to_python(tensor)
 
 
 class TestPythonBackendShape(PythonBackendTestCase):

@@ -5,10 +5,11 @@ for layers and the wider model. The NumPy backend is the reference version.
 
 Protocol classes were chosen over ABCs because the type and behaviour of
 the tensors used in each backend are too different. NumPy uses ndarray,
-where the Python implementation uses nested lists. These are not
-interchangeable. What matters is that the tensor implementation is always
-hidden from the rest of the program; we stick to one backend for each
-network; and each backend returns and expects its own tensor type.
+where the Python implementation a bespoke class based on a flat buffer
+design. These are not interchangeable. What matters is that the tensor
+implementation is always hidden from the rest of the program; we stick
+to one backend for each network; and each backend returns and expects
+its own tensor type.
 
 The backend contract is intended to support tensors with an arbitrary
 number of dimensions, where possible.
@@ -20,51 +21,25 @@ rely on static, nominal typing to do this for us.
 
 from typing import Protocol, Sequence, runtime_checkable
 
-# A placeholder for specific tensor implementations. This is an improvement
-# over Tensor = Any because the type checker will still catch attempts to use
-# methods which are not on object. But it's loose and it may make sense to
-# change it to a TypeVar-based approach later, when the design of the TBC
-# backend implementations is clearer.
-type Tensor = object
 type Scalar = float | int
 
 
 @runtime_checkable
-class TensorBackend(Protocol):
-    """
-    The interface/contract is designed to eliminate, as far as possible,
-    the use of tensors with rank 0, which are possible with NumPy. This
-    is the purpose of preventing empty shapes being passed to tensor
-    creation methods.
+class TensorBackend[T](Protocol):
 
-    We want backends to use floats for values within tensors, even
-    internally. This means backends behave the same way, it is easier
-    to think about and prevents differences in behaviour affecting
-    the common tests. Arithmatic should be uniform across backends
-    (other than small rounding differences).
-
-    Methods which return a scalar value must return a plain Python
-    float, except where the value is an index, in which case they
-    should return an int.
-
-    Creation of an empty array (inc. a vector) is still  possible by
-    passing a shape containing zeros to randn, zeros etc in which case
-    they each function identically.
-    """
-
-    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> T:
         """
         Convert a (nested) list or tuple to the backend's native tensor
         representation, normalising numeric values to floats. Use of
         floats has to be enforced at the implementation level.
         """
 
-    def to_python(self, tensor: Tensor) -> list:
+    def to_python(self, tensor: T) -> list:
         """
         Convert a native tensor representation to a (nested) list.
         """
 
-    def randn(self, shape: tuple[int, ...]) -> Tensor:
+    def randn(self, shape: tuple[int, ...]) -> T:
         """
         Generate a tensor with the given shape, filled with random numbers
         drawn from a standard normal distribution and as floats. Use of
@@ -75,7 +50,7 @@ class TensorBackend(Protocol):
                           [ 0.8, -1.1, 0.0]]
         """
 
-    def zeros(self, shape: tuple[int, ...]) -> Tensor:
+    def zeros(self, shape: tuple[int, ...]) -> T:
         """
         Create a tensor with the given shape, filled with 0.0 values.
         Use of floats has to be enforced at the implementation level.
@@ -85,7 +60,7 @@ class TensorBackend(Protocol):
                           [0, 0, 0]]
         """
 
-    def zeros_like(self, x: Tensor) -> Tensor:
+    def zeros_like(self, x: T) -> T:
         """
         Create a tensor of 0.0 values with the same shape as ``x``.
         Use of floats has to be enforced at the implementation level.
@@ -94,7 +69,7 @@ class TensorBackend(Protocol):
         zeros_like([[1, 2], [3, 4]]) -> [[0, 0], [0, 0]]
         """
 
-    def ones(self, shape: tuple[int, ...]) -> Tensor:
+    def ones(self, shape: tuple[int, ...]) -> T:
         """
         Create a tensor with the given shape, filled with 1.0 values.
         Use of floats has to be enforced at the implementation level.
@@ -103,7 +78,7 @@ class TensorBackend(Protocol):
         ones((2, 3)) -> [[1, 1, 1], [1, 1, 1]]
         """
 
-    def ones_like(self, x: Tensor) -> Tensor:
+    def ones_like(self, x: T) -> T:
         """
         Create a tensor of 1.0 values with the same shape as ``x``.
         Use of floats has to be enforced at the implementation level.
@@ -119,36 +94,36 @@ class TensorBackend(Protocol):
     # failed to meet the contract and would fail if mypy were to be run with
     # --check-untyped-defs or the test method were given a type annotation
     # for its return value.
-    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
+    def full(self, shape: tuple[int, ...], fill_value: float | int) -> T:
         """
         Create a float-valued tensor with the given shape, filled with
         ``fill_value``. Use of floats has to be enforced at the
         implementation level.
         """
 
-    def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
+    def full_like(self, x: T, fill_value: float | int) -> T:
         """
         Create a float-valued tensor with the same shape as ``x``, filled
         with ``fill_value``. Use of floats has to be enforced at the
         implementation level.
         """
 
-    def empty(self, shape: tuple[int, ...]) -> Tensor:
+    def empty(self, shape: tuple[int, ...]) -> T:
         """
         Create an uninitialised tensor with the given shape.
         """
 
-    def empty_like(self, x: Tensor) -> Tensor:
+    def empty_like(self, x: T) -> T:
         """
         Create an uninitialised tensor with the same shape as ``x``.
         """
 
-    def copy(self, x: Tensor) -> Tensor:
+    def copy(self, x: T) -> T:
         """
         Return a copy of ``x``.
         """
 
-    def shape(self, x: Tensor) -> tuple[int, ...]:
+    def shape(self, x: T) -> tuple[int, ...]:
         """
         Return the shape of a tensor.
 
@@ -156,7 +131,7 @@ class TensorBackend(Protocol):
         shape([[1, 2], [3, 4]]) -> (2, 2)
         """
 
-    def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
+    def reshape(self, x: T, shape: tuple[int, ...]) -> T:
         """
         Return a tensor with the same values as ``x`` but with a new shape.
 
@@ -164,14 +139,14 @@ class TensorBackend(Protocol):
         reshape([[1, 2], [3, 4]], (4,)) -> [1, 2, 3, 4]
         """
 
-    def transpose(self, x: Tensor, axes: tuple[int, ...] | None = None) -> Tensor:
+    def transpose(self, x: T, axes: tuple[int, ...] | None = None) -> T:
         """
         Permute tensor axes.
 
         If ``axes`` is ``None``, reverse the axes.
         """
 
-    def add(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def add(self, a: T, b: T | float | int) -> T:
         """
         Add two tensors element-wise, or add a scalar to all elements of a
         tensor. Compatible shapes should follow the backend's broadcasting
@@ -182,7 +157,7 @@ class TensorBackend(Protocol):
                                      [8, 9]]
         """
 
-    def subtract(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def subtract(self, a: T, b: T | float | int) -> T:
         """
         Subtract one tensor from another element-wise, or subtract a scalar
         from all elements of a tensor.
@@ -192,7 +167,7 @@ class TensorBackend(Protocol):
                                           [4, 5]]
         """
 
-    def multiply(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def multiply(self, a: T, b: T | float | int) -> T:
         """
         Multiply two tensors element-wise, or multiply all elements of a
         tensor by a scalar.
@@ -202,7 +177,7 @@ class TensorBackend(Protocol):
                                           [6, 8]]
         """
 
-    def divide(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def divide(self, a: T, b: T | float | int) -> T:
         """
         Divide one tensor by another element-wise, or divide all elements of
         a tensor by a scalar.
@@ -212,7 +187,7 @@ class TensorBackend(Protocol):
                                          [4, 5]]
         """
 
-    def matmul(self, a: Tensor, b: Tensor) -> Tensor:
+    def matmul(self, a: T, b: T) -> T:
         # These docstrings were added early to ensure each of the tensor
         # operations were completely understood. This was the hardest
         # operation to understand by far. Specifically, the need to match
@@ -265,7 +240,7 @@ class TensorBackend(Protocol):
                                                        [43, 50]]
         """
 
-    def maximum(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def maximum(self, a: T, b: T | float | int) -> T:
         """
         Compute the element-wise maximum of two tensors, or the maximum
         between each element of a tensor and a scalar.
@@ -275,13 +250,13 @@ class TensorBackend(Protocol):
                                          [4, 4]]
         """
 
-    def minimum(self, a: Tensor, b: Tensor | float | int) -> Tensor:
+    def minimum(self, a: T, b: T | float | int) -> T:
         """
         Compute the element-wise minimum of two tensors, or the minimum
         between each element of a tensor and a scalar.
         """
 
-    def argmax(self, x: Tensor, axis: int | None = None) -> Tensor | int:
+    def argmax(self, x: T, axis: int | None = None) -> T | int:
         """
         Return the indices of the maximum values in ``x``.
 
@@ -289,7 +264,7 @@ class TensorBackend(Protocol):
         argmax([[1, 4], [3, 2]], axis=1) -> [1, 0]
         """
 
-    def exp(self, x: Tensor) -> Tensor:
+    def exp(self, x: T) -> T:
         """
         Compute the exponential (e^x) of each element in the tensor.
 
@@ -298,37 +273,37 @@ class TensorBackend(Protocol):
                                   [7.389, 20.085]]  # e^2 ≈ 7.389, e^3 ≈ 20.085
         """
 
-    def log(self, x: Tensor) -> Tensor:
+    def log(self, x: T) -> T:
         """
         Compute the natural logarithm of each element in the tensor.
         """
 
-    def sqrt(self, x: Tensor) -> Tensor:
+    def sqrt(self, x: T) -> T:
         """
         Compute the square root of each element in the tensor.
         """
 
-    def absolute(self, x: Tensor) -> Tensor:
+    def absolute(self, x: T) -> T:
         """
         Compute the absolute value of each element in the tensor.
         """
 
-    def sign(self, x: Tensor) -> Tensor:
+    def sign(self, x: T) -> T:
         """
         Return the sign of each element in the tensor as floats.
         """
 
-    def clip(self, x: Tensor, min_value: float | int, max_value: float | int) -> Tensor:
+    def clip(self, x: T, min_value: float | int, max_value: float | int) -> T:
         """
         Clip tensor values so they lie between ``min_value`` and ``max_value``.
         """
 
     def sum(
         self,
-        x: Tensor,
+        x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
+    ) -> T | float:
         """
         Compute the sum of all elements in the tensor, or along one or more
         specific axes.
@@ -341,20 +316,20 @@ class TensorBackend(Protocol):
 
     def mean(
         self,
-        x: Tensor,
+        x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
+    ) -> T | float:
         """
         Compute the mean of all elements in the tensor, or along one or more axes.
         """
 
     def max(
         self,
-        x: Tensor,
+        x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
+    ) -> T | float:
         """
         Compute the maximum value of all elements in the tensor, or along one
         or more specific axes.
@@ -367,10 +342,10 @@ class TensorBackend(Protocol):
 
     def min(
         self,
-        x: Tensor,
+        x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
+    ) -> T | float:
         """
         Compute the minimum value of all elements in the tensor, or along one
         or more specific axes.
@@ -378,15 +353,15 @@ class TensorBackend(Protocol):
 
     def std(
         self,
-        x: Tensor,
+        x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
+    ) -> T | float:
         """
         Compute the standard deviation of the tensor, or along one or more axes.
         """
 
-    def stack(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
+    def stack(self, xs: Sequence[T], axis: int = 0) -> T:
         """
         Stack tensors along a new axis.
 
@@ -394,12 +369,12 @@ class TensorBackend(Protocol):
         stack(([1, 2], [3, 4]), axis=0) -> [[1, 2], [3, 4]]
         """
 
-    def concatenate(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
+    def concatenate(self, xs: Sequence[T], axis: int = 0) -> T:
         """
         Join tensors along an existing axis.
         """
 
-    def eye(self, n: int, m: int | None = None) -> Tensor:
+    def eye(self, n: int, m: int | None = None) -> T:
         """
         Create a float-valued 2D identity matrix. Use of floats has to
         be enforced at the implementation level.

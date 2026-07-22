@@ -36,22 +36,18 @@ themselves, thoroughly tested.
 
 import functools
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable
 
 from src.tensors.tensor_backend import TensorBackend
 from tests.helpers import tensor_helpers
 from tests.helpers.tensor_helpers import DEFAULT_ABS_TOL, DEFAULT_REL_TOL
 
-T = TypeVar("T")
 type AssertNestedClose = Callable[[Any, Any, float, float], None]
 type MakeBackend = Callable[..., TensorBackend]
 
 
-# Use Generic to effectively declare a group of types for PatchState
-# depending on the type of original_value. This keeps mypy happy without
-# very loose typing
 @dataclass(frozen=True)
-class PatchState(Generic[T]):
+class PatchState[T]:
     """
     Used to track the what has been patched at what level (local,
     global, source module).

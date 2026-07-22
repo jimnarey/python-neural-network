@@ -5,7 +5,6 @@ It's purpose is to ensure the underlying tensor calculations are genuinely
 understood. It also serves as a basis for more performant custom backends.
 """
 
-from src.tensors.tensor_backend import Tensor, TensorBackend
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.validation import (
     parse_tensor_data,
@@ -17,30 +16,22 @@ import math
 import random
 
 
-class PythonBackend(TensorBackend):
+class PythonBackend:
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed
         self._random = random.Random(seed)
 
-    # A temporary measure until we tighten the type annotations in the Protocol
-    # and the classes conforming to it.
-    def _require_python_tensor(self, x: Tensor, method_name: str) -> PythonTensor:
-        if not isinstance(x, PythonTensor):
-            raise TypeError(f"{method_name} requires a PythonTensor input.")
-        return x
-
     # PythonTensor supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
-    def to_tensor(self, data: list[object] | tuple[object, ...]) -> Tensor:
+    def to_tensor(self, data: list[object] | tuple[object, ...]) -> PythonTensor:
         validate_tensor_conversion_input(data)
         shape, values = parse_tensor_data(data)
         return PythonTensor(shape, array("d", values))
 
-    def to_python(self, tensor: Tensor) -> list:
-        tensor = self._require_python_tensor(tensor, "to_python")
+    def to_python(self, tensor: PythonTensor) -> list:
         return tensor.to_list()
 
-    def randn(self, shape: tuple[int, ...]) -> Tensor:
+    def randn(self, shape: tuple[int, ...]) -> PythonTensor:
         # Use .normalvariate here in place of .gauss because we know it's thread safe.
         # It's also a little slower so possibly revisit, though the difference is
         # likely to be marginal.
@@ -52,139 +43,137 @@ class PythonBackend(TensorBackend):
             ),
         )
 
-    def zeros(self, shape: tuple[int, ...]) -> Tensor:
+    def zeros(self, shape: tuple[int, ...]) -> PythonTensor:
         return PythonTensor(shape)
 
-    def zeros_like(self, x: Tensor) -> Tensor:
-        x = self._require_python_tensor(x, "zeros_like")
+    def zeros_like(self, x: PythonTensor) -> PythonTensor:
         return self.zeros(x.shape)
 
-    def ones(self, shape: tuple[int, ...]) -> Tensor:
+    def ones(self, shape: tuple[int, ...]) -> PythonTensor:
         return PythonTensor(shape, array("d", [1.0]) * math.prod(shape))
 
-    def ones_like(self, x: Tensor) -> Tensor:
-        x = self._require_python_tensor(x, "ones_like")
+    def ones_like(self, x: PythonTensor) -> PythonTensor:
         return self.ones(x.shape)
 
-    def full(self, shape: tuple[int, ...], fill_value: float | int) -> Tensor:
+    def full(self, shape: tuple[int, ...], fill_value: float | int) -> PythonTensor:
         return PythonTensor(shape, array("d", [float(fill_value)]) * math.prod(shape))
 
-    def full_like(self, x: Tensor, fill_value: float | int) -> Tensor:
-        x = self._require_python_tensor(x, "full_like")
+    def full_like(self, x: PythonTensor, fill_value: float | int) -> PythonTensor:
         return self.full(x.shape, fill_value)
 
-    def empty(self, shape: tuple[int, ...]) -> Tensor:
+    def empty(self, shape: tuple[int, ...]) -> PythonTensor:
         return PythonTensor(shape)
 
-    def empty_like(self, x: Tensor) -> Tensor:
-        x = self._require_python_tensor(x, "empty_like")
+    def empty_like(self, x: PythonTensor) -> PythonTensor:
         return PythonTensor(x.shape)
 
     # PythonTensor.copy supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
-    def copy(self, x: Tensor) -> Tensor:
-        x = self._require_python_tensor(x, "copy")
+    def copy(self, x: PythonTensor) -> PythonTensor:
         return x.copy()
 
-    def shape(self, x: Tensor) -> tuple[int, ...]:
-        x = self._require_python_tensor(x, "shape")
+    def shape(self, x: PythonTensor) -> tuple[int, ...]:
         return x.shape
 
-    def reshape(self, x: Tensor, shape: tuple[int, ...]) -> Tensor:
-        return None
+    def reshape(self, x: PythonTensor, shape: tuple[int, ...]) -> PythonTensor:
+        raise NotImplementedError
 
-    def transpose(self, x: Tensor, axes: tuple[int, ...] | None = None) -> Tensor:
-        return None
+    def transpose(
+        self, x: PythonTensor, axes: tuple[int, ...] | None = None
+    ) -> PythonTensor:
+        raise NotImplementedError
 
-    def add(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def add(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def subtract(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def subtract(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def multiply(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def multiply(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def divide(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def divide(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def matmul(self, a: Tensor, b: Tensor) -> Tensor:
-        return None
+    def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
-    def maximum(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def maximum(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def exp(self, x: Tensor) -> Tensor:
-        return None
+    def exp(self, x: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
     def sum(
         self,
-        x: Tensor,
+        x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
-        return None
+    ) -> PythonTensor | float:
+        raise NotImplementedError
 
     def max(
         self,
-        x: Tensor,
+        x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor:
-        return None
+    ) -> PythonTensor | float:
+        raise NotImplementedError
 
-    def minimum(self, a: Tensor, b: Tensor | float | int) -> Tensor:
-        return None
+    def minimum(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
+        raise NotImplementedError
 
-    def argmax(self, x: Tensor, axis: int | None = None) -> Tensor | int:
-        return None
+    def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
+        raise NotImplementedError
 
-    def log(self, x: Tensor) -> Tensor:
-        return None
+    def log(self, x: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
-    def sqrt(self, x: Tensor) -> Tensor:
-        return None
+    def sqrt(self, x: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
-    def absolute(self, x: Tensor) -> Tensor:
-        return None
+    def absolute(self, x: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
-    def sign(self, x: Tensor) -> Tensor:
-        return None
+    def sign(self, x: PythonTensor) -> PythonTensor:
+        raise NotImplementedError
 
-    def clip(self, x: Tensor, min_value: float | int, max_value: float | int) -> Tensor:
-        return None
+    def clip(
+        self, x: PythonTensor, min_value: float | int, max_value: float | int
+    ) -> PythonTensor:
+        raise NotImplementedError
 
     def mean(
         self,
-        x: Tensor,
+        x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
-        return None
+    ) -> PythonTensor | float:
+        raise NotImplementedError
 
     def min(
         self,
-        x: Tensor,
+        x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
-        return None
+    ) -> PythonTensor | float:
+        raise NotImplementedError
 
     def std(
         self,
-        x: Tensor,
+        x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> Tensor | float:
-        return None
+    ) -> PythonTensor | float:
+        raise NotImplementedError
 
-    def stack(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
-        return None
+    def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
+        raise NotImplementedError
 
-    def concatenate(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor:
-        return None
+    def concatenate(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
+        raise NotImplementedError
 
-    def eye(self, n: int, m: int | None = None) -> Tensor:
+    def eye(self, n: int, m: int | None = None) -> PythonTensor:
         if m is None:
             m = n
         tensor = PythonTensor((n, m))

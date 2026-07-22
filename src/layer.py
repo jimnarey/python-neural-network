@@ -1,11 +1,9 @@
-from typing import Optional
-
 from src import activations
 from src.activations import Activation
-from src.tensors import Tensor, TensorBackend
+from src.tensors import TensorBackend
 
 
-class DenseLayer:
+class DenseLayer[T]:
     """
     Models a layer of neurons in which each neuron receives all of the outputs from
     all neurons in the previous layer.
@@ -13,10 +11,10 @@ class DenseLayer:
 
     def __init__(
         self,
-        backend: TensorBackend,
+        backend: TensorBackend[T],
         num_inputs: int,
         num_neurons: int,
-        activation: Optional[Activation] = None,
+        activation: Activation[T] | None = None,
         # weight_mod constrains the initial weights to small numbers. As values pass
         # through the network they are multiplied repeatedly, as are the resources
         # required to manage them.
@@ -31,12 +29,12 @@ class DenseLayer:
         )
         # One bias per neuron
         self.biases = self.backend.zeros((num_neurons,))
-        self.output: Tensor | None = None
+        self.output: T | None = None
         self.activation = activation if activation is not None else activations.ReLU()
         self.num_inputs = num_inputs
         self.num_neurons = num_neurons
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: T) -> T:
         # Consider whether we can achieve a slight optimisation with :=
         input_shape = self.backend.shape(inputs)
         if input_shape[-1] != self.num_inputs:
