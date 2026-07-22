@@ -1,9 +1,18 @@
 """Shared guards for tensor creation and operations"""
 
 
-def validate_non_empty_shape(shape: tuple[int, ...]) -> None:
+def validate_shape_not_rank_0(shape: tuple[int, ...]) -> None:
     if not shape:
         raise ValueError("Tensor creation methods require a non-empty shape.")
+
+
+def validate_shape_has_no_negative_dimensions(
+    shape: tuple[int, ...], method_name: str
+) -> None:
+    if any(dimension < 0 for dimension in shape):
+        raise ValueError(
+            f"{method_name} does not support negative values in the target shape"
+        )
 
 
 def validate_tensor_conversion_input(data: object) -> None:

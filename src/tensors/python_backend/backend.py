@@ -8,6 +8,8 @@ understood. It also serves as a basis for more performant custom backends.
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.validation import (
     parse_tensor_data,
+    validate_shape_has_no_negative_dimensions,
+    validate_shape_not_rank_0,
     validate_tensor_conversion_input,
 )
 from typing import Sequence, Optional
@@ -75,8 +77,16 @@ class PythonBackend:
     def shape(self, x: PythonTensor) -> tuple[int, ...]:
         return x.shape
 
+    # TODO - reshape here makes a copy. NumPy reshape will attempt to create a cheap
+    # view if that is possible and fall back to a copy if not. Implement this later
+    # and before attempting to implement any of the tougher backends, so we can
+    # borrow the logic. This behaviour should be added to the contract and tested.
     def reshape(self, x: PythonTensor, shape: tuple[int, ...]) -> PythonTensor:
-        raise NotImplementedError
+        validate_shape_not_rank_0(shape)
+        validate_shape_has_no_negative_dimensions(shape, "reshape")
+        if x.size() != math.prod(shape):
+            raise ValueError("reshape cannot change the number of tensor elements")
+        return PythonTensor(shape, array("d", (value for _, value in x.items())))
 
     def transpose(
         self, x: PythonTensor, axes: tuple[int, ...] | None = None
