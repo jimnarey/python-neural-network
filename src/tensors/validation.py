@@ -22,13 +22,11 @@ def validate_transpose_axes_are_permutation(axes: tuple[int, ...], ndim: int) ->
         raise ValueError("transpose axes must include every tensor axis exactly once")
 
 
-def validate_tensor_conversion_input(data: object) -> None:
+def validate_tensor_conversion_root_is_sequence(data: object) -> None:
     if not isinstance(data, (list, tuple)):
         raise ValueError("Tensor conversion requires a list or tuple input.")
 
 
-# TODO - this needs unit tests but wait until we know we're not going to
-# refactor any further
 def parse_tensor_data(data: object) -> tuple[tuple[int, ...], list[float]]:
     """
     Validate nested tensor input and return its shape with flat float values.

@@ -1,5 +1,174 @@
 import unittest
-from src.tensors.validation import parse_tensor_data
+from src.tensors.validation import (
+    validate_shape_not_rank_0,
+    validate_shape_has_no_negative_dimensions,
+    validate_transpose_axes_are_permutation,
+    validate_tensor_conversion_root_is_sequence,
+    parse_tensor_data,
+)
+
+
+class TestValidateShapeNotRank0(unittest.TestCase):
+
+    def test_validate_shape_not_rank_0_accepts_rank_1_or_higher_shape(self):
+        cases = (
+            (3,),
+            (2, 3),
+            (2, 3, 4),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_shape_not_rank_0(shape)
+
+    def test_validate_shape_not_rank_0_accepts_shape_with_zero_length_dimension(self):
+        cases = (
+            (0,),
+            (2, 0),
+            (2, 0, 3),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_shape_not_rank_0(shape)
+
+    def test_validate_shape_not_rank_0_raises_when_shape_is_empty_tuple(self):
+        with self.assertRaisesRegex(ValueError, "require a non-empty shape"):
+            validate_shape_not_rank_0(())
+
+
+class TestValidateShapeHasNoNegativeDimensions(unittest.TestCase):
+
+    def test_validate_shape_has_no_negative_dimensions_accepts_non_negative_shape(self):
+        cases = (
+            (3,),
+            (2, 3),
+            (2, 3, 4),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_shape_has_no_negative_dimensions(shape, "reshape")
+
+    def test_validate_shape_has_no_negative_dimensions_accepts_shape_with_zero_length_dimension(
+        self,
+    ):
+        cases = (
+            (0,),
+            (2, 0),
+            (2, 0, 3),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_shape_has_no_negative_dimensions(shape, "reshape")
+
+    def test_validate_shape_has_no_negative_dimensions_raises_when_shape_contains_negative_dimension(
+        self,
+    ):
+        cases = (
+            (-1,),
+            (2, -1),
+            (2, -1, 0),
+        )
+        for shape in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "negative values"):
+                    validate_shape_has_no_negative_dimensions(shape, "reshape")
+
+
+class TestValidateTransposeAxesArePermutation(unittest.TestCase):
+
+    def test_validate_transpose_axes_are_permutation_accepts_complete_axes_permutation(
+        self,
+    ):
+        cases = (
+            ((0,), 1),
+            ((1, 0), 2),
+            ((2, 0, 1), 3),
+            ((3, 1, 0, 2), 4),
+        )
+        for axes, ndim in cases:
+            with self.subTest():
+                validate_transpose_axes_are_permutation(axes, ndim)
+
+    def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_is_too_short(
+        self,
+    ):
+        cases = (
+            ((), 1),
+            ((0,), 2),
+            ((2, 1), 3),
+        )
+        for axes, ndim in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "exactly once"):
+                    validate_transpose_axes_are_permutation(axes, ndim)
+
+    def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_is_too_long(
+        self,
+    ):
+        cases = (
+            ((0, 1), 1),
+            ((1, 0, 2), 2),
+            ((2, 1, 0, 3), 3),
+        )
+        for axes, ndim in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "exactly once"):
+                    validate_transpose_axes_are_permutation(axes, ndim)
+
+    def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_contains_duplicate_axis(
+        self,
+    ):
+        cases = (
+            ((0, 0), 2),
+            ((0, 0, 1), 3),
+            ((2, 1, 1), 3),
+        )
+        for axes, ndim in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "exactly once"):
+                    validate_transpose_axes_are_permutation(axes, ndim)
+
+    def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_omits_axis(
+        self,
+    ):
+        cases = (
+            ((0, 2), 2),
+            ((0, 1, 3), 3),
+            ((3, 2, 1), 4),
+        )
+        for axes, ndim in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "exactly once"):
+                    validate_transpose_axes_are_permutation(axes, ndim)
+
+
+class TestValidateTensorConversionRootIsSequence(unittest.TestCase):
+
+    def test_validate_tensor_conversion_root_is_sequence_accepts_list_or_tuple(self):
+        cases = (
+            [],
+            (),
+            [1.0, 2.0],
+            (1.0, 2.0),
+        )
+        for data in cases:
+            with self.subTest():
+                validate_tensor_conversion_root_is_sequence(data)
+
+    def test_validate_tensor_conversion_root_is_sequence_raises_when_data_is_not_list_or_tuple(
+        self,
+    ):
+        cases = (
+            1.0,
+            "data",
+            True,
+            None,
+            dict(),
+            set(),
+        )
+        for data in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "requires a list or tuple"):
+                    validate_tensor_conversion_root_is_sequence(data)
 
 
 class TestParseTensorData(unittest.TestCase):
@@ -14,7 +183,7 @@ class TestParseTensorData(unittest.TestCase):
                 self.assertEqual(shape, ())
 
     def test_returns_rank_0_shape_and_float_in_list_when_data_is_int(self):
-        cases = (1, 5, 100)
+        cases = (1, 5, 100, 0, -1, -5, -100)
         for data in cases:
             with self.subTest():
                 shape, values = parse_tensor_data(data)
@@ -75,6 +244,18 @@ class TestParseTensorData(unittest.TestCase):
                 [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
                 [[[1, 2], [3, 4]], [[5, 6], [7, 8], [9, 10]]],
             ],
+        )
+        for data in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "requires rectangular input"):
+                    parse_tensor_data(data)
+
+    def test_raises_when_sibling_elements_have_different_nesting_depth(self):
+        cases = (
+            [[1, 2], 3],
+            [1, [2, 3]],
+            [[[1, 2], [3, 4]], [1, 2]],
+            [[1, 2], [[3, 4], [5, 6]]],
         )
         for data in cases:
             with self.subTest():

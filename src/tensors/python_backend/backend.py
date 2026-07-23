@@ -11,7 +11,7 @@ from src.tensors.validation import (
     parse_tensor_data,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
-    validate_tensor_conversion_input,
+    validate_tensor_conversion_root_is_sequence,
     validate_transpose_axes_are_permutation,
 )
 from typing import Sequence, Optional
@@ -28,7 +28,7 @@ class PythonBackend:
     # PythonTensor supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> PythonTensor:
-        validate_tensor_conversion_input(data)
+        validate_tensor_conversion_root_is_sequence(data)
         shape, values = parse_tensor_data(data)
         return PythonTensor(shape, array("d", values))
 

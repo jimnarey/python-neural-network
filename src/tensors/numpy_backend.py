@@ -14,7 +14,7 @@ from src.tensors.validation import (
     parse_tensor_data,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
-    validate_tensor_conversion_input,
+    validate_tensor_conversion_root_is_sequence,
 )
 
 type NumpyTensor = np.ndarray
@@ -67,7 +67,7 @@ class NumpyBackend:
             self._validate_tensor_not_rank_0(x)
 
     def to_tensor(self, data: list[object] | tuple[object, ...]) -> NumpyTensor:
-        validate_tensor_conversion_input(data)
+        validate_tensor_conversion_root_is_sequence(data)
         parse_tensor_data(data)
         tensor = np.array(data, dtype=float)
         self._validate_tensor_not_rank_0(tensor)
