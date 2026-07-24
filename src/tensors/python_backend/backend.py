@@ -14,13 +14,46 @@ from src.tensors.validation import (
     validate_tensor_conversion_root_is_sequence,
     validate_transpose_axes_are_permutation,
 )
-from typing import Sequence, Optional
+from typing import Callable, Sequence, Optional
 from array import array
 import math
 import random
 
 
 class PythonBackend:
+
+    # Consider checking whether the tensor has default strides and offset zero
+    # and, if it does, parsing the buffer direct. Profile first.
+    @staticmethod
+    def _map_unary(x: PythonTensor, op: Callable[[float], float]) -> PythonTensor:
+        return PythonTensor(x.shape, array("d", (op(value) for _, value in x.items())))
+
+    @staticmethod
+    def _log_scalar(value: float) -> float:
+        """
+        Treat log(0.0) as -inf because log values become more negative without
+        limit as positive inputs get closer to zero.
+        """
+        if value == 0.0:
+            return -math.inf
+        if value < 0.0:
+            return math.nan
+        return math.log(value)
+
+    @staticmethod
+    def _sqrt_scalar(value: float) -> float:
+        if value < 0.0:
+            return math.nan
+        return math.sqrt(value)
+
+    @staticmethod
+    def _sign_scalar(value: float) -> float:
+        if value < 0.0:
+            return -1.0
+        if value > 0.0:
+            return 1.0
+        return 0.0
+
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed
         self._random = random.Random(seed)
@@ -121,7 +154,7 @@ class PythonBackend:
         raise NotImplementedError
 
     def exp(self, x: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(x, math.exp)
 
     def sum(
         self,
@@ -146,21 +179,23 @@ class PythonBackend:
         raise NotImplementedError
 
     def log(self, x: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(x, PythonBackend._log_scalar)
 
     def sqrt(self, x: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(x, PythonBackend._sqrt_scalar)
 
     def absolute(self, x: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(x, abs)
 
     def sign(self, x: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(x, PythonBackend._sign_scalar)
 
     def clip(
         self, x: PythonTensor, min_value: float | int, max_value: float | int
     ) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_unary(
+            x, lambda value: min(max(value, min_value), max_value)
+        )
 
     def mean(
         self,

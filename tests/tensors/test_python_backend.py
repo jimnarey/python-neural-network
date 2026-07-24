@@ -21,6 +21,15 @@ from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
 
 from tests.tensors.backend_contract_transpose import BackendContractTransposeMixin
 
+from tests.tensors.backend_contract_unary import (
+    BackendContractAbsoluteSemanticsMixin,
+    BackendContractClipSemanticsMixin,
+    BackendContractSignSemanticsMixin,
+    BackendContractSqrtSemanticsMixin,
+    BackendContractUnaryShapeMixin,
+    BackendContractUnaryZeroLengthDimensionMixin,
+)
+
 from tests.tensors.backend_reference_creation import (
     BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
@@ -28,6 +37,15 @@ from tests.tensors.backend_reference_creation import (
 )
 
 from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
+
+from tests.tensors.backend_reference_unary import (
+    BackendReferenceExpArithmeticMixin,
+    BackendReferenceLogArithmeticMixin,
+    BackendReferenceLogSpecialValueMixin,
+    BackendReferenceSqrtArithmeticMixin,
+    BackendReferenceSqrtSpecialValueMixin,
+    BackendReferenceUnaryValueTypeMixin,
+)
 
 
 class TestPythonBackendProtocolConformance(unittest.TestCase):
@@ -58,6 +76,8 @@ class PythonBackendTestCase(unittest.TestCase):
 
 class TestPythonBackendContract(
     PythonBackendTestCase,
+    BackendContractAbsoluteSemanticsMixin,
+    BackendContractClipSemanticsMixin,
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
     BackendContractCreationZeroLengthDimensionMixin,
@@ -67,7 +87,11 @@ class TestPythonBackendContract(
     BackendContractZerosOnesAndFullMixin,
     BackendContractRandnMixin,
     BackendContractReshapeMixin,
+    BackendContractSignSemanticsMixin,
+    BackendContractSqrtSemanticsMixin,
     BackendContractTransposeMixin,
+    BackendContractUnaryShapeMixin,
+    BackendContractUnaryZeroLengthDimensionMixin,
 ):
     pass
 
@@ -78,6 +102,12 @@ class TestPythonBackendReference(
     BackendReferenceCreationLikeValueTypeMixin,
     BackendReferenceCreationValueTypeMixin,
     BackendReferenceRandnMixin,
+    BackendReferenceExpArithmeticMixin,
+    BackendReferenceLogArithmeticMixin,
+    BackendReferenceLogSpecialValueMixin,
+    BackendReferenceSqrtArithmeticMixin,
+    BackendReferenceSqrtSpecialValueMixin,
+    BackendReferenceUnaryValueTypeMixin,
 ):
     pass
 
