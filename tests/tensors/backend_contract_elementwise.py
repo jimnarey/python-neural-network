@@ -9,23 +9,24 @@ broadcasting is needed: each operation is applied position by position.
 
 This module also covers the two variations of broadcasting which can
 be applied when carrying out the elementwise operations on a pair of
-tensors which would otherwise be incompatible. One of these
-(left-padding) is analagous to broadcasting in matmul (which has only
-one broadcasting mechanism).
+tensors which would otherwise be incompatible. One of these, where an
+axis of length 1 is (effectively) increased in size to match the other
+operand, is  analagous to broadcasting in matmul (which has only one
+broadcasting mechanism).
 
-When the operands have the same number of dimensions but the shapes
-differ, an axis of length 1 on one side is broadcast to match the
-longer axis on the other. If no such pairing is possible — because
-two corresponding axes have different lengths and neither is 1 — the
-operation must raise an exception.
+Type 1: When the operands have the same number of dimensions but the
+shapes differ, an axis of length 1 (must be length 1) on one side is
+broadcast to match the longer axis on the other. If no such pairing is
+possible — because two corresponding axes have different lengths and
+neither is 1 — the operation must raise an exception.
 
-When the operands have different numbers of dimensions, the lower-rank
-operand is treated as though leading axes of length 1 had been prepended
-to its shape before the right-to-left comparison begins. Because those
-added axes all have length 1, the length-1-axis rule then applies to
-each of them — unless the corresponding leading axis of the higher-rank
-operand also has length 1, in which case the two axes are already equal
-and no expansion is needed.
+Type 2: When the operands have different numbers of dimensions, the
+lower-rank operand is treated as though leading axes of length 1 had
+been prepended to its shape before the right-to-left comparison begins.
+Because those added axes all have length 1, the other type of brodcasting
+then applies to each of them — unless the corresponding leading axis of
+the  higher-rank operand also has length 1, in which case the two axes
+are already equal and no expansion is needed.
 
 Left-padding therefore almost always involves both mechanisms acting
 together, so the split in this module across different mixins is a

@@ -1,29 +1,59 @@
 """Backend contract matmul tests
 
 This module tries to cover the various ways in which we might go wrong
-with the backend implementations without trying to catch every possible
-edge case.
+with the backend matmul implementations without trying to catch every
+possible edge case.
 
-In particular, as the number of dimensions increases the number of
-reasons for a mismatch between the 2 arrays being multiplied increases.
-It is not practical to try to cover all of them.
+In particular, as the number of dimensions in the input tensors increases,
+the number possible ways the input tensors might mismatch is multiplied.
+It is not practical to try to cover every permutation.
 
-An important thing to understand with these operations is that matmul,
-as the name suggests, multiplies *matrices*. It can handle cases where
-one operand is a 1D array (vector) by temporarily treating that array as
-a single-row or single-column matrix for the calculation, then removing
-that extra dimension from the result.
+Matmul, as the name suggests, multiplies *matrices*. It can handle cases
+where one operand is a 1D tensor (vector) by temporarily treating that
+tensor as a single-row or single-column matrix for the calculation, then
+removing that extra dimension from the result.
 
-It can also handle arrays with more than 2 dimensions, but the actual
+It can also handle tensors with more than two dimensions, but the actual
 multiplication is still carried out only on matrices formed from the
-last two axes of each operand. What can be harder to understand is how
-the leading axes are handled. The docstrings for the relevant tests try
-to explain this.
+last two axes of each operand. What can sometimes be hard to understand
+is how the leading axes are handled under these circumstances. The
+docstrings for the relevant tests try to explain this.
 
-The terms 'leading axes matmul' and 'trailing axes matmul' refer to this
-same behaviour. The first term emphasises that the earlier axes have to
-be handled coherently; the second that it is the last to axes (forming
-a matrix) that we actually multiply.
+The terms 'leading axes matmul' and 'trailing axes matmul', which appear
+in various docs and tutorials, both refer to this same class of operation.
+The first term emphasises that the earlier axes have to be handled
+coherently; the second that it is the last two axes (forming a matrix) that
+we actually multiply.
+
+Rows and columns in the matmul operation corrsponse closely with elements
+of a neural network layer.
+
+For a single input example, x @ A computes that example's output from the
+layer. x holds the example's incoming values as a row vector — one value
+per input slot. A is the layer's weights: one row per input slot,
+matching the length of x, and one column per neuron in the layer. Each
+value in the result is one neuron's output, found by pairing x against
+that neuron's column of weights.
+
+Layers are rarely evaluated one example at a time. When a batch of
+examples is processed together, the left-hand operand becomes a matrix
+rather than a vector: one row per example, each row holding that
+example's incoming values. The right-hand operand is unchanged — still
+one row per input slot, one column per neuron. The row/column rule then
+repeats the same per-neuron calculation independently for every example:
+result row i, column j, is neuron j's output for example i.
+
+For example, suppose two examples arrive with incoming values [2, 5] and
+[3, 1], and the layer has two neurons with weight columns [1, 2] and
+[4, 0]:
+
+    [2, 5]  @  [[1, 4],   =  [2*1 + 5*2, 2*4 + 5*0]  =  [12, 8]
+    [3, 1]      [2, 0]]      [3*1 + 1*2, 3*4 + 1*0]     [5, 12]
+
+Row 1 of the result, [12, 8], is example 1's output from both neurons.
+Row 2, [5, 12], is example 2's output from both neurons. Column 1 of the
+result, [12, 5], is neuron 1's output across both examples; column 2,
+[8, 12], is neuron 2's output across both examples.
 
 This module does not test all possible higher-dimension matmul behaviour.
 Tesing is limited to a small number of representative cases.
@@ -56,20 +86,19 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
     """
     This class pins down the contract for matrix multiplication.
 
-    Matrix multiplication is not an elementwise operation. It works by
-    multiplying the rows of the first operand by the columns of the second.
-    This convention can seem a bit arbitrary at first but makes sense when
-    it comes to chaining multiple operations together.
+    Matrix multiplication is not an elementwise operation. Each result
+    value is formed by pairing a whole row of the left-hand matrix with a
+    whole column of the right-hand matrix: multiplying each value in the
+    row by the value in the same position in the column, then adding all
+    of those products together. For example, pairing row [a, b] with
+    column [c, d] gives a*c + b*d. This is different from the elementwise
+    operations, which always combine two values in the same position in
+    each operand.
 
-    Each result value is formed from a whole row of the left-hand matrix
-    and a whole column of the right-hand matrix, not from two values in the
-    same position.
-
-    This is what allows chaining. If an input row vector x is first
-    multiplied by a matrix A, and the result is then multiplied by a matrix
-    B, the whole calculation can be represented by a single matrix A @ B:
-
-    (x @ A) @ B == x @ (A @ B)
+    A vector can be multiplied with a matrix as long as the length of the
+    vector matches the length of the matrix's columns. Multiplying vector
+    x by matrix A (x @ A) produces a new vector: each of its values is
+    computed by pairing x with one column of A.
     """
 
     def test_matmul_multiplies_two_square_2D_tensors(self):
@@ -710,8 +739,8 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
 class BackendContractMatmulBroadcastingMixin(BackendContractBase):
     """
     The 3D @ 3D tests in BackendContractMatmulSemanticsMixin always use two
-    stacks of the same length. The tests in this class cover what happens
-    when the two stacks have different lengths.
+    stacks of matrices of the same length. The tests in this class cover what
+    happens when the two stacks have different lengths.
 
     When both operands are 3D tensors with stacks of the same length, matmul
     pairs up the matrices by position. When the stack lengths differ, there
