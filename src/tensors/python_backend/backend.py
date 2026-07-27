@@ -8,6 +8,11 @@ understood. It also serves as a basis for more performant custom backends.
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.axes import normalise_axes
 from src.tensors.broadcasting import get_target_shape, get_target_strides
+from src.tensors.reductions import (
+    get_reduction_count,
+    get_reduction_axes_and_target_shape,
+    get_reduction_target_index,
+)
 from src.tensors.validation import (
     parse_tensor_data,
     validate_shape_has_no_negative_dimensions,
@@ -69,6 +74,74 @@ class PythonBackend:
             sign = math.copysign(1.0, left) * math.copysign(1.0, right)
             return math.copysign(math.inf, sign)
         return left / right
+
+    @staticmethod
+    def _reduce_to_scalar(
+        x: PythonTensor,
+        initial_value: float,
+        accumulate_fn: Callable[[float, float], float],
+    ) -> float:
+        accumulator = initial_value
+        for _, value in x.items():
+            accumulator = accumulate_fn(accumulator, value)
+        return accumulator
+
+    @staticmethod
+    def _reduce_to_tensor(
+        x: PythonTensor,
+        reduced_axes: tuple[int, ...],
+        target_shape: tuple[int, ...],
+        keepdims: bool,
+        initial_value: float,
+        accumulate_fn: Callable[[float, float], float],
+    ) -> PythonTensor:
+        if target_shape == ():
+            raise ValueError("target shape must not be empty")
+        result = PythonTensor(
+            target_shape, array("d", [initial_value]) * math.prod(target_shape)
+        )
+        for source_index, value in x.items():
+            target_index = get_reduction_target_index(
+                source_index, reduced_axes, keepdims
+            )
+            result.set_scalar(
+                target_index, accumulate_fn(result.get_scalar(target_index), value)
+            )
+        return result
+
+    @staticmethod
+    def _reduce(
+        x: PythonTensor,
+        axis: int | tuple[int, ...] | None,
+        keepdims: bool,
+        initial_value: float,
+        accumulate_fn: Callable[[float, float], float],
+    ) -> PythonTensor | float:
+        reduced_axes, target_shape = get_reduction_axes_and_target_shape(
+            x.shape, axis, keepdims
+        )
+        if target_shape == ():
+            return PythonBackend._reduce_to_scalar(x, initial_value, accumulate_fn)
+        return PythonBackend._reduce_to_tensor(
+            x, reduced_axes, target_shape, keepdims, initial_value, accumulate_fn
+        )
+
+    @staticmethod
+    def _raise_if_reduction_has_no_values(
+        shape: tuple[int, ...], reduced_axes: tuple[int, ...]
+    ) -> None:
+        if get_reduction_count(shape, reduced_axes) == 0:
+            raise ValueError("reduction operation has no values")
+
+    @staticmethod
+    def _divide_reduction_result(
+        result: PythonTensor | float, divisor: float
+    ) -> PythonTensor | float:
+        if isinstance(result, float):
+            return result / divisor
+        for index, value in result.items():
+            result.set_scalar(index, value / divisor)
+        return result
 
     @staticmethod
     def _log_scalar(value: float) -> float:
@@ -204,7 +277,9 @@ class PythonBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> PythonTensor | float:
-        raise NotImplementedError
+        return PythonBackend._reduce(
+            x, axis, keepdims, 0.0, lambda total, value: total + value
+        )
 
     def max(
         self,
@@ -212,7 +287,9 @@ class PythonBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> PythonTensor | float:
-        raise NotImplementedError
+        reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
+        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        return PythonBackend._reduce(x, axis, keepdims, -math.inf, max)
 
     def minimum(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
         return PythonBackend._map_binary(a, b, min)
@@ -245,7 +322,14 @@ class PythonBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> PythonTensor | float:
-        raise NotImplementedError
+        reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
+        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        total = PythonBackend._reduce(
+            x, axis, keepdims, 0.0, lambda accumulator, value: accumulator + value
+        )
+        return PythonBackend._divide_reduction_result(
+            total, float(get_reduction_count(x.shape, reduced_axes))
+        )
 
     def min(
         self,
@@ -253,7 +337,9 @@ class PythonBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> PythonTensor | float:
-        raise NotImplementedError
+        reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
+        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        return PythonBackend._reduce(x, axis, keepdims, math.inf, min)
 
     def std(
         self,
@@ -261,7 +347,18 @@ class PythonBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> PythonTensor | float:
-        raise NotImplementedError
+        reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
+        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        mean = self.mean(x, axis=reduced_axes, keepdims=True)
+        squared_deviations = PythonBackend._map_binary(
+            x,
+            mean,
+            lambda value, mean_value: (value - mean_value) * (value - mean_value),
+        )
+        variance = self.mean(squared_deviations, axis=reduced_axes, keepdims=keepdims)
+        if isinstance(variance, float):
+            return math.sqrt(variance)
+        return self.sqrt(variance)
 
     def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
         raise NotImplementedError
