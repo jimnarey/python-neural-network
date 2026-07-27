@@ -7,6 +7,7 @@ understood. It also serves as a basis for more performant custom backends.
 
 from src.tensors.python_backend.tensor import PythonTensor
 from src.tensors.axes import normalise_axes
+from src.tensors.broadcasting import get_target_shape, get_target_strides
 from src.tensors.validation import (
     parse_tensor_data,
     validate_shape_has_no_negative_dimensions,
@@ -27,6 +28,47 @@ class PythonBackend:
     @staticmethod
     def _map_unary(x: PythonTensor, op: Callable[[float], float]) -> PythonTensor:
         return PythonTensor(x.shape, array("d", (op(value) for _, value in x.items())))
+
+    @staticmethod
+    def _map_binary(
+        a: PythonTensor,
+        b: PythonTensor | float | int,
+        op: Callable[[float, float], float],
+    ) -> PythonTensor:
+        if not isinstance(b, PythonTensor):
+            scalar = float(b)
+            return PythonTensor(
+                a.shape,
+                array("d", (op(value, scalar) for _, value in a.items())),
+            )
+        target_shape = get_target_shape(a.shape, b.shape)
+        a_view = a.view(
+            target_shape,
+            strides=get_target_strides(a.shape, a.strides, target_shape),
+        )
+        b_view = b.view(
+            target_shape,
+            strides=get_target_strides(b.shape, b.strides, target_shape),
+        )
+        return PythonTensor(
+            target_shape,
+            array(
+                "d",
+                (
+                    op(a_view.get_scalar(index), b_view.get_scalar(index))
+                    for index in a_view.indices()
+                ),
+            ),
+        )
+
+    @staticmethod
+    def _divide_scalar(left: float, right: float) -> float:
+        if right == 0.0:
+            if left == 0.0:
+                return math.nan
+            sign = math.copysign(1.0, left) * math.copysign(1.0, right)
+            return math.copysign(math.inf, sign)
+        return left / right
 
     @staticmethod
     def _log_scalar(value: float) -> float:
@@ -136,22 +178,22 @@ class PythonBackend:
         return x.view(shape, strides=strides)
 
     def add(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, lambda left, right: left + right)
 
     def subtract(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, lambda left, right: left - right)
 
     def multiply(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, lambda left, right: left * right)
 
     def divide(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, PythonBackend._divide_scalar)
 
     def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor:
         raise NotImplementedError
 
     def maximum(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, max)
 
     def exp(self, x: PythonTensor) -> PythonTensor:
         return PythonBackend._map_unary(x, math.exp)
@@ -173,7 +215,7 @@ class PythonBackend:
         raise NotImplementedError
 
     def minimum(self, a: PythonTensor, b: PythonTensor | float | int) -> PythonTensor:
-        raise NotImplementedError
+        return PythonBackend._map_binary(a, b, min)
 
     def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
         raise NotImplementedError

@@ -15,6 +15,13 @@ from tests.tensors.backend_contract_creation import (
     BackendContractZerosOnesAndFullMixin,
 )
 
+from tests.tensors.backend_contract_elementwise import (
+    BackendContractElementwiseDualBroadcastingMixin,
+    BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
+    BackendContractElementwiseSemanticsMixin,
+)
+
 from tests.tensors.backend_contract_randn import BackendContractRandnMixin
 
 from tests.tensors.backend_contract_reshape import BackendContractReshapeMixin
@@ -34,6 +41,12 @@ from tests.tensors.backend_reference_creation import (
     BackendReferenceCopyMixin,
     BackendReferenceCreationLikeValueTypeMixin,
     BackendReferenceCreationValueTypeMixin,
+)
+
+from tests.tensors.backend_reference_elementwise import (
+    BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseFloatValueMixin,
+    BackendReferenceElementwiseSpecialValueMixin,
 )
 
 from tests.tensors.backend_reference_randn import BackendReferenceRandnMixin
@@ -92,6 +105,10 @@ class TestPythonBackendContract(
     BackendContractTransposeMixin,
     BackendContractUnaryShapeMixin,
     BackendContractUnaryZeroLengthDimensionMixin,
+    BackendContractElementwiseDualBroadcastingMixin,
+    BackendContractElementwiseLeftPaddingBroadcastingMixin,
+    BackendContractElementwiseLengthOneAxisBroadcastingMixin,
+    BackendContractElementwiseSemanticsMixin,
 ):
     pass
 
@@ -108,6 +125,9 @@ class TestPythonBackendReference(
     BackendReferenceSqrtArithmeticMixin,
     BackendReferenceSqrtSpecialValueMixin,
     BackendReferenceUnaryValueTypeMixin,
+    BackendReferenceElementwiseArithmeticMixin,
+    BackendReferenceElementwiseFloatValueMixin,
+    BackendReferenceElementwiseSpecialValueMixin,
 ):
     pass
 

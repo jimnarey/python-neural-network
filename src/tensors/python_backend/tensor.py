@@ -188,6 +188,9 @@ class PythonTensor:
     def indices(self) -> Iterator[tuple[int, ...]]:
         return product(*(range(dim) for dim in self.shape))
 
+    # TODO - For tensors with default strides and offset zero we can probably
+    # just bind .items to something which iterates through the buffer for a
+    # possible performance improvement.
     def items(self) -> Iterator[tuple[tuple[int, ...], float]]:
         for indices in self.indices():
             yield indices, self.get_scalar(indices)
