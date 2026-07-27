@@ -2,6 +2,7 @@ import unittest
 from src.tensors.validation import (
     validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
+    validate_axes_are_unique,
     validate_transpose_axes_are_permutation,
     validate_tensor_conversion_root_is_sequence,
     parse_tensor_data,
@@ -73,6 +74,51 @@ class TestValidateShapeHasNoNegativeDimensions(unittest.TestCase):
                     validate_shape_has_no_negative_dimensions(shape, "reshape")
 
 
+class TestValidateAxesAreUnique(unittest.TestCase):
+
+    def test_validate_axes_are_unique_accepts_axes_with_no_duplicates(self):
+        cases = (
+            (),
+            (0,),
+            (1, 0),
+            (2, 0, 1),
+            (5, -3, 9),
+        )
+        for axes in cases:
+            with self.subTest():
+                validate_axes_are_unique(axes)
+
+    def test_validate_axes_are_unique_accepts_non_contiguous_axes(self):
+        """
+        This function only checks for duplicates. It has no ndim argument,
+        so it cannot check whether axes forms a complete permutation of any
+        particular range. These cases each have a missing axis or an
+        out-of-bounds value, and should still be accepted because none of
+        the values repeat.
+        """
+        cases = (
+            (0, 2),
+            (0, 1, 3),
+            (0, 5),
+            (-1, 0, 1),
+        )
+        for axes in cases:
+            with self.subTest():
+                validate_axes_are_unique(axes)
+
+    def test_validate_axes_are_unique_raises_when_axes_contain_duplicates(self):
+        cases = (
+            (0, 0),
+            (0, 0, 1),
+            (2, 1, 1),
+            (5, 3, 5, 7),
+        )
+        for axes in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "duplicates"):
+                    validate_axes_are_unique(axes)
+
+
 class TestValidateTransposeAxesArePermutation(unittest.TestCase):
 
     def test_validate_transpose_axes_are_permutation_accepts_complete_axes_permutation(
@@ -117,6 +163,14 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_contains_duplicate_axis(
         self,
     ):
+        """
+        Rejection of axes arguments containing duplicates is delegated, so we check
+        for a different error message.
+
+        This behaviour is thoroughly tested in TestValidateAxesAreUnique but the
+        way the permutation is validated using sets is the sort of thing it's easy
+        to go wrong with, so test it properly here.
+        """
         cases = (
             ((0, 0), 2),
             ((0, 0, 1), 3),
@@ -124,7 +178,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         )
         for axes, ndim in cases:
             with self.subTest():
-                with self.assertRaisesRegex(ValueError, "exactly once"):
+                with self.assertRaisesRegex(ValueError, "duplicates"):
                     validate_transpose_axes_are_permutation(axes, ndim)
 
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_omits_axis(

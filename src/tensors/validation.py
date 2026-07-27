@@ -15,11 +15,15 @@ def validate_shape_has_no_negative_dimensions(
         )
 
 
+def validate_axes_are_unique(axes: tuple[int, ...]) -> None:
+    if len(set(axes)) != len(axes):
+        raise ValueError("axes must not contain duplicates")
+
+
 def validate_transpose_axes_are_permutation(axes: tuple[int, ...], ndim: int) -> None:
-    if len(axes) != ndim:
-        raise ValueError("transpose axes must include every tensor axis exactly once")
+    validate_axes_are_unique(axes)
     if set(axes) != set(range(ndim)):
-        raise ValueError("transpose axes must include every tensor axis exactly once")
+        raise ValueError("axes must include every tensor axis exactly once")
 
 
 def validate_tensor_conversion_root_is_sequence(data: object) -> None:
