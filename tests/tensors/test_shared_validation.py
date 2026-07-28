@@ -2,6 +2,7 @@ import unittest
 from src.tensors.validation import (
     validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
+    validate_scalar_is_not_bool,
     validate_axes_are_unique,
     validate_transpose_axes_are_permutation,
     validate_tensor_conversion_root_is_sequence,
@@ -72,6 +73,22 @@ class TestValidateShapeHasNoNegativeDimensions(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "negative values"):
                     validate_shape_has_no_negative_dimensions(shape, "reshape")
+
+
+class TestValidateScalarIsNotBool(unittest.TestCase):
+
+    def test_validate_scalar_is_not_bool_accepts_non_bool_scalars(self):
+        cases = (0, 1, -5, 100, 0.0, -2.5, 3.14)
+        for value in cases:
+            with self.subTest():
+                validate_scalar_is_not_bool(value)
+
+    def test_validate_scalar_is_not_bool_raises_when_value_is_bool(self):
+        cases = (True, False)
+        for value in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "must not be a bool"):
+                    validate_scalar_is_not_bool(value)
 
 
 class TestValidateAxesAreUnique(unittest.TestCase):

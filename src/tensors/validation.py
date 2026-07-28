@@ -15,6 +15,11 @@ def validate_shape_has_no_negative_dimensions(
         )
 
 
+def validate_scalar_is_not_bool(value: object) -> None:
+    if isinstance(value, bool):
+        raise ValueError("scalar value must not be a bool")
+
+
 def validate_axes_are_unique(axes: tuple[int, ...]) -> None:
     if len(set(axes)) != len(axes):
         raise ValueError("axes must not contain duplicates")

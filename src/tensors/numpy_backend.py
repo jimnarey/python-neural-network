@@ -12,6 +12,7 @@ from typing import Sequence
 from src.tensors.tensor_backend import Scalar
 from src.tensors.validation import (
     parse_tensor_data,
+    validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
     validate_tensor_conversion_root_is_sequence,
@@ -99,10 +100,12 @@ class NumpyBackend:
 
     def full(self, shape: tuple[int, ...], fill_value: float | int) -> NumpyTensor:
         validate_shape_not_rank_0(shape)
+        validate_scalar_is_not_bool(fill_value)
         return np.full(shape, fill_value, dtype=float)
 
     def full_like(self, x: NumpyTensor, fill_value: float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(x)
+        validate_scalar_is_not_bool(fill_value)
         return np.full_like(x, fill_value, dtype=float)
 
     def empty(self, shape: tuple[int, ...]) -> NumpyTensor:
@@ -136,21 +139,25 @@ class NumpyBackend:
     def add(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.add(a, b)
 
     def subtract(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.subtract(a, b)
 
     def multiply(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.multiply(a, b)
 
     def divide(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.divide(a, b)
 
     def matmul(self, a: NumpyTensor, b: NumpyTensor) -> NumpyTensor:
@@ -161,11 +168,13 @@ class NumpyBackend:
     def maximum(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.maximum(a, b)
 
     def minimum(self, a: NumpyTensor, b: NumpyTensor | float | int) -> NumpyTensor:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
+        validate_scalar_is_not_bool(b)
         return np.minimum(a, b)
 
     def argmax(self, x: NumpyTensor, axis: int | None = None) -> NumpyTensor | int:
@@ -196,6 +205,8 @@ class NumpyBackend:
         self, x: NumpyTensor, min_value: float | int, max_value: float | int
     ) -> NumpyTensor:
         self._validate_tensor_not_rank_0(x)
+        validate_scalar_is_not_bool(min_value)
+        validate_scalar_is_not_bool(max_value)
         return np.clip(x, min_value, max_value)
 
     def sum(

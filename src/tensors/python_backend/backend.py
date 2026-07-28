@@ -15,6 +15,7 @@ from src.tensors.reductions import (
 )
 from src.tensors.validation import (
     parse_tensor_data,
+    validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
     validate_tensor_conversion_root_is_sequence,
@@ -41,6 +42,7 @@ class PythonBackend:
         op: Callable[[float, float], float],
     ) -> PythonTensor:
         if not isinstance(b, PythonTensor):
+            validate_scalar_is_not_bool(b)
             scalar = float(b)
             return PythonTensor(
                 a.shape,
@@ -208,6 +210,7 @@ class PythonBackend:
         return self.ones(x.shape)
 
     def full(self, shape: tuple[int, ...], fill_value: float | int) -> PythonTensor:
+        validate_scalar_is_not_bool(fill_value)
         return PythonTensor(shape, array("d", [float(fill_value)]) * math.prod(shape))
 
     def full_like(self, x: PythonTensor, fill_value: float | int) -> PythonTensor:
@@ -312,6 +315,8 @@ class PythonBackend:
     def clip(
         self, x: PythonTensor, min_value: float | int, max_value: float | int
     ) -> PythonTensor:
+        validate_scalar_is_not_bool(min_value)
+        validate_scalar_is_not_bool(max_value)
         return PythonBackend._map_unary(
             x, lambda value: min(max(value, min_value), max_value)
         )
