@@ -9,7 +9,7 @@ being executed actually imports the NumpyBackend.
 
 from typing import TYPE_CHECKING
 
-from src.tensors.tensor_backend import TensorBackend
+from src.tensors.protocol import TensorBackend
 
 # This is needed to deal with a subtle problem whereby importing
 # NumpyBackend using the __getattr__ approach below prevented mypy

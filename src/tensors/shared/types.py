@@ -1,0 +1,1 @@
+type Scalar = float | int

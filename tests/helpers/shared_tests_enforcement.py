@@ -38,7 +38,7 @@ import functools
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from src.tensors.tensor_backend import TensorBackend
+from src.tensors.protocol import TensorBackend
 from tests.helpers import tensor_helpers
 from tests.helpers.tensor_helpers import DEFAULT_ABS_TOL, DEFAULT_REL_TOL
 
