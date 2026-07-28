@@ -70,6 +70,12 @@ class TestAxesNormalisation(unittest.TestCase):
             with self.subTest():
                 self.assertEqual(normalise_axes(axes, ndim), expected)
 
+    def test_normalise_axes_returns_empty_tuple_when_axes_is_empty(self):
+        cases = (1, 3, 5)
+        for ndim in cases:
+            with self.subTest():
+                self.assertEqual(normalise_axes((), ndim), ())
+
     def test_normalise_axes_raises_when_any_axis_out_of_bounds(self):
         cases = (
             ((0, 1), 1),
