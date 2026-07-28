@@ -136,7 +136,7 @@ class TestValidateStridesArg(unittest.TestCase):
         )
         for strides, shape in strides_shapes:
             with self.subTest():
-                with self.assertRaisesRegex(ValueError, "be positive"):
+                with self.assertRaisesRegex(ValueError, "be non-negative"):
                     PythonTensor._validate_strides_arg(strides, shape)
 
 

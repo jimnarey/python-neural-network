@@ -72,7 +72,7 @@ class PythonTensor:
         if len(strides) != len(shape):
             raise ValueError("strides must have the same length as shape")
         if any(stride < 0 for stride in strides):
-            raise ValueError("strides values must be positive")
+            raise ValueError("strides values must be non-negative")
 
     @staticmethod
     def _validate_buffer_bounds(
