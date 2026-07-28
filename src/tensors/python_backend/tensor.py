@@ -4,8 +4,13 @@ from typing import Iterator, Optional
 from array import array
 from itertools import product
 
+from src.tensors.tensor_backend import Scalar
+
 
 class PythonTensor:
+    FLOAT = "d"
+    INT = "q"
+    SUPPORTED_TYPECODES = {FLOAT, INT}
 
     @staticmethod
     def _validated_shape(shape: tuple[int, ...]) -> tuple[int, ...]:
@@ -19,19 +24,26 @@ class PythonTensor:
         return shape
 
     @staticmethod
-    def _default_data(shape: tuple[int, ...]) -> array:
+    def _default_data(
+        shape: tuple[int, ...],
+        typecode: str = FLOAT,
+    ) -> array:
         """
-        Create a float-valued buffer with the correct size for shape.
+        Create a buffer with the correct size and type for shape.
         """
-        return array("d", [0.0]) * math.prod(shape)
+        if typecode == PythonTensor.FLOAT:
+            return array(typecode, [0.0]) * math.prod(shape)
+        if typecode == PythonTensor.INT:
+            return array(typecode, [0]) * math.prod(shape)
+        raise TypeError("data must be a supported tensor array")
 
     @staticmethod
     def _validated_data(data: array) -> array:
         """
-        Ensure that a caller-supplied buffer is float valued.
+        Ensure that a caller-supplied buffer uses a supported type.
         """
-        if data.typecode != "d":
-            raise TypeError("data must be a float array")
+        if data.typecode not in PythonTensor.SUPPORTED_TYPECODES:
+            raise TypeError("data must be a supported tensor array")
         return data
 
     @staticmethod
@@ -154,10 +166,11 @@ class PythonTensor:
         offset: int = 0,
         strides: Optional[tuple[int, ...]] = None,
         writable: bool = True,
+        typecode: str = FLOAT,
     ) -> None:
         self.shape = PythonTensor._validated_shape(shape)
         if data is None:
-            self.data = PythonTensor._default_data(self.shape)
+            self.data = PythonTensor._default_data(self.shape, typecode)
         else:
             self.data = PythonTensor._validated_data(data)
         self.strides, self.offset = PythonTensor._validated_layout(
@@ -165,15 +178,17 @@ class PythonTensor:
         )
         self.writable = writable
 
-    def get_scalar(self, indices: tuple[int, ...]) -> float:
+    def get_scalar(self, indices: tuple[int, ...]) -> Scalar:
         flat_index = PythonTensor._flat_index(
             indices, self.shape, self.strides, self.offset
         )
         return self.data[flat_index]
 
-    def set_scalar(self, indices: tuple[int, ...], value: float) -> None:
+    def set_scalar(self, indices: tuple[int, ...], value: Scalar) -> None:
         if not self.writable:
             raise ValueError("tensor is not writable")
+        if type(value) is bool:
+            raise TypeError("tensor values must not be bool")
         flat_index = PythonTensor._flat_index(
             indices, self.shape, self.strides, self.offset
         )
@@ -191,7 +206,7 @@ class PythonTensor:
     # TODO - For tensors with default strides and offset zero we can probably
     # just bind .items to something which iterates through the buffer for a
     # possible performance improvement.
-    def items(self) -> Iterator[tuple[tuple[int, ...], float]]:
+    def items(self) -> Iterator[tuple[tuple[int, ...], Scalar]]:
         for indices in self.indices():
             yield indices, self.get_scalar(indices)
 
@@ -230,7 +245,7 @@ class PythonTensor:
 
     def copy(self, writable: bool = True) -> PythonTensor:
         copied_data = array(
-            "d",
+            self.data.typecode,
             (self.get_scalar(indices) for indices in self.indices()),
         )
         return PythonTensor(self.shape, copied_data, writable=writable)

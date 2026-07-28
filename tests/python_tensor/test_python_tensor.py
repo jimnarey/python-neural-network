@@ -45,23 +45,45 @@ class TestDefaultData(unittest.TestCase):
                 result = PythonTensor._default_data(shape)
                 self.assertEqual(data_size, len(result))
 
-    def test_returns_float_valued_array(self):
+    def test_returns_float_valued_array_by_default(self):
         result = PythonTensor._default_data((1, 2))
         self.assertEqual(result.typecode, "d")
+
+    def test_returns_float_valued_array_when_passed_float_typecode(self):
+        result = PythonTensor._default_data((1, 2), typecode=PythonTensor.FLOAT)
+        self.assertEqual(result.typecode, "d")
+        self.assertEqual(result.tolist(), [0.0, 0.0])
+
+    def test_returns_int_valued_array_when_passed_int_typecode(self):
+        result = PythonTensor._default_data((1, 2), typecode=PythonTensor.INT)
+        self.assertEqual(result.typecode, "q")
+        self.assertEqual(result.tolist(), [0, 0])
+
+    def test_raises_if_typecode_is_not_supported(self):
+        invalid_typecodes = "bBuwhHiIlLQf"
+        for code in invalid_typecodes:
+            with self.subTest():
+                with self.assertRaisesRegex(TypeError, "supported tensor array"):
+                    PythonTensor._default_data((1, 2), typecode=code)
 
 
 class TestValidatedData(unittest.TestCase):
 
-    def test_returns_same_array_if_float_valued(self):
-        input = array("d", [0.0] * 12)
-        result = PythonTensor._validated_data(input)
-        self.assertIs(input, result)
+    def test_returns_same_array_if_typecode_is_supported(self):
+        cases = (
+            array("d", [0.0] * 12),
+            array("q", [0] * 12),
+        )
+        for data in cases:
+            with self.subTest():
+                result = PythonTensor._validated_data(data)
+                self.assertIs(data, result)
 
-    def test_raises_if_passed_non_float_valued_array(self):
-        invalid_typecodes = "bBuwhHiIlLqQf"
+    def test_raises_if_typecode_is_not_supported(self):
+        invalid_typecodes = "bBuwhHiIlLQf"
         for code in invalid_typecodes:
             with self.subTest():
-                with self.assertRaisesRegex(TypeError, "float array"):
+                with self.assertRaisesRegex(TypeError, "supported tensor array"):
                     PythonTensor._validated_data(array(code))
 
 
@@ -341,6 +363,24 @@ class TestConstructor(unittest.TestCase):
         self.assertEqual(len(tensor.data), 6)
         self.assertEqual(tensor.data.tolist(), [0.0] * 6)
 
+    def test_uses_float_default_data_when_data_is_none_and_float_typecode_passed(self):
+        tensor = PythonTensor((2, 3), typecode=PythonTensor.FLOAT)
+        self.assertEqual(tensor.data.typecode, "d")
+        self.assertEqual(len(tensor.data), 6)
+        self.assertEqual(tensor.data.tolist(), [0.0] * 6)
+
+    def test_uses_int_default_data_when_data_is_none_and_int_typecode_passed(self):
+        tensor = PythonTensor((2, 3), typecode=PythonTensor.INT)
+        self.assertEqual(tensor.data.typecode, "q")
+        self.assertEqual(len(tensor.data), 6)
+        self.assertEqual(tensor.data.tolist(), [0] * 6)
+
+    def test_ignores_typecode_when_data_is_passed(self):
+        data = array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        tensor = PythonTensor((2, 3), data, typecode=PythonTensor.INT)
+        self.assertIs(tensor.data, data)
+        self.assertEqual(tensor.data.typecode, "d")
+
 
 class TestNdimAndSize(unittest.TestCase):
 
@@ -382,6 +422,12 @@ class TestGetScalar(unittest.TestCase):
         result = tensor.get_scalar((1, 2))
         self.assertEqual(result, 6.0)
 
+    def test_returns_int_value_from_int_valued_tensor(self):
+        tensor = PythonTensor((2, 3), array("q", [1, 2, 3, 4, 5, 6]))
+        result = tensor.get_scalar((1, 2))
+        self.assertIs(type(result), int)
+        self.assertEqual(result, 6)
+
     def test_uses_tensor_layout_when_reading_value(self):
         tensor = PythonTensor(
             (2, 3),
@@ -404,6 +450,38 @@ class TestSetScalar(unittest.TestCase):
         tensor = PythonTensor((2, 3), data)
         tensor.set_scalar((1, 1), 100.0)
         self.assertEqual(data[4], 100.0)
+
+    def test_updates_int_value_at_indices_for_int_valued_tensor(self):
+        data = array("q", [1, 2, 3, 4, 5, 6])
+        tensor = PythonTensor((2, 3), data)
+        tensor.set_scalar((1, 1), 100)
+        self.assertIs(type(data[4]), int)
+        self.assertEqual(data[4], 100)
+
+    def test_accepts_int_value_passed_to_float_valued_tensor(self):
+        data = array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        tensor = PythonTensor((2, 3), data)
+        tensor.set_scalar((1, 1), 100)
+        self.assertEqual(data[4], 100.0)
+
+    def test_raises_if_float_value_passed_to_int_valued_tensor(self):
+        data = array("q", [1, 2, 3, 4, 5, 6])
+        tensor = PythonTensor((2, 3), data)
+        with self.assertRaises(TypeError):
+            tensor.set_scalar((1, 1), 100.0)
+
+    def test_raises_if_bool_or_string_value_passed_to_tensor(self):
+        invalid_values = (True, "100")
+        datas = (
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            array("q", [1, 2, 3, 4, 5, 6]),
+        )
+        for data in datas:
+            for value in invalid_values:
+                with self.subTest(typecode=data.typecode, value_type=type(value)):
+                    tensor = PythonTensor((2, 3), data)
+                    with self.assertRaises(TypeError):
+                        tensor.set_scalar((1, 1), value)
 
     def test_uses_tensor_layout_when_writing_value(self):
         data = array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
@@ -520,6 +598,14 @@ class TestToList(unittest.TestCase):
         result = tensor.to_list()
         self.assertEqual(result, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
+    def test_returns_int_values_for_int_valued_tensor(self):
+        tensor = PythonTensor((2, 3), array("q", [1, 2, 3, 4, 5, 6]))
+        result = tensor.to_list()
+        self.assertEqual(result, [[1, 2, 3], [4, 5, 6]])
+        for row in result:
+            for value in row:
+                self.assertIs(type(value), int)
+
     def test_returns_3D_nested_list(self):
         tensor = PythonTensor(
             (2, 2, 3),
@@ -612,6 +698,12 @@ class TestView(unittest.TestCase):
         view = tensor.view((3, 2))
         self.assertIsNot(view, tensor)
         self.assertIs(view.data, tensor.data)
+
+    def test_preserves_int_valued_data_buffer(self):
+        tensor = PythonTensor((2, 3), array("q", [1, 2, 3, 4, 5, 6]))
+        view = tensor.view((3, 2))
+        self.assertIs(view.data, tensor.data)
+        self.assertEqual(view.data.typecode, "q")
 
     def test_returns_view_with_requested_offset_and_strides(self):
         """
@@ -728,6 +820,13 @@ class TestCopy(unittest.TestCase):
         self.assertIsNot(tensor_copy.data, tensor.data)
         tensor.set_scalar((1, 2), 100.0)
         self.assertEqual(tensor_copy.get_scalar((1, 2)), 6.0)
+
+    def test_preserves_int_valued_data_buffer(self):
+        tensor = PythonTensor((2, 3), array("q", [1, 2, 3, 4, 5, 6]))
+        tensor_copy = tensor.copy()
+        self.assertIsNot(tensor_copy.data, tensor.data)
+        self.assertEqual(tensor_copy.data.typecode, "q")
+        self.assertEqual(tensor_copy.data.tolist(), [1, 2, 3, 4, 5, 6])
 
     def test_returns_default_layout_copy_when_source_layout_is_not_contiguous(self):
         tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
