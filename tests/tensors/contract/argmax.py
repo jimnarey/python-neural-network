@@ -177,6 +177,18 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
             for value in row:
                 self.assertIsInstance(value, int)
 
+    def test_argmax_raises_when_input_tensor_has_no_values(self):
+        backend = self.make_backend()
+        cases = (
+            ([], None),
+            ([[], []], 1),
+        )
+        for values, axis in cases:
+            with self.subTest():
+                tensor = backend.to_tensor(values)
+                with self.assertRaises(ValueError):
+                    backend.argmax(tensor, axis=axis)
+
 
 @EnforceSharedNumericFixtures()
 class BackendContractArgMaxAxisArgumentMixin(BackendContractBase):

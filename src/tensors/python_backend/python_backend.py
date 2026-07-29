@@ -23,12 +23,13 @@ from src.tensors.shared.scalar_ops import (
 from src.tensors.shared.types import Scalar
 from src.tensors.shared.validation import (
     parse_tensor_data,
+    validate_tensor_has_values,
     validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
     validate_tensor_conversion_root_is_sequence,
-    validate_transpose_axes_are_permutation,
+    validate_axes_are_permutation,
 )
 from typing import Sequence, Optional
 from array import array
@@ -114,7 +115,7 @@ class PythonBackend:
             normalised_axes = tuple(reversed(range(x.ndim())))
         else:
             normalised_axes = normalise_axes(axes, x.ndim())
-            validate_transpose_axes_are_permutation(normalised_axes, x.ndim())
+            validate_axes_are_permutation(normalised_axes, x.ndim())
         shape = tuple(x.shape[axis] for axis in normalised_axes)
         strides = tuple(x.strides[axis] for axis in normalised_axes)
         return x.view(shape, strides=strides)
@@ -162,6 +163,7 @@ class PythonBackend:
         return map_binary(a, b, min)
 
     def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
+        validate_tensor_has_values(x.shape)
         raise NotImplementedError
 
     def log(self, x: PythonTensor) -> PythonTensor:

@@ -51,6 +51,7 @@ The backend contract enforces the following:
 - The backend contract does not currently prescribe the behaviour of conventionally forbidden floating-point operations such as division by zero, taking the logarithm of zero or a negative value, or taking the square root of a negative value.
 - When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
 - Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
+- `argmax` must raise `ValueError` on an empty tensor, because there is no maximum value whose index could be returned.
 
 #### Shape
 

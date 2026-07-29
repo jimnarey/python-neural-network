@@ -1,11 +1,12 @@
 import unittest
 from src.tensors.shared.validation import (
+    validate_tensor_has_values,
     validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
     validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_axes_are_unique,
-    validate_transpose_axes_are_permutation,
+    validate_axes_are_permutation,
     validate_tensor_conversion_root_is_sequence,
     parse_tensor_data,
 )
@@ -130,6 +131,31 @@ class TestValidateReductionHasValues(unittest.TestCase):
                     validate_reduction_has_values(shape, reduced_axes)
 
 
+class TestValidateArgmaxHasValues(unittest.TestCase):
+
+    def test_accepts_tensor_shape_with_values(self):
+        cases = (
+            (5,),
+            (4, 6),
+            (2, 1, 7),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_tensor_has_values(shape)
+
+    def test_raises_when_tensor_shape_has_no_values(self):
+        cases = (
+            (0,),
+            (2, 0),
+            (2, 0, 3),
+            (2, 3, 0),
+        )
+        for shape in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "has no values"):
+                    validate_tensor_has_values(shape)
+
+
 class TestValidateAxesAreUnique(unittest.TestCase):
 
     def test_validate_axes_are_unique_accepts_axes_with_no_duplicates(self):
@@ -188,7 +214,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         )
         for axes, ndim in cases:
             with self.subTest():
-                validate_transpose_axes_are_permutation(axes, ndim)
+                validate_axes_are_permutation(axes, ndim)
 
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_is_too_short(
         self,
@@ -201,7 +227,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         for axes, ndim in cases:
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "exactly once"):
-                    validate_transpose_axes_are_permutation(axes, ndim)
+                    validate_axes_are_permutation(axes, ndim)
 
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_is_too_long(
         self,
@@ -214,7 +240,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         for axes, ndim in cases:
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "exactly once"):
-                    validate_transpose_axes_are_permutation(axes, ndim)
+                    validate_axes_are_permutation(axes, ndim)
 
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_contains_duplicate_axis(
         self,
@@ -235,7 +261,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         for axes, ndim in cases:
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "duplicates"):
-                    validate_transpose_axes_are_permutation(axes, ndim)
+                    validate_axes_are_permutation(axes, ndim)
 
     def test_validate_transpose_axes_are_permutation_raises_when_axes_tuple_omits_axis(
         self,
@@ -248,7 +274,7 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
         for axes, ndim in cases:
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "exactly once"):
-                    validate_transpose_axes_are_permutation(axes, ndim)
+                    validate_axes_are_permutation(axes, ndim)
 
 
 class TestValidateTensorConversionRootIsSequence(unittest.TestCase):

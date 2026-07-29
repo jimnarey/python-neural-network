@@ -6,6 +6,13 @@ from src.tensors.protocol import TensorBackend
 from src.tensors.python_backend.python_backend import PythonBackend
 from src.tensors.python_backend.python_tensor import PythonTensor
 
+from tests.tensors.contract.argmax import (
+    BackendContractArgMaxAxisArgumentMixin,
+    BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxSemanticsMixin,
+    BackendContractArgMaxTieBehaviourMixin,
+)
+
 from tests.tensors.contract.creation import (
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
@@ -98,6 +105,10 @@ class PythonBackendTestCase(unittest.TestCase):
 
 class TestPythonBackendContract(
     PythonBackendTestCase,
+    BackendContractArgMaxAxisArgumentMixin,
+    BackendContractArgMaxKeepdimsMixin,
+    BackendContractArgMaxSemanticsMixin,
+    BackendContractArgMaxTieBehaviourMixin,
     BackendContractAbsoluteSemanticsMixin,
     BackendContractClipSemanticsMixin,
     BackendContractCopyMixin,

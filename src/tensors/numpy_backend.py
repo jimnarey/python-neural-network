@@ -12,6 +12,7 @@ from typing import Sequence
 from src.tensors.shared.types import Scalar
 from src.tensors.shared.validation import (
     parse_tensor_data,
+    validate_tensor_has_values,
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
@@ -179,6 +180,7 @@ class NumpyBackend:
 
     def argmax(self, x: NumpyTensor, axis: int | None = None) -> NumpyTensor | int:
         self._validate_tensor_not_rank_0(x)
+        validate_tensor_has_values(x.shape)
         return self._normalise_scalar_result(np.argmax(x, axis=axis))
 
     def exp(self, x: NumpyTensor) -> NumpyTensor:
