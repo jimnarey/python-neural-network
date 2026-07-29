@@ -1,7 +1,6 @@
 import unittest
 
 from src.tensors.shared.reductions import (
-    get_reduction_count,
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
     get_reduction_target_shape,
@@ -298,33 +297,3 @@ class TestGetReductionTargetIndex(unittest.TestCase):
                     keepdims=keepdims,
                 )
                 self.assertEqual(result, source_index)
-
-
-class TestGetReductionCount(unittest.TestCase):
-
-    def test_returns_product_of_reduced_axis_lengths(self):
-        cases = (
-            ((5,), (0,), 5),
-            ((4, 6), (0,), 4),
-            ((4, 6), (1,), 6),
-            ((2, 5, 7), (0, 2), 14),
-            ((2, 5, 7, 9, 11), (1, 2, 3), 315),
-            ((2, 1, 7), (1,), 1),
-            ((2, 0, 7), (1,), 0),
-        )
-        for shape, reduced_axes, expected in cases:
-            with self.subTest():
-                result = get_reduction_count(shape, reduced_axes)
-                self.assertEqual(result, expected)
-
-    def test_returns_1_when_axes_tuple_is_empty(self):
-        cases = (
-            (5,),
-            (4, 6),
-            (2, 1, 7),
-            (2, 0, 7),
-        )
-        for shape in cases:
-            with self.subTest():
-                result = get_reduction_count(shape, ())
-                self.assertEqual(result, 1)

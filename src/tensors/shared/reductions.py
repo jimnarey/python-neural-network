@@ -1,5 +1,3 @@
-import math
-
 from src.tensors.shared.axes import normalise_axes
 from src.tensors.shared.validation import validate_axes_are_unique
 
@@ -72,12 +70,3 @@ def get_reduction_target_index(
         else:
             result.append(index)
     return tuple(result)
-
-
-def get_reduction_count(shape: tuple[int, ...], reduced_axes: tuple[int, ...]) -> int:
-    """
-    Return how many source values are combined for each result value.
-
-    This is the product of the lengths of the axes being reduced.
-    """
-    return math.prod(shape[axis] for axis in reduced_axes)

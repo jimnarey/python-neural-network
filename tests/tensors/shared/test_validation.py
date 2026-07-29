@@ -2,6 +2,7 @@ import unittest
 from src.tensors.shared.validation import (
     validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
+    validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_axes_are_unique,
     validate_transpose_axes_are_permutation,
@@ -89,6 +90,44 @@ class TestValidateScalarIsNotBool(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "must not be a bool"):
                     validate_scalar_is_not_bool(value)
+
+
+class TestValidateReductionHasValues(unittest.TestCase):
+
+    def test_accepts_reduction_when_reduced_axes_contain_values(self):
+        cases = (
+            ((5,), (0,)),
+            ((4, 6), (0,)),
+            ((4, 6), (1,)),
+            ((2, 5, 7), (0, 2)),
+            ((2, 1, 7), (1,)),
+        )
+        for shape, reduced_axes in cases:
+            with self.subTest():
+                validate_reduction_has_values(shape, reduced_axes)
+
+    def test_accepts_reduction_when_axes_tuple_is_empty(self):
+        cases = (
+            (5,),
+            (4, 6),
+            (2, 1, 7),
+            (2, 0, 7),
+        )
+        for shape in cases:
+            with self.subTest():
+                validate_reduction_has_values(shape, ())
+
+    def test_raises_when_reduced_axes_contain_no_values(self):
+        cases = (
+            ((0,), (0,)),
+            ((2, 0), (1,)),
+            ((2, 0, 3), (1,)),
+            ((2, 0, 3), (0, 1)),
+        )
+        for shape, reduced_axes in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "has no values"):
+                    validate_reduction_has_values(shape, reduced_axes)
 
 
 class TestValidateAxesAreUnique(unittest.TestCase):

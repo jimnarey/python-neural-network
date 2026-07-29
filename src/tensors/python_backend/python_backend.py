@@ -9,13 +9,13 @@ from src.tensors.python_backend.python_tensor import PythonTensor
 from src.tensors.shared.axes import normalise_axes
 from src.tensors.shared.broadcasting import get_target_shape, get_target_strides
 from src.tensors.shared.reductions import (
-    get_reduction_count,
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
 )
 from src.tensors.shared.types import Scalar
 from src.tensors.shared.validation import (
     parse_tensor_data,
+    validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
@@ -128,13 +128,6 @@ class PythonBackend:
         return PythonBackend._reduce_to_tensor(
             x, reduced_axes, target_shape, keepdims, initial_value, accumulate_fn
         )
-
-    @staticmethod
-    def _raise_if_reduction_has_no_values(
-        shape: tuple[int, ...], reduced_axes: tuple[int, ...]
-    ) -> None:
-        if get_reduction_count(shape, reduced_axes) == 0:
-            raise ValueError("reduction operation has no values")
 
     @staticmethod
     def _divide_reduction_result(
@@ -292,7 +285,7 @@ class PythonBackend:
         keepdims: bool = False,
     ) -> PythonTensor | float:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
-        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        validate_reduction_has_values(x.shape, reduced_axes)
         return PythonBackend._reduce(x, axis, keepdims, -math.inf, max)
 
     def minimum(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
@@ -329,12 +322,12 @@ class PythonBackend:
         keepdims: bool = False,
     ) -> PythonTensor | float:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
-        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        validate_reduction_has_values(x.shape, reduced_axes)
         total = PythonBackend._reduce(
             x, axis, keepdims, 0.0, lambda accumulator, value: accumulator + value
         )
         return PythonBackend._divide_reduction_result(
-            total, float(get_reduction_count(x.shape, reduced_axes))
+            total, float(math.prod(x.shape[axis] for axis in reduced_axes))
         )
 
     def min(
@@ -344,7 +337,7 @@ class PythonBackend:
         keepdims: bool = False,
     ) -> PythonTensor | float:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
-        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        validate_reduction_has_values(x.shape, reduced_axes)
         return PythonBackend._reduce(x, axis, keepdims, math.inf, min)
 
     def std(
@@ -354,7 +347,7 @@ class PythonBackend:
         keepdims: bool = False,
     ) -> PythonTensor | float:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
-        PythonBackend._raise_if_reduction_has_no_values(x.shape, reduced_axes)
+        validate_reduction_has_values(x.shape, reduced_axes)
         mean = self.mean(x, axis=reduced_axes, keepdims=True)
         squared_deviations = PythonBackend._map_binary(
             x,

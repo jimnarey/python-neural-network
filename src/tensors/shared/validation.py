@@ -1,5 +1,7 @@
 """Shared guards for tensor creation and operations"""
 
+import math
+
 
 def validate_shape_not_rank_0(shape: tuple[int, ...]) -> None:
     if not shape:
@@ -18,6 +20,13 @@ def validate_shape_has_no_negative_dimensions(
 def validate_scalar_is_not_bool(value: object) -> None:
     if isinstance(value, bool):
         raise ValueError("scalar value must not be a bool")
+
+
+def validate_reduction_has_values(
+    shape: tuple[int, ...], reduced_axes: tuple[int, ...]
+) -> None:
+    if math.prod(shape[axis] for axis in reduced_axes) == 0:
+        raise ValueError("reduction operation has no values")
 
 
 def validate_axes_are_unique(axes: tuple[int, ...]) -> None:
