@@ -11,6 +11,11 @@ from src.tensors.shared.validation import (
     parse_tensor_data,
 )
 
+#
+# shape_size is untested. That's fine, given the callers are simple and
+# thoroughly tested.
+#
+
 
 class TestValidateShapeNotRank0(unittest.TestCase):
 
@@ -131,7 +136,7 @@ class TestValidateReductionHasValues(unittest.TestCase):
                     validate_reduction_has_values(shape, reduced_axes)
 
 
-class TestValidateArgmaxHasValues(unittest.TestCase):
+class TestValidateTensorHasValues(unittest.TestCase):
 
     def test_accepts_tensor_shape_with_values(self):
         cases = (

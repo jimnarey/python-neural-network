@@ -3,6 +3,10 @@
 import math
 
 
+def shape_size(shape: tuple[int, ...]) -> int:
+    return math.prod(shape)
+
+
 def validate_shape_not_rank_0(shape: tuple[int, ...]) -> None:
     if not shape:
         raise ValueError("Tensor creation methods require a non-empty shape.")
@@ -25,12 +29,12 @@ def validate_scalar_is_not_bool(value: object) -> None:
 def validate_reduction_has_values(
     shape: tuple[int, ...], reduced_axes: tuple[int, ...]
 ) -> None:
-    if math.prod(shape[axis] for axis in reduced_axes) == 0:
+    if shape_size(tuple(shape[axis] for axis in reduced_axes)) == 0:
         raise ValueError("reduction operation has no values")
 
 
 def validate_tensor_has_values(shape: tuple[int, ...]) -> None:
-    if math.prod(shape) == 0:
+    if shape_size(shape) == 0:
         raise ValueError(f"tensor with shape {shape} has no values")
 
 

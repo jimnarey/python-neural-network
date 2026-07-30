@@ -31,7 +31,7 @@ from src.tensors.shared.validation import (
     validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
 )
-from typing import Sequence, Optional
+from typing import Iterable, Sequence, Optional
 from array import array
 import math
 import random
@@ -41,6 +41,46 @@ class PythonBackend:
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed
         self._random = random.Random(seed)
+
+    # TODO - decide whether these argmax methods should go. This isn't the
+    # right place for them.
+
+    @staticmethod
+    def _first_max_index(values: Iterable[Scalar]) -> int:
+        """
+        Return the index of the maximum value in a non-empty iterable.
+        If the maximum value exists more than once, return the index of
+        the earliest instance.
+        """
+        iterator = iter(values)
+        best_index = 0
+        best_value = next(iterator)
+        for index, value in enumerate(iterator, start=1):
+            if value > best_value:
+                best_index = index
+                best_value = value
+        return best_index
+
+    @staticmethod
+    def _argmax_to_scalar(x: PythonTensor) -> int:
+        return PythonBackend._first_max_index(value for _, value in x.items())
+
+    @staticmethod
+    def _argmax_to_tensor(
+        x: PythonTensor, normalised_axis: int, target_shape: tuple[int, ...]
+    ) -> PythonTensor:
+        result = PythonTensor(target_shape, typecode=PythonTensor.INT)
+        for target_index in result.indices():
+            best_axis_index = PythonBackend._first_max_index(
+                x.get_scalar(
+                    target_index[:normalised_axis]
+                    + (axis_index,)
+                    + target_index[normalised_axis:]
+                )
+                for axis_index in range(x.shape[normalised_axis])
+            )
+            result.set_scalar(target_index, best_axis_index)
+        return result
 
     # PythonTensor supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
@@ -164,7 +204,15 @@ class PythonBackend:
 
     def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
         validate_tensor_has_values(x.shape)
-        raise NotImplementedError
+        if axis is None:
+            return self._argmax_to_scalar(x)
+        if type(axis) is not int:
+            raise TypeError("axis must be an int or None")
+        normalised_axis = normalise_axes((axis,), x.ndim())[0]
+        target_shape = x.shape[:normalised_axis] + x.shape[normalised_axis + 1 :]
+        if target_shape == ():
+            return self._argmax_to_scalar(x)
+        return self._argmax_to_tensor(x, normalised_axis, target_shape)
 
     def log(self, x: PythonTensor) -> PythonTensor:
         return map_unary(x, log_scalar)

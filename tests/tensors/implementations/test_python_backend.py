@@ -468,6 +468,158 @@ class TestPythonBackendShape(PythonBackendTestCase):
                 self.assertEqual(result, expected_shape)
 
 
+class TestPythonBackendFirstMaxIndex(PythonBackendTestCase):
+
+    def test_returns_index_of_largest_value(self):
+        values = [2.0, 9.0, 4.0, 7.0]
+        result = PythonBackend._first_max_index(values)
+        self.assertEqual(result, 1)
+
+    def test_returns_first_index_when_maximum_value_is_tied(self):
+        values = [2.0, 9.0, 4.0, 9.0]
+        result = PythonBackend._first_max_index(values)
+        self.assertEqual(result, 1)
+
+    def test_consumes_one_pass_iterable(self):
+        values = (value for value in [2.0, 4.0, 9.0, 7.0])
+        result = PythonBackend._first_max_index(values)
+        self.assertEqual(result, 2)
+
+
+class TestPythonBackendArgmaxToScalar(PythonBackendTestCase):
+
+    def test_returns_flat_index_for_1D_tensor(self):
+        tensor = PythonTensor((4,), array("d", [2.0, 9.0, 4.0, 7.0]))
+        result = PythonBackend._argmax_to_scalar(tensor)
+        self.assertEqual(result, 1)
+
+    def test_returns_flat_index_for_2D_tensor(self):
+        tensor = PythonTensor((2, 3), array("d", [2.0, 4.0, 7.0, 9.0, 6.0, 8.0]))
+        result = PythonBackend._argmax_to_scalar(tensor)
+        self.assertEqual(result, 3)
+
+    def test_uses_tensor_layout_when_tensor_is_view(self):
+        """
+        The parent tensor has shape (2, 3) and values:
+            [[1.0, 9.0, 3.0],
+             [4.0, 5.0, 6.0]]
+
+        The view has shape (3, 2) and strides (1, 3), so it reads the same
+        buffer as:
+            [[1.0, 4.0],
+             [9.0, 5.0],
+             [3.0, 6.0]]
+
+        In that logical view, 9.0 is the third value encountered, so its
+        flattened index is 2.
+        """
+        tensor = PythonTensor((2, 3), array("d", [1.0, 9.0, 3.0, 4.0, 5.0, 6.0]))
+        view = tensor.view((3, 2), strides=(1, 3))
+        result = PythonBackend._argmax_to_scalar(view)
+        self.assertEqual(result, 2)
+
+    def test_returns_first_flat_index_when_maximum_value_is_tied(self):
+        tensor = PythonTensor((2, 3), array("d", [2.0, 9.0, 7.0, 9.0, 6.0, 8.0]))
+        result = PythonBackend._argmax_to_scalar(tensor)
+        self.assertEqual(result, 1)
+
+
+class TestPythonBackendArgmaxToTensor(PythonBackendTestCase):
+
+    def test_returns_indices_when_reducing_2D_tensor_axis_0(self):
+        """
+        The tensor has shape (2, 3) and values:
+            [[1.0, 5.0, 3.0],
+             [4.0, 2.0, 6.0]]
+
+        Reducing axis 0 means searching down each column. The maximum values
+        are at row index 1 for column 0, row index 0 for column 1, and row
+        index 1 for column 2.
+
+        The result is therefore [1, 0, 1].
+        """
+        tensor = PythonTensor((2, 3), array("d", [1.0, 5.0, 3.0, 4.0, 2.0, 6.0]))
+        result = PythonBackend._argmax_to_tensor(tensor, 0, (3,))
+        self.assertEqual(result.shape, (3,))
+        self.assertEqual(result.data.tolist(), [1, 0, 1])
+
+    def test_returns_indices_when_reducing_2D_tensor_axis_1(self):
+        """
+        The tensor has shape (2, 3) and values:
+            [[1.0, 5.0, 3.0],
+             [4.0, 2.0, 6.0]]
+
+        Reducing axis 1 means searching across each row. The maximum values
+        are at column index 1 for row 0 and column index 2 for row 1.
+
+        The result is therefore [1, 2].
+        """
+        tensor = PythonTensor((2, 3), array("d", [1.0, 5.0, 3.0, 4.0, 2.0, 6.0]))
+        result = PythonBackend._argmax_to_tensor(tensor, 1, (2,))
+        self.assertEqual(result.shape, (2,))
+        self.assertEqual(result.data.tolist(), [1, 2])
+
+    def test_returns_indices_when_reducing_3D_tensor_middle_axis(self):
+        """
+        The tensor has shape (2, 3, 2). It can be read as two 2D tensors,
+        one for each position on axis 0:
+
+            axis 0, position 0:
+                [[1.0, 5.0],
+                 [7.0, 2.0],
+                 [3.0, 9.0]]
+
+            axis 0, position 1:
+                [[4.0, 8.0],
+                 [6.0, 1.0],
+                 [2.0, 10.0]]
+
+        Reducing axis 1 means searching down the rows inside each of those
+        2D tensors, once for each fixed axis-0 and axis-2 position.
+
+        For axis-0 position 0 and axis-2 position 0, the searched values are
+        1.0, 7.0 and 3.0, so the maximum is at axis-1 index 1. For axis-0
+        position 0 and axis-2 position 1, the searched values are 5.0, 2.0
+        and 9.0, so the maximum is at axis-1 index 2.
+
+        The same calculation is then repeated for axis-0 position 1, giving
+        axis-1 indices 1 and 2.
+
+        The result is therefore [[1, 2], [1, 2]].
+        """
+        tensor = PythonTensor(
+            (2, 3, 2),
+            array(
+                "d",
+                [1.0, 5.0, 7.0, 2.0, 3.0, 9.0, 4.0, 8.0, 6.0, 1.0, 2.0, 10.0],
+            ),
+        )
+        result = PythonBackend._argmax_to_tensor(tensor, 1, (2, 2))
+        self.assertEqual(result.shape, (2, 2))
+        self.assertEqual(result.data.tolist(), [1, 2, 1, 2])
+
+    def test_returns_int_valued_tensor(self):
+        tensor = PythonTensor((2, 3), array("d", [1.0, 5.0, 3.0, 4.0, 2.0, 6.0]))
+        result = PythonBackend._argmax_to_tensor(tensor, 0, (3,))
+        self.assertEqual(result.data.typecode, PythonTensor.INT)
+
+    def test_returns_first_axis_index_when_maximum_value_is_tied(self):
+        """
+        The tensor has shape (2, 3) and values:
+            [[4.0, 5.0, 6.0],
+             [4.0, 2.0, 6.0]]
+
+        It is reduced over axis 0, so column 0 compares 4.0 and 4.0,
+        column 1 compares 5.0 and 2.0, and column 2 compares 6.0 and
+        6.0. In the tied columns, the first maximum value is at row index 0.
+
+        The result is therefore [0, 0, 0].
+        """
+        tensor = PythonTensor((2, 3), array("d", [4.0, 5.0, 6.0, 4.0, 2.0, 6.0]))
+        result = PythonBackend._argmax_to_tensor(tensor, 0, (3,))
+        self.assertEqual(result.data.tolist(), [0, 0, 0])
+
+
 class TestPythonBackendCopy(PythonBackendTestCase):
 
     def test_copy_does_not_share_values_with_original_after_original_is_mutated(self):
