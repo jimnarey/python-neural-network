@@ -12,7 +12,7 @@ from src.tensors.python_backend.operations import (
     map_unary,
     reduce,
 )
-from src.tensors.shared.axes import normalise_axes
+from src.tensors.shared.axes import normalise_axis, normalise_axes
 from src.tensors.shared.reductions import get_reduction_axes_and_target_shape
 from src.tensors.shared.scalar_ops import (
     divide_scalar,
@@ -28,6 +28,7 @@ from src.tensors.shared.validation import (
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
+    validate_shapes_match_except_axis,
     validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
 )
@@ -80,6 +81,73 @@ class PythonBackend:
                 for axis_index in range(x.shape[normalised_axis])
             )
             result.set_scalar(target_index, best_axis_index)
+        return result
+
+    @staticmethod
+    def _require_non_empty_tensor_sequence(
+        xs: Sequence[PythonTensor],
+    ) -> tuple[PythonTensor, ...]:
+        tensors = tuple(xs)
+        if not tensors:
+            raise ValueError("tensor sequence must not be empty")
+        return tensors
+
+    @staticmethod
+    def _get_concatenate_shape(
+        xs: tuple[PythonTensor, ...], normalised_axis: int
+    ) -> tuple[int, ...]:
+        base_shape = xs[0].shape
+        axis_size = sum(x.shape[normalised_axis] for x in xs)
+        return (
+            base_shape[:normalised_axis]
+            + (axis_size,)
+            + base_shape[normalised_axis + 1 :]
+        )
+
+    @staticmethod
+    def _concatenate_tensors(
+        xs: tuple[PythonTensor, ...], normalised_axis: int, shape: tuple[int, ...]
+    ) -> PythonTensor:
+        result = PythonTensor(shape)
+        axis_offset = 0
+        for tensor in xs:
+            for source_index, value in tensor.items():
+                target_index = (
+                    source_index[:normalised_axis]
+                    + (source_index[normalised_axis] + axis_offset,)
+                    + source_index[normalised_axis + 1 :]
+                )
+                result.set_scalar(target_index, value)
+            axis_offset += tensor.shape[normalised_axis]
+        return result
+
+    @staticmethod
+    def _validate_stack_shapes(xs: tuple[PythonTensor, ...]) -> None:
+        base_shape = xs[0].shape
+        for tensor in xs[1:]:
+            if tensor.shape != base_shape:
+                raise ValueError("all tensors must have the same shape")
+
+    @staticmethod
+    def _get_stack_shape(
+        xs: tuple[PythonTensor, ...], normalised_axis: int
+    ) -> tuple[int, ...]:
+        base_shape = xs[0].shape
+        return base_shape[:normalised_axis] + (len(xs),) + base_shape[normalised_axis:]
+
+    @staticmethod
+    def _stack_tensors(
+        xs: tuple[PythonTensor, ...], normalised_axis: int, shape: tuple[int, ...]
+    ) -> PythonTensor:
+        result = PythonTensor(shape)
+        for tensor_index, tensor in enumerate(xs):
+            for source_index, value in tensor.items():
+                target_index = (
+                    source_index[:normalised_axis]
+                    + (tensor_index,)
+                    + source_index[normalised_axis:]
+                )
+                result.set_scalar(target_index, value)
         return result
 
     # PythonTensor supports a writable flag which is not currently
@@ -278,10 +346,20 @@ class PythonBackend:
         return self.sqrt(variance)
 
     def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
-        raise NotImplementedError
+        tensors = self._require_non_empty_tensor_sequence(xs)
+        normalised_axis = normalise_axis(axis, tensors[0].ndim() + 1)
+        self._validate_stack_shapes(tensors)
+        shape = self._get_stack_shape(tensors, normalised_axis)
+        return self._stack_tensors(tensors, normalised_axis, shape)
 
     def concatenate(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
-        raise NotImplementedError
+        tensors = self._require_non_empty_tensor_sequence(xs)
+        normalised_axis = normalise_axis(axis, tensors[0].ndim())
+        validate_shapes_match_except_axis(
+            tuple(tensor.shape for tensor in tensors), normalised_axis
+        )
+        shape = self._get_concatenate_shape(tensors, normalised_axis)
+        return self._concatenate_tensors(tensors, normalised_axis, shape)
 
     def eye(self, n: int, m: int | None = None) -> PythonTensor:
         if m is None:

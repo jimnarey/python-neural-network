@@ -13,6 +13,11 @@ from tests.tensors.contract.argmax import (
     BackendContractArgMaxTieBehaviourMixin,
 )
 
+from tests.tensors.contract.composition import (
+    BackendContractConcatenateSemanticsMixin,
+    BackendContractStackSemanticsMixin,
+)
+
 from tests.tensors.contract.creation import (
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
@@ -111,6 +116,8 @@ class TestPythonBackendContract(
     BackendContractArgMaxTieBehaviourMixin,
     BackendContractAbsoluteSemanticsMixin,
     BackendContractClipSemanticsMixin,
+    BackendContractConcatenateSemanticsMixin,
+    BackendContractStackSemanticsMixin,
     BackendContractCopyMixin,
     BackendContractCreationInputValidationMixin,
     BackendContractCreationZeroLengthDimensionMixin,
