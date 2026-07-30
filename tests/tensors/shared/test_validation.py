@@ -1,6 +1,7 @@
 import unittest
 from src.tensors.shared.validation import (
     validate_tensor_has_values,
+    validate_shapes_match_except_axis,
     validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
     validate_reduction_has_values,
@@ -159,6 +160,76 @@ class TestValidateTensorHasValues(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "has no values"):
                     validate_tensor_has_values(shape)
+
+
+class TestValidateShapesMatchExceptAxis(unittest.TestCase):
+
+    def test_accepts_single_shape(self):
+        cases = (
+            (((3,),), 0),
+            (((2, 3),), 1),
+            (((2, 3, 4),), 2),
+        )
+        for shapes, axis in cases:
+            with self.subTest():
+                validate_shapes_match_except_axis(shapes, axis)
+
+    def test_accepts_shapes_which_match_except_axis(self):
+        """
+        This proves, amongst other things, that zero length dimensions
+        are permissable either when specified in the axis argument or
+        not. Zero is not a special case when determining tensor
+        compatibility.
+        """
+        cases = (
+            (((3,), (5,), (1,)), 0),
+            (((2, 3), (2, 5), (2, 1)), 1),
+            (((2, 3, 4), (2, 5, 4), (2, 1, 4)), 1),
+            (((0,), (3,)), 0),
+            (((2, 0, 4), (2, 3, 4)), 1),
+            (((2, 0, 3), (2, 0, 5)), 2),
+        )
+        for shapes, axis in cases:
+            with self.subTest():
+                validate_shapes_match_except_axis(shapes, axis)
+
+    def test_raises_when_no_shapes_are_passed(self):
+        with self.assertRaisesRegex(ValueError, "at least one shape"):
+            validate_shapes_match_except_axis((), 0)
+
+    def test_raises_when_axis_is_outside_shape_rank(self):
+        cases = (
+            (((3,),), 1),
+            (((2, 3),), 2),
+            (((2, 3, 4),), 3),
+            (((2, 3),), -1),
+        )
+        for shapes, axis in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "outside the valid range"):
+                    validate_shapes_match_except_axis(shapes, axis)
+
+    def test_raises_when_shapes_have_different_ranks(self):
+        cases = (
+            (((3,), (1, 3)), 0),
+            (((2, 3), (2, 3, 4)), 1),
+            (((2, 3, 4), (2, 3)), 2),
+        )
+        for shapes, axis in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "same rank"):
+                    validate_shapes_match_except_axis(shapes, axis)
+
+    def test_raises_when_shapes_differ_outside_axis(self):
+        cases = (
+            (((2, 3), (3, 5)), 1),
+            (((2, 3, 4), (2, 5, 6)), 1),
+            (((2, 0, 3), (2, 1, 5)), 2),
+        )
+        for shapes, axis in cases:
+            with self.subTest():
+                with self.assertRaisesRegex(ValueError, "match except"):
+                    validate_shapes_match_except_axis(shapes, axis)
 
 
 class TestValidateAxesAreUnique(unittest.TestCase):

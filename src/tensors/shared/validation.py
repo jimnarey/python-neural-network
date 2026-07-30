@@ -38,6 +38,22 @@ def validate_tensor_has_values(shape: tuple[int, ...]) -> None:
         raise ValueError(f"tensor with shape {shape} has no values")
 
 
+def validate_shapes_match_except_axis(
+    shapes: tuple[tuple[int, ...], ...], axis: int
+) -> None:
+    if not shapes:
+        raise ValueError("at least one shape is required")
+    base_shape = shapes[0]
+    if axis < 0 or axis >= len(base_shape):
+        raise ValueError("axis is outside the valid range for the shape")
+    for shape in shapes[1:]:
+        if len(shape) != len(base_shape):
+            raise ValueError("shapes must have the same rank")
+        for dim, (base_dim, other_dim) in enumerate(zip(base_shape, shape)):
+            if dim != axis and base_dim != other_dim:
+                raise ValueError("shapes must match except along the chosen axis")
+
+
 def validate_axes_are_unique(axes: tuple[int, ...]) -> None:
     if len(set(axes)) != len(axes):
         raise ValueError("axes must not contain duplicates")
