@@ -7,10 +7,20 @@ understood. It also serves as a basis for more performant custom backends.
 
 from src.tensors.python_backend.python_tensor import PythonTensor
 from src.tensors.python_backend.operations import (
+    argmax_to_scalar,
+    argmax_to_tensor,
+    concatenate_tensors,
     divide_reduction_result,
+    get_concatenate_shape,
+    get_stack_shape,
     map_binary,
     map_unary,
     reduce,
+    stack_tensors,
+)
+from src.tensors.python_backend.validation import (
+    require_non_empty_tensor_sequence,
+    validate_stack_shapes,
 )
 from src.tensors.shared.axes import normalise_axis, normalise_axes
 from src.tensors.shared.reductions import get_reduction_axes_and_target_shape
@@ -32,7 +42,7 @@ from src.tensors.shared.validation import (
     validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
 )
-from typing import Iterable, Sequence, Optional
+from typing import Sequence, Optional
 from array import array
 import math
 import random
@@ -42,113 +52,6 @@ class PythonBackend:
     def __init__(self, seed: Optional[int] = None):
         self.seed = seed
         self._random = random.Random(seed)
-
-    # TODO - decide whether these argmax methods should go. This isn't the
-    # right place for them.
-
-    @staticmethod
-    def _first_max_index(values: Iterable[Scalar]) -> int:
-        """
-        Return the index of the maximum value in a non-empty iterable.
-        If the maximum value exists more than once, return the index of
-        the earliest instance.
-        """
-        iterator = iter(values)
-        best_index = 0
-        best_value = next(iterator)
-        for index, value in enumerate(iterator, start=1):
-            if value > best_value:
-                best_index = index
-                best_value = value
-        return best_index
-
-    @staticmethod
-    def _argmax_to_scalar(x: PythonTensor) -> int:
-        return PythonBackend._first_max_index(value for _, value in x.items())
-
-    @staticmethod
-    def _argmax_to_tensor(
-        x: PythonTensor, normalised_axis: int, target_shape: tuple[int, ...]
-    ) -> PythonTensor:
-        result = PythonTensor(target_shape, typecode=PythonTensor.INT)
-        for target_index in result.indices():
-            best_axis_index = PythonBackend._first_max_index(
-                x.get_scalar(
-                    target_index[:normalised_axis]
-                    + (axis_index,)
-                    + target_index[normalised_axis:]
-                )
-                for axis_index in range(x.shape[normalised_axis])
-            )
-            result.set_scalar(target_index, best_axis_index)
-        return result
-
-    @staticmethod
-    def _require_non_empty_tensor_sequence(
-        xs: Sequence[PythonTensor],
-    ) -> tuple[PythonTensor, ...]:
-        tensors = tuple(xs)
-        if not tensors:
-            raise ValueError("tensor sequence must not be empty")
-        return tensors
-
-    @staticmethod
-    def _get_concatenate_shape(
-        xs: tuple[PythonTensor, ...], normalised_axis: int
-    ) -> tuple[int, ...]:
-        base_shape = xs[0].shape
-        axis_size = sum(x.shape[normalised_axis] for x in xs)
-        return (
-            base_shape[:normalised_axis]
-            + (axis_size,)
-            + base_shape[normalised_axis + 1 :]
-        )
-
-    @staticmethod
-    def _concatenate_tensors(
-        xs: tuple[PythonTensor, ...], normalised_axis: int, shape: tuple[int, ...]
-    ) -> PythonTensor:
-        result = PythonTensor(shape)
-        axis_offset = 0
-        for tensor in xs:
-            for source_index, value in tensor.items():
-                target_index = (
-                    source_index[:normalised_axis]
-                    + (source_index[normalised_axis] + axis_offset,)
-                    + source_index[normalised_axis + 1 :]
-                )
-                result.set_scalar(target_index, value)
-            axis_offset += tensor.shape[normalised_axis]
-        return result
-
-    @staticmethod
-    def _validate_stack_shapes(xs: tuple[PythonTensor, ...]) -> None:
-        base_shape = xs[0].shape
-        for tensor in xs[1:]:
-            if tensor.shape != base_shape:
-                raise ValueError("all tensors must have the same shape")
-
-    @staticmethod
-    def _get_stack_shape(
-        xs: tuple[PythonTensor, ...], normalised_axis: int
-    ) -> tuple[int, ...]:
-        base_shape = xs[0].shape
-        return base_shape[:normalised_axis] + (len(xs),) + base_shape[normalised_axis:]
-
-    @staticmethod
-    def _stack_tensors(
-        xs: tuple[PythonTensor, ...], normalised_axis: int, shape: tuple[int, ...]
-    ) -> PythonTensor:
-        result = PythonTensor(shape)
-        for tensor_index, tensor in enumerate(xs):
-            for source_index, value in tensor.items():
-                target_index = (
-                    source_index[:normalised_axis]
-                    + (tensor_index,)
-                    + source_index[normalised_axis:]
-                )
-                result.set_scalar(target_index, value)
-        return result
 
     # PythonTensor supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
@@ -273,14 +176,14 @@ class PythonBackend:
     def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
         validate_tensor_has_values(x.shape)
         if axis is None:
-            return self._argmax_to_scalar(x)
+            return argmax_to_scalar(x)
         if type(axis) is not int:
             raise TypeError("axis must be an int or None")
         normalised_axis = normalise_axes((axis,), x.ndim())[0]
         target_shape = x.shape[:normalised_axis] + x.shape[normalised_axis + 1 :]
         if target_shape == ():
-            return self._argmax_to_scalar(x)
-        return self._argmax_to_tensor(x, normalised_axis, target_shape)
+            return argmax_to_scalar(x)
+        return argmax_to_tensor(x, normalised_axis, target_shape)
 
     def log(self, x: PythonTensor) -> PythonTensor:
         return map_unary(x, log_scalar)
@@ -346,20 +249,20 @@ class PythonBackend:
         return self.sqrt(variance)
 
     def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
-        tensors = self._require_non_empty_tensor_sequence(xs)
+        tensors = require_non_empty_tensor_sequence(xs)
         normalised_axis = normalise_axis(axis, tensors[0].ndim() + 1)
-        self._validate_stack_shapes(tensors)
-        shape = self._get_stack_shape(tensors, normalised_axis)
-        return self._stack_tensors(tensors, normalised_axis, shape)
+        validate_stack_shapes(tensors)
+        shape = get_stack_shape(tensors, normalised_axis)
+        return stack_tensors(tensors, normalised_axis, shape)
 
     def concatenate(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
-        tensors = self._require_non_empty_tensor_sequence(xs)
+        tensors = require_non_empty_tensor_sequence(xs)
         normalised_axis = normalise_axis(axis, tensors[0].ndim())
         validate_shapes_match_except_axis(
             tuple(tensor.shape for tensor in tensors), normalised_axis
         )
-        shape = self._get_concatenate_shape(tensors, normalised_axis)
-        return self._concatenate_tensors(tensors, normalised_axis, shape)
+        shape = get_concatenate_shape(tensors, normalised_axis)
+        return concatenate_tensors(tensors, normalised_axis, shape)
 
     def eye(self, n: int, m: int | None = None) -> PythonTensor:
         if m is None:
