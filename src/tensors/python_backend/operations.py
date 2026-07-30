@@ -54,6 +54,11 @@ def get_concatenate_shape(
     )
 
 
+# TODO - this is probably slow. In many cases where it is used we can
+# probably use shape data to construct a flat buffer with the output
+# values properly located and pass to a new instance of PythonTensor.
+# We might even get away without pre-calculating the shape. On the plus
+# side, the current implementation is generic and simple.
 def copy_sequence_values(
     xs: tuple[PythonTensor, ...],
     result: PythonTensor,
