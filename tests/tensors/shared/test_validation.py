@@ -9,6 +9,8 @@ from src.tensors.shared.validation import (
     validate_axes_are_unique,
     validate_axes_are_permutation,
     validate_tensor_conversion_root_is_sequence,
+    validate_matmul_operand_ranks,
+    validate_matmul_core_dimensions,
     parse_tensor_data,
 )
 
@@ -230,6 +232,179 @@ class TestValidateShapesMatchExceptAxis(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "match except"):
                     validate_shapes_match_except_axis(shapes, axis)
+
+
+class TestValidateMatmulOperandRanks(unittest.TestCase):
+
+    def test_accepts_operands_with_rank_1_or_higher(self):
+        cases = (
+            ((3,), (3,)),
+            ((2, 3), (3, 4)),
+            ((2, 2, 3), (3,)),
+            ((3,), (2, 3, 4)),
+            ((2, 1, 2, 3), (1, 2, 3, 2)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                validate_matmul_operand_ranks(a_shape, b_shape)
+
+    def test_raises_when_left_operand_is_rank_0(self):
+        cases = (
+            ((), (3,)),
+            ((), (2, 3)),
+            ((), (2, 3, 4)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "at least one dimension"):
+                    validate_matmul_operand_ranks(a_shape, b_shape)
+
+    def test_raises_when_right_operand_is_rank_0(self):
+        cases = (
+            ((3,), ()),
+            ((2, 3), ()),
+            ((2, 3, 4), ()),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "at least one dimension"):
+                    validate_matmul_operand_ranks(a_shape, b_shape)
+
+
+class TestValidateMatmulCoreDimensions(unittest.TestCase):
+
+    def test_accepts_two_1D_operands_with_matching_lengths(self):
+        cases = (
+            ((0,), (0,)),
+            ((1,), (1,)),
+            ((3,), (3,)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_accepts_1D_left_operand_and_rank_2_or_higher_right_operand(self):
+        """
+        This pins down the rule for vector @ matrix-style matmul.
+
+        The 1D left operand is treated as a temporary row vector. Its only
+        dimension must match the row count of each matrix in the right
+        operand, which is the second-to-last dimension for any rank-2-or-
+        higher right operand.
+        """
+        cases = (
+            ((3,), (3, 2)),
+            ((3,), (2, 3, 4)),
+            ((3,), (2, 1, 3, 4)),
+            ((0,), (0, 2)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_accepts_rank_2_or_higher_left_operand_and_1D_right_operand(self):
+        """
+        This pins down the rule for matrix @ vector-style matmul.
+
+        The 1D right operand is treated as a temporary column vector. Its
+        only dimension must match the column count of each matrix in the
+        left operand, which is the final dimension for any rank-2-or-higher
+        left operand.
+        """
+        cases = (
+            ((2, 3), (3,)),
+            ((2, 4, 3), (3,)),
+            ((2, 1, 4, 3), (3,)),
+            ((2, 0), (0,)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_accepts_rank_2_or_higher_operands_with_matching_core_dimensions(self):
+        """
+        This pins down the rule for matrix @ matrix-style matmul.
+
+        For operands with rank 2 or higher, only the final two axes form the
+        matrices being multiplied. The final dimension of the left operand
+        must match the second-to-last dimension of the right operand. Earlier
+        axes are not checked by this guard.
+        """
+        cases = (
+            ((2, 3), (3, 4)),
+            ((2, 2, 3), (3, 4)),
+            ((2, 2, 3), (2, 3, 4)),
+            ((2, 1, 2, 3), (1, 2, 3, 2)),
+            ((2, 0), (0, 3)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_raises_when_two_1D_operands_have_different_lengths(self):
+        """
+        These fail because the two vector lengths are different.
+        """
+        cases = (
+            ((2,), (3,)),
+            ((0,), (1,)),
+            ((1,), (0,)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "core dimensions"):
+                    validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_raises_when_1D_left_operand_length_does_not_match_right_core_dimension(
+        self,
+    ):
+        """
+        These fail because the vector length does not match the row count
+        of each right-hand matrix.
+        """
+        cases = (
+            ((3,), (4, 2)),
+            ((3,), (2, 4, 5)),
+            ((0,), (1, 2)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "core dimensions"):
+                    validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_raises_when_1D_right_operand_length_does_not_match_left_core_dimension(
+        self,
+    ):
+        """
+        These fail because the vector length does not match the column
+        count of each left-hand matrix.
+        """
+        cases = (
+            ((2, 3), (4,)),
+            ((2, 4, 3), (4,)),
+            ((2, 1), (0,)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "core dimensions"):
+                    validate_matmul_core_dimensions(a_shape, b_shape)
+
+    def test_raises_when_rank_2_or_higher_operands_have_different_core_dimensions(
+        self,
+    ):
+        """
+        These fail because the left-hand matrix column count does not match
+        the right-hand matrix row count.
+        """
+        cases = (
+            ((2, 3), (4, 5)),
+            ((2, 2, 3), (2, 4, 5)),
+            ((2, 2, 0), (2, 1, 3)),
+        )
+        for a_shape, b_shape in cases:
+            with self.subTest(a_shape=a_shape, b_shape=b_shape):
+                with self.assertRaisesRegex(ValueError, "core dimensions"):
+                    validate_matmul_core_dimensions(a_shape, b_shape)
 
 
 class TestValidateAxesAreUnique(unittest.TestCase):

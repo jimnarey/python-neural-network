@@ -54,6 +54,34 @@ def validate_shapes_match_except_axis(
                 raise ValueError("shapes must match except along the chosen axis")
 
 
+def validate_matmul_operand_ranks(
+    a_shape: tuple[int, ...], b_shape: tuple[int, ...]
+) -> None:
+    if len(a_shape) == 0 or len(b_shape) == 0:
+        raise ValueError("matmul operands must have at least one dimension")
+
+
+def validate_matmul_core_dimensions(
+    a_shape: tuple[int, ...], b_shape: tuple[int, ...]
+) -> None:
+    """
+    Validate the dimensions used by the actual matrix multiplication.
+
+    For rank-2-or-higher operands, matmul treats only the final two axes as
+    the matrix being multiplied. Earlier axes are leading axes; they decide
+    how many matrix multiplications are carried out, but not whether an
+    individual matrix multiplication is valid.
+
+    A 1D right-hand operand is treated as a temporary column vector, so its
+    only axis is the dimension that must match the left-hand operand's final
+    axis.
+    """
+    a_inner_dimension = a_shape[-1]
+    b_inner_dimension = b_shape[-1] if len(b_shape) == 1 else b_shape[-2]
+    if a_inner_dimension != b_inner_dimension:
+        raise ValueError("matmul core dimensions are incompatible")
+
+
 def validate_axes_are_unique(axes: tuple[int, ...]) -> None:
     if len(set(axes)) != len(axes):
         raise ValueError("axes must not contain duplicates")
