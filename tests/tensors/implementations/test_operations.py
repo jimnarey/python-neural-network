@@ -10,9 +10,13 @@ from src.tensors.python_backend.operations import (
     divide_reduction_result,
     first_max_index,
     get_concatenate_shape,
+    get_matmul_value,
     get_stack_shape,
     map_binary,
     map_unary,
+    matmul_tensors,
+    matmul_to_scalar,
+    matmul_to_tensor,
     reduce_to_scalar,
     reduce_to_tensor,
     stack_tensors,
@@ -1038,6 +1042,341 @@ class TestMapBinary(unittest.TestCase):
                     ValueError, "scalar value must not be a bool"
                 ):
                     map_binary(tensor, scalar, lambda a, b: a + b)
+
+
+class TestGetMatmulValue(unittest.TestCase):
+
+    def test_returns_value_for_1D_operands(self):
+        """
+        The left tensor is:
+            [1.0, 2.0, 3.0]
+
+        The right tensor is:
+            [4.0, 5.0, 6.0]
+
+        A 1D @ 1D matmul returns a scalar, so result_index is ().
+
+        The result is:
+            (1.0 * 4.0) + (2.0 * 5.0) + (3.0 * 6.0) = 32.0
+        """
+        left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
+        result = get_matmul_value(left, right, ())
+        self.assertEqual(result, 32.0)
+
+    def test_returns_value_for_1D_left_operand_and_2D_right_operand(self):
+        """
+        The left tensor is:
+            [1.0, 2.0, 3.0]
+
+        The right tensor has shape (3, 2) and values:
+            [[4.0, 5.0],
+             [6.0, 7.0],
+             [8.0, 9.0]]
+
+        Result index (1,) selects column 1 of the right tensor, so the
+        result is:
+            (1.0 * 5.0) + (2.0 * 7.0) + (3.0 * 9.0) = 46.0
+        """
+        left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        right = PythonTensor((3, 2), array("d", [4.0, 5.0, 6.0, 7.0, 8.0, 9.0]))
+        result = get_matmul_value(left, right, (1,))
+        self.assertEqual(result, 46.0)
+
+    def test_returns_value_for_2D_left_operand_and_1D_right_operand(self):
+        """
+        The left tensor has shape (2, 3) and values:
+            [[1.0, 2.0, 3.0],
+             [4.0, 5.0, 6.0]]
+
+        The right tensor is:
+            [7.0, 8.0, 9.0]
+
+        Result index (1,) selects row 1 of the left tensor, so the result
+        is:
+            (4.0 * 7.0) + (5.0 * 8.0) + (6.0 * 9.0) = 122.0
+        """
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        right = PythonTensor((3,), array("d", [7.0, 8.0, 9.0]))
+        result = get_matmul_value(left, right, (1,))
+        self.assertEqual(result, 122.0)
+
+    def test_returns_value_for_2D_operands(self):
+        """
+        The left tensor has shape (2, 3) and values:
+            [[1.0, 2.0, 3.0],
+             [4.0, 5.0, 6.0]]
+
+        The right tensor has shape (3, 2) and values:
+            [[7.0, 8.0],
+             [9.0, 10.0],
+             [11.0, 12.0]]
+
+        Result index (1, 0) selects row 1 from the left tensor and column 0
+        from the right tensor, so the result is:
+            (4.0 * 7.0) + (5.0 * 9.0) + (6.0 * 11.0) = 139.0
+        """
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = get_matmul_value(left, right, (1, 0))
+        self.assertEqual(result, 139.0)
+
+    def test_uses_left_tensor_layout_when_left_operand_is_view(self):
+        """
+        The left parent tensor has shape (3, 2) and values:
+            [[1.0, 4.0],
+             [2.0, 5.0],
+             [3.0, 6.0]]
+
+        The left view has shape (2, 3) and values:
+            [[1.0, 2.0, 3.0],
+             [4.0, 5.0, 6.0]]
+
+        The right tensor has shape (3, 2) and values:
+            [[7.0, 8.0],
+             [9.0, 10.0],
+             [11.0, 12.0]]
+
+        Result index (1, 0) selects row 1 from the left view and column 0
+        from the right tensor, so the result is:
+            (4.0 * 7.0) + (5.0 * 9.0) + (6.0 * 11.0) = 139.0
+        """
+        parent = PythonTensor((3, 2), array("d", [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]))
+        left = parent.view((2, 3), strides=(1, 2))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = get_matmul_value(left, right, (1, 0))
+        self.assertEqual(result, 139.0)
+
+    def test_uses_right_tensor_layout_when_right_operand_is_view(self):
+        """
+        The left tensor has shape (2, 3) and values:
+            [[1.0, 2.0, 3.0],
+             [4.0, 5.0, 6.0]]
+
+        The right parent tensor has shape (2, 3) and values:
+            [[7.0, 9.0, 11.0],
+             [8.0, 10.0, 12.0]]
+
+        The right view has shape (3, 2) and values:
+            [[7.0, 8.0],
+             [9.0, 10.0],
+             [11.0, 12.0]]
+
+        Result index (1, 0) selects row 1 from the left tensor and column 0
+        from the right view, so the result is:
+            (4.0 * 7.0) + (5.0 * 9.0) + (6.0 * 11.0) = 139.0
+        """
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        parent = PythonTensor((2, 3), array("d", [7.0, 9.0, 11.0, 8.0, 10.0, 12.0]))
+        right = parent.view((3, 2), strides=(1, 3))
+        result = get_matmul_value(left, right, (1, 0))
+        self.assertEqual(result, 139.0)
+
+    def test_uses_broadcasted_leading_indices_for_higher_rank_operands(self):
+        """
+        Most values in the operands are set to zero so the test depends on selecting
+        the correct matrix from each higher-rank tensor.
+
+        The only non-zero values are in the operand slices that should be selected
+        for result_index (1, 3, 0, 1). If the wrong leading slice is used, the
+        calculation cannot produce 32.0.
+        """
+        left = PythonTensor(
+            (2, 1, 2, 3),
+            array("d", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0, 0.0]),
+        )
+        right = PythonTensor(
+            (1, 4, 3, 2),
+            array(
+                "d",
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    4.0,
+                    0.0,
+                    5.0,
+                    0.0,
+                    6.0,
+                ],
+            ),
+        )
+        result = get_matmul_value(left, right, (1, 3, 0, 1))
+        self.assertEqual(result, 32.0)
+
+    def test_returns_zero_when_contracted_dimension_is_empty(self):
+        cases = (
+            ((0,), (0,), ()),
+            ((0,), (0, 4), (3,)),
+            ((2, 0), (0,), (1,)),
+            ((2, 0), (0, 4), (1, 3)),
+            ((5, 2, 0), (5, 0, 4), (4, 1, 3)),
+        )
+        for left_shape, right_shape, result_index in cases:
+            with self.subTest(left_shape=left_shape, right_shape=right_shape):
+                left = PythonTensor(left_shape, array("d"))
+                right = PythonTensor(right_shape, array("d"))
+                result = get_matmul_value(left, right, result_index)
+                self.assertEqual(result, 0.0)
+
+
+class TestMatmulToScalar(unittest.TestCase):
+
+    def test_returns_scalar_for_two_1D_tensors(self):
+        left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
+        result = matmul_to_scalar(left, right)
+        self.assertEqual(result, 32.0)
+
+    def test_returns_float_result_when_calculation_uses_non_integer_values(self):
+        left = PythonTensor((2,), array("d", [1.5, 2.5]))
+        right = PythonTensor((2,), array("d", [3.0, 4.0]))
+        result = matmul_to_scalar(left, right)
+        self.assertEqual(result, 14.5)
+
+    def test_returns_float_when_result_is_whole_number(self):
+        left = PythonTensor((2,), array("d", [1.0, 3.0]))
+        right = PythonTensor((2,), array("d", [2.0, 4.0]))
+        result = matmul_to_scalar(left, right)
+        self.assertIs(type(result), float)
+
+    def test_uses_left_tensor_layout_when_left_operand_is_view(self):
+        parent = PythonTensor((5,), array("d", [1.0, 0.0, 2.0, 0.0, 3.0]))
+        left = parent.view((3,), strides=(2,))
+        right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
+        result = matmul_to_scalar(left, right)
+        self.assertEqual(result, 32.0)
+
+    def test_returns_zero_when_contracted_dimension_is_empty(self):
+        left = PythonTensor((0,), array("d"))
+        right = PythonTensor((0,), array("d"))
+        result = matmul_to_scalar(left, right)
+        self.assertEqual(result, 0.0)
+
+
+class TestMatmulToTensor(unittest.TestCase):
+
+    def test_returns_tensor_with_requested_shape(self):
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = matmul_to_tensor(left, right, (2, 2))
+        self.assertIsInstance(result, PythonTensor)
+        self.assertEqual(result.shape, (2, 2))
+
+    def test_populates_values_for_2D_result(self):
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = matmul_to_tensor(left, right, (2, 2))
+        self.assertEqual(result.data.tolist(), [58.0, 64.0, 139.0, 154.0])
+
+    def test_populates_values_for_higher_rank_result_with_matching_leading_axes(self):
+        left = PythonTensor(
+            (2, 2, 3),
+            array(
+                "d",
+                [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 2.0, 0.0, 1.0, 1.0, 3.0, 2.0],
+            ),
+        )
+        right = PythonTensor(
+            (2, 3, 2),
+            array(
+                "d",
+                [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            ),
+        )
+        result = matmul_to_tensor(left, right, (2, 2, 2))
+        self.assertEqual(
+            result.data.tolist(), [58.0, 64.0, 139.0, 154.0, 7.0, 10.0, 20.0, 26.0]
+        )
+
+    def test_populates_values_for_higher_rank_result_with_broadcast_leading_axes(self):
+        left = PythonTensor(
+            (2, 1, 2, 2),
+            array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+        )
+        right = PythonTensor(
+            (1, 3, 2, 2),
+            array(
+                "d",
+                [1.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 3.0, 1.0, 1.0, 1.0, 1.0],
+            ),
+        )
+        result = matmul_to_tensor(left, right, (2, 3, 2, 2))
+        self.assertEqual(
+            result.data.tolist(),
+            [
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                2.0,
+                6.0,
+                6.0,
+                12.0,
+                3.0,
+                3.0,
+                7.0,
+                7.0,
+                5.0,
+                6.0,
+                7.0,
+                8.0,
+                10.0,
+                18.0,
+                14.0,
+                24.0,
+                11.0,
+                11.0,
+                15.0,
+                15.0,
+            ],
+        )
+
+    def test_returns_empty_tensor_when_result_shape_has_zero_length_dimension(self):
+        left = PythonTensor((2, 0), array("d"))
+        right = PythonTensor((0, 4), array("d"))
+        result = matmul_to_tensor(left, right, (2, 0))
+        self.assertEqual(result.shape, (2, 0))
+        self.assertEqual(result.data.tolist(), [])
+
+    def test_uses_tensor_layout_when_left_operand_is_view(self):
+        parent = PythonTensor((3, 2), array("d", [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]))
+        left = parent.view((2, 3), strides=(1, 2))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = matmul_to_tensor(left, right, (2, 2))
+        self.assertEqual(result.data.tolist(), [58.0, 64.0, 139.0, 154.0])
+
+
+class TestMatmulTensors(unittest.TestCase):
+
+    def test_returns_scalar_when_result_shape_is_empty_tuple(self):
+        left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
+        result = matmul_tensors(left, right, ())
+        self.assertEqual(result, 32.0)
+
+    def test_returns_tensor_when_result_shape_is_not_empty_tuple(self):
+        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
+        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
+        result = matmul_tensors(left, right, (2, 2))
+        self.assertIsInstance(result, PythonTensor)
+        self.assertEqual(result.data.tolist(), [58.0, 64.0, 139.0, 154.0])
 
 
 class TestDivideReductionResult(unittest.TestCase):

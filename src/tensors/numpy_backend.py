@@ -161,7 +161,7 @@ class NumpyBackend:
         validate_scalar_is_not_bool(b)
         return np.divide(a, b)
 
-    def matmul(self, a: NumpyTensor, b: NumpyTensor) -> NumpyTensor:
+    def matmul(self, a: NumpyTensor, b: NumpyTensor) -> NumpyTensor | float:
         self._validate_tensor_not_rank_0(a)
         self._validate_tensor_not_rank_0(b)
         return np.matmul(a, b)

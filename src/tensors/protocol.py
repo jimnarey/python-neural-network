@@ -187,7 +187,7 @@ class TensorBackend[T](Protocol):
                                          [4, 5]]
         """
 
-    def matmul(self, a: T, b: T) -> T:
+    def matmul(self, a: T, b: T) -> T | float:
         # These docstrings were added early to ensure each of the tensor
         # operations were completely understood. This was the hardest
         # operation to understand by far. Specifically, the need to match

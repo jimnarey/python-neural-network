@@ -35,6 +35,11 @@ from tests.tensors.contract.elementwise import (
     BackendContractElementwiseSemanticsMixin,
 )
 
+from tests.tensors.contract.matmul import (
+    BackendContractMatmulBroadcastingMixin,
+    BackendContractMatmulSemanticsMixin,
+)
+
 from tests.tensors.contract.randn import BackendContractRandnMixin
 
 from tests.tensors.contract.reduction import (
@@ -67,6 +72,11 @@ from tests.tensors.reference.elementwise import (
     BackendReferenceElementwiseArithmeticMixin,
     BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
+)
+
+from tests.tensors.reference.matmul import (
+    BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceMatmulFloatValueMixin,
 )
 
 from tests.tensors.reference.randn import BackendReferenceRandnMixin
@@ -136,6 +146,8 @@ class TestPythonBackendContract(
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
     BackendContractElementwiseLengthOneAxisBroadcastingMixin,
     BackendContractElementwiseSemanticsMixin,
+    BackendContractMatmulBroadcastingMixin,
+    BackendContractMatmulSemanticsMixin,
     BackendContractReductionBehaviourMixin,
     BackendContractReductionEmptyInputMixin,
     BackendContractReductionInvalidAxisMixin,
@@ -159,6 +171,8 @@ class TestPythonBackendReference(
     BackendReferenceElementwiseArithmeticMixin,
     BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
+    BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceMatmulFloatValueMixin,
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceReductionFloatValueMixin,
 ):

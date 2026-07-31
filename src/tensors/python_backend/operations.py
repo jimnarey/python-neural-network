@@ -4,6 +4,7 @@ from typing import Callable, Iterable
 
 from src.tensors.python_backend.python_tensor import PythonTensor
 from src.tensors.shared.broadcasting import get_target_shape, get_target_strides
+from src.tensors.shared.matmul import get_matmul_result_index_parts
 from src.tensors.shared.reductions import (
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
@@ -143,6 +144,79 @@ def map_binary(
             ),
         ),
     )
+
+
+def get_matmul_value(
+    a: PythonTensor,
+    b: PythonTensor,
+    result_index: tuple[int, ...],
+) -> float:
+    """
+    Return the single value produced at result_index in a matmul result.
+
+    The result index is split into the operand positions needed for that
+    output value. The function then walks along the shared inner dimension,
+    multiplies each left-hand value by the corresponding right-hand value,
+    and returns the sum of those products.
+    """
+    a_leading_index, b_leading_index, row_index, column_index = (
+        get_matmul_result_index_parts(result_index, a.shape, b.shape)
+    )
+    total = 0.0
+    for inner_index in range(a.shape[-1]):
+        total += a.get_scalar(
+            _get_matmul_left_index(a_leading_index, row_index, inner_index, a.shape)
+        ) * b.get_scalar(
+            _get_matmul_right_index(b_leading_index, column_index, inner_index, b.shape)
+        )
+    return total
+
+
+def matmul_to_scalar(a: PythonTensor, b: PythonTensor) -> float:
+    return get_matmul_value(a, b, ())
+
+
+def matmul_to_tensor(
+    a: PythonTensor, b: PythonTensor, result_shape: tuple[int, ...]
+) -> PythonTensor:
+    result = PythonTensor(result_shape)
+    for result_index in result.indices():
+        result.set_scalar(result_index, get_matmul_value(a, b, result_index))
+    return result
+
+
+def matmul_tensors(
+    a: PythonTensor, b: PythonTensor, result_shape: tuple[int, ...]
+) -> PythonTensor | float:
+    if result_shape == ():
+        return matmul_to_scalar(a, b)
+    return matmul_to_tensor(a, b, result_shape)
+
+
+def _get_matmul_left_index(
+    leading_index: tuple[int, ...],
+    row_index: int | None,
+    inner_index: int,
+    shape: tuple[int, ...],
+) -> tuple[int, ...]:
+    if len(shape) == 1:
+        return (inner_index,)
+    if row_index is None:
+        raise ValueError("row index is required for rank-2-or-higher left operand")
+    return leading_index + (row_index, inner_index)
+
+
+def _get_matmul_right_index(
+    leading_index: tuple[int, ...],
+    column_index: int | None,
+    inner_index: int,
+    shape: tuple[int, ...],
+) -> tuple[int, ...]:
+    if len(shape) == 1:
+        return (inner_index,)
+    if column_index is None:
+        raise ValueError("column index is required for rank-2-or-higher right operand")
+    return leading_index + (inner_index, column_index)
 
 
 def reduce_to_scalar(

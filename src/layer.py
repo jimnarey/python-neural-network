@@ -1,6 +1,7 @@
 from src import activations
 from src.activations import Activation
 from src.tensors import TensorBackend
+from typing import cast
 
 
 class DenseLayer[T]:
@@ -43,11 +44,8 @@ class DenseLayer[T]:
                 f"got {input_shape[-1]}."
             )
 
-        pre_act = self.backend.add(
-            # Multiply the input tensor by the layer weights.
-            self.backend.matmul(inputs, self.weights),
-            self.biases,
-        )
+        matmul_result = cast(T, self.backend.matmul(inputs, self.weights))
+        pre_act = self.backend.add(matmul_result, self.biases)
         # We check we're not getting a dead network by monitoring the output
         # for too many zeros. We can mitigate this by setting the biases to non-zero
         self.output = self.activation.forward(self.backend, pre_act)

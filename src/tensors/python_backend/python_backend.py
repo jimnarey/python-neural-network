@@ -14,6 +14,7 @@ from src.tensors.python_backend.operations import (
     get_concatenate_shape,
     get_stack_shape,
     map_binary,
+    matmul_tensors,
     map_unary,
     reduce,
     stack_tensors,
@@ -23,6 +24,7 @@ from src.tensors.python_backend.validation import (
     validate_stack_shapes,
 )
 from src.tensors.shared.axes import normalise_axis, normalise_axes
+from src.tensors.shared.matmul import get_matmul_result_shape
 from src.tensors.shared.reductions import get_reduction_axes_and_target_shape
 from src.tensors.shared.scalar_ops import (
     divide_scalar,
@@ -41,6 +43,8 @@ from src.tensors.shared.validation import (
     validate_shapes_match_except_axis,
     validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
+    validate_matmul_core_dimensions,
+    validate_matmul_operand_ranks,
 )
 from typing import Sequence, Optional
 from array import array
@@ -143,8 +147,11 @@ class PythonBackend:
     def divide(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
         return map_binary(a, b, divide_scalar)
 
-    def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor:
-        raise NotImplementedError
+    def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor | float:
+        validate_matmul_operand_ranks(a.shape, b.shape)
+        validate_matmul_core_dimensions(a.shape, b.shape)
+        shape = get_matmul_result_shape(a.shape, b.shape)
+        return matmul_tensors(a, b, shape)
 
     def maximum(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
         return map_binary(a, b, max)
