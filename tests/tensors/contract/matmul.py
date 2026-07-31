@@ -56,25 +56,15 @@ result, [12, 5], is neuron 1's output across both examples; column 2,
 [8, 12], is neuron 2's output across both examples.
 
 This module does not test all possible higher-dimension matmul behaviour.
-Tesing is limited to a small number of representative cases.
+Testing is limited to a small number of representative cases, extending to
+4 dimensions where that is needed to confirm leading axes are handled
+generally rather than as a special case for one particular rank.
 
-The tests stop at 3 dimensions for now.
-
-Work to further generalise the network may require pinning down more
-matmul behaviour using, as always, NumPy as the reference.
+Further generalisation of the network may still require pinning down more
+matmul behaviour beyond what is tested here, using, as always, NumPy as
+the reference.
 
 """
-
-# It is really only the 2D * 1D and 2D * 2D tests below which
-# cover functionality used in the NNfSiP book but the rest were
-# added early to ensure backed implementations are general enough
-# that they can be extended reasonably straightforwardly when
-# needed
-
-# TODO - 1D @ 3D. 3D @ 1D in semantics mixin
-# (2, 2, 2, 3) @ (2, 2, 3, 2) -> (2, 2, 2, 2) in semantics mixin
-# (2, 1, 2, 3) @ (1, 2, 3, 2) -> (2, 2, 2, 2) in broadcasting mixin
-# (2, 2, 2, 3) @ (3, 2, 3, 2) should raise in broadcasting mixin
 
 from tests.tensors.contract.shared import BackendContractBase
 from tests.helpers.tensor_helpers import assert_nested_close
@@ -95,10 +85,13 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
     operations, which always combine two values in the same position in
     each operand.
 
-    A vector can be multiplied with a matrix as long as the length of the
-    vector matches the length of the matrix's columns. Multiplying vector
-    x by matrix A (x @ A) produces a new vector: each of its values is
-    computed by pairing x with one column of A.
+    A vector can be multiplied with a matrix as long as the vector's length
+    matches the number of rows in the matrix — the same requirement that
+    applies to a row of the left-hand matrix in matrix-by-matrix
+    multiplication, since a vector is treated as a single row for this
+    calculation. Multiplying vector x by matrix A (x @ A) produces a new
+    vector: each of its values is computed by pairing x with one column of
+    A.
     """
 
     def test_matmul_multiplies_two_square_2D_tensors(self):
@@ -335,6 +328,68 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         self.assertIsInstance(result, (int, float))
         self.assertEqual(result, expected)
 
+    def test_matmul_multiplies_1D_tensor_by_each_matrix_in_a_3D_stack(self):
+        """
+        A 1D tensor can be multiplied by a 3D tensor if the vector length
+        matches the row count of each matrix in the 3D stack.
+
+        The 1D tensor is treated as a single row, then multiplied by each
+        matrix in the stack. The temporary row dimension is removed from the
+        result, so:
+
+        (k,) @ (s, k, n) -> (s, n)
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor([1.0, 2.0, 3.0])
+        b = backend.to_tensor(
+            [
+                [[4.0, 5.0], [6.0, 7.0], [8.0, 9.0]],
+                [[1.0, 0.0], [0.0, 1.0], [2.0, 3.0]],
+            ]
+        )
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [40.0, 46.0],
+            [7.0, 11.0],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 2))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_matmul_multiplies_each_matrix_in_a_3D_stack_by_1D_tensor(self):
+        """
+        A 3D tensor can be multiplied by a 1D tensor if each matrix in the
+        3D stack has the same number of columns as the vector length.
+
+        The 1D tensor is treated as a single column, then each matrix in the
+        stack is multiplied by that column. The temporary column dimension is
+        removed from the result, so:
+
+        (s, m, k) @ (k,) -> (s, m)
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor(
+            [
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+            ]
+        )
+        b = backend.to_tensor([2.0, 1.0, 3.0])
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [13.0, 31.0],
+            [49.0, 67.0],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 2))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_matmul_multiplies_paired_matrices_when_both_operands_are_3D_tensors(
         self,
     ):
@@ -408,6 +463,52 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
             [[22.0, 25.0], [31.0, 34.0]],
         ]
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_matmul_multiplies_paired_matrices_when_both_operands_are_4D_tensors(
+        self,
+    ):
+        backend = self.make_backend()
+
+        a = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                ],
+                [
+                    [[2.0, 0.0, 1.0], [3.0, 1.0, 2.0]],
+                    [[4.0, 2.0, 0.0], [1.0, 3.0, 5.0]],
+                ],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
+                ],
+                [
+                    [[1.0, 1.0], [0.0, 2.0], [3.0, 0.0]],
+                    [[2.0, 1.0], [1.0, 0.0], [0.0, 3.0]],
+                ],
+            ]
+        )
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [
+                [[22.0, 28.0], [49.0, 64.0]],
+                [[22.0, 25.0], [31.0, 34.0]],
+            ],
+            [
+                [[5.0, 2.0], [9.0, 5.0]],
+                [[10.0, 4.0], [5.0, 16.0]],
+            ],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_a_2D_matrix_by_each_matrix_in_a_3D_stack(
@@ -734,6 +835,82 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         with self.assertRaises(ValueError):
             backend.matmul(a, b)
 
+    def test_matmul_returns_zero_valued_result_when_contracted_dimension_is_empty(
+        self,
+    ):
+        """
+        This tests that matmul handles an empty contracted dimension
+        correctly rather than raising or leaving values uninitialised.
+
+        The left-hand tensor has shape (2, 0) and the right-hand tensor has
+        shape (0, 3), so the number of columns in the left-hand tensor
+        matches the number of rows in the right-hand tensor: both are 0.
+        Because there are no values to pair up along that dimension, each
+        result value is the sum of zero products, which is 0.0.
+
+        The result therefore has shape (2, 3), with every value equal to
+        0.0.
+        """
+        backend = self.make_backend()
+
+        a = backend.zeros((2, 0))
+        b = backend.zeros((0, 3))
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 3))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_matmul_returns_empty_result_when_an_output_dimension_is_empty(self):
+        """
+        This tests that an empty operand dimension which is not the
+        contracted dimension carries through to the result shape, even
+        though the contracted dimension itself is not empty.
+
+        In the first case the left-hand tensor has shape (0, 3), so it
+        contributes zero rows to the result. In the second case the
+        right-hand tensor has shape (3, 0), so it contributes zero columns.
+        Neither case involves an empty contracted dimension, so no
+        arithmetic is needed to see why the result is empty — there is
+        simply nothing on one side to produce a row or column from.
+        """
+        backend = self.make_backend()
+        b_for_empty_rows = backend.to_tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        a_for_empty_columns = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+
+        cases = (
+            ("empty_rows", backend.zeros((0, 3)), b_for_empty_rows, (0, 2)),
+            ("empty_columns", a_for_empty_columns, backend.zeros((3, 0)), (2, 0)),
+        )
+        for case_name, a, b, expected_shape in cases:
+            with self.subTest(case=case_name):
+                tensor = backend.matmul(a, b)
+                self.assertEqual(backend.shape(tensor), expected_shape)
+
+    def test_matmul_returns_empty_stack_when_leading_axis_is_empty(self):
+        """
+        This tests that an empty leading (stack) axis carries through to
+        the result, leaving a stack with no matrices in it.
+
+        Both operands have shape (0, ...), so there are no matrices in
+        either stack to pair up. The trailing matrix dimensions are still
+        compatible (3 columns on the left, 3 rows on the right), so the
+        result is an empty stack of (2, 2) matrices rather than a raised
+        exception.
+        """
+        backend = self.make_backend()
+
+        a = backend.zeros((0, 2, 3))
+        b = backend.zeros((0, 3, 2))
+
+        tensor = backend.matmul(a, b)
+        self.assertEqual(backend.shape(tensor), (0, 2, 2))
+
 
 @EnforceSharedNumericFixtures()
 class BackendContractMatmulBroadcastingMixin(BackendContractBase):
@@ -891,6 +1068,60 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
+    def test_matmul_broadcasts_4D_leading_axes_when_one_axis_has_length_1(
+        self,
+    ):
+        """
+        In this test the left-hand tensor has shape (2, 1, 2, 3), so its
+        leading axes are (2, 1). The right-hand tensor has shape
+        (1, 2, 3, 2), so its leading axes are (1, 2).
+
+        Those leading axes broadcast to (2, 2): the left-hand tensor is
+        reused along the second leading axis, and the right-hand tensor is
+        reused along the first leading axis. The trailing matrix dimensions
+        are compatible:
+
+        (2, 3) @ (3, 2)
+
+        The result therefore has shape (2, 2, 2, 2).
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                ],
+                [
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                ],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
+                ],
+            ]
+        )
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [
+                [[22.0, 28.0], [49.0, 64.0]],
+                [[4.0, 7.0], [13.0, 16.0]],
+            ],
+            [
+                [[76.0, 100.0], [103.0, 136.0]],
+                [[22.0, 25.0], [31.0, 34.0]],
+            ],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 2, 2, 2))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_matmul_raises_when_3D_stack_lengths_differ_and_neither_is_1(self):
         """
         When two 3D stacks have different lengths and neither length is 1,
@@ -925,6 +1156,54 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
                 [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
                 [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
                 [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]],
+            ]
+        )
+
+        with self.assertRaises(ValueError):
+            backend.matmul(a, b)
+
+    def test_matmul_raises_when_4D_leading_axes_cannot_broadcast(self):
+        """
+        In this test the left-hand tensor has shape (2, 2, 2, 3), so its
+        leading axes are (2, 2). The right-hand tensor has shape
+        (3, 2, 3, 2), so its leading axes are (3, 2).
+
+        The trailing matrix dimensions are compatible:
+
+        (2, 3) @ (3, 2)
+
+        So the failure is not caused by the matrix multiplication itself. It
+        is caused by the leading axes: 2 and 3 are different and neither is
+        1, so they cannot broadcast.
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                ],
+                [
+                    [[13.0, 14.0, 15.0], [16.0, 17.0, 18.0]],
+                    [[19.0, 20.0, 21.0], [22.0, 23.0, 24.0]],
+                ],
+            ]
+        )
+        b = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
+                ],
+                [
+                    [[1.0, 1.0], [0.0, 2.0], [3.0, 0.0]],
+                    [[2.0, 1.0], [1.0, 0.0], [0.0, 3.0]],
+                ],
+                [
+                    [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
+                    [[3.0, 1.0], [2.0, 0.0], [1.0, 2.0]],
+                ],
             ]
         )
 

@@ -82,7 +82,10 @@ from tests.tensors.reference.elementwise import (
     BackendReferenceElementwiseFloatValueMixin,
     BackendReferenceElementwiseSpecialValueMixin,
 )
-from tests.tensors.reference.matmul import BackendReferenceMatmulArithmeticMixin
+from tests.tensors.reference.matmul import (
+    BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceMatmulFloatValueMixin,
+)
 from tests.tensors.reference.randn import BackendReferenceRandnMixin
 from tests.tensors.reference.reduction import (
     BackendReferenceReductionArithmeticMixin,
@@ -185,6 +188,7 @@ class TestNumpyBackendReference(
     BackendReferenceLogArithmeticMixin,
     BackendReferenceLogSpecialValueMixin,
     BackendReferenceMatmulArithmeticMixin,
+    BackendReferenceMatmulFloatValueMixin,
     BackendReferenceRandnMixin,
     BackendReferenceReductionArithmeticMixin,
     BackendReferenceReductionFloatValueMixin,
