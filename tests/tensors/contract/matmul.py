@@ -1122,6 +1122,62 @@ class BackendContractMatmulBroadcastingMixin(BackendContractBase):
         self.assertEqual(backend.shape(tensor), (2, 2, 2, 2))
         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
+    def test_matmul_broadcasts_a_2D_matrix_across_a_4D_stack_of_stacks(self):
+        """
+        The previous test broadcasts leading axes that both operands
+        already have, just with different lengths. This test broadcasts
+        leading axes that only one operand has at all.
+
+        The left-hand tensor has shape (2, 3), so it has no leading axes —
+        it is a single matrix. The right-hand tensor has shape
+        (2, 2, 3, 2), so its leading axes are (2, 2): a 2x2 grid of
+        matrices, each with shape (3, 2).
+
+        Because the left-hand tensor has no leading axes at all, it is
+        treated as though both of the right-hand tensor's leading axes had
+        been added to it as axes of length 1, then broadcast to length 2
+        each. The same single matrix is therefore reused for every
+        position in the 2x2 grid, not just for every position along a
+        single axis as in the previous test.
+
+        The trailing matrix dimensions are compatible:
+
+        (2, 3) @ (3, 2)
+
+        The result therefore has shape (2, 2, 2, 2).
+        """
+        backend = self.make_backend()
+
+        a = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        b = backend.to_tensor(
+            [
+                [
+                    [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+                    [[2.0, 0.0], [1.0, 2.0], [0.0, 1.0]],
+                ],
+                [
+                    [[1.0, 1.0], [0.0, 2.0], [3.0, 0.0]],
+                    [[2.0, 1.0], [1.0, 0.0], [0.0, 3.0]],
+                ],
+            ]
+        )
+
+        tensor = backend.matmul(a, b)
+        result = backend.to_python(tensor)
+
+        expected = [
+            [
+                [[22.0, 28.0], [49.0, 64.0]],
+                [[4.0, 7.0], [13.0, 16.0]],
+            ],
+            [
+                [[10.0, 5.0], [22.0, 14.0]],
+                [[4.0, 10.0], [13.0, 22.0]],
+            ],
+        ]
+        self.assertEqual(backend.shape(tensor), (2, 2, 2, 2))
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_matmul_raises_when_3D_stack_lengths_differ_and_neither_is_1(self):
         """
         When two 3D stacks have different lengths and neither length is 1,
