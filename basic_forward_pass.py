@@ -4,11 +4,11 @@
 # sample. Because the samples were randomly generated these
 # output probabilities are close to 1/3 each
 
-from src import layer, activations
+from fnn import layer, activations
 
 try:
-    from src.sample_data import spiral
-    from src.tensors import NumpyBackend
+    from fnn.sample_data import spiral
+    from fnn.tensors import NumpyBackend
 except (ModuleNotFoundError, RuntimeError) as exc:
     if isinstance(exc, ModuleNotFoundError) and exc.name != "numpy":
         raise

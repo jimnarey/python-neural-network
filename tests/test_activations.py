@@ -1,7 +1,7 @@
 import importlib.util
 from unittest import TestCase, skipUnless
 
-from src import activations
+from fnn import activations
 
 NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 
@@ -15,7 +15,7 @@ class TestSoftmax(TestCase):
     def setUp(self):
         self.neuron_outputs_simple = [4.8, 1.21, 2.385]
         self.expected_values_simple = [0.89528266, 0.02470831, 0.08000903]
-        from src.tensors import NumpyBackend
+        from fnn.tensors import NumpyBackend
 
         self.backend = NumpyBackend()
 

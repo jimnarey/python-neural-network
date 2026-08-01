@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from src.tensors.shared.scalar_ops import (
+from fnn.tensors.shared.scalar_ops import (
     divide_scalar,
     log_scalar,
     sign_scalar,

@@ -21,7 +21,7 @@ rely on static, nominal typing to do this for us.
 
 from typing import Protocol, Sequence, runtime_checkable
 
-from src.tensors.shared.types import Scalar
+from fnn.tensors.shared.types import Scalar
 
 
 @runtime_checkable

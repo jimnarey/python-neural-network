@@ -2,7 +2,7 @@ import operator
 import unittest
 from array import array
 
-from src.tensors.python_backend.operations import (
+from fnn.tensors.python_backend.operations import (
     argmax_to_scalar,
     argmax_to_tensor,
     concatenate_tensors,
@@ -21,7 +21,7 @@ from src.tensors.python_backend.operations import (
     reduce_to_tensor,
     stack_tensors,
 )
-from src.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.python_backend.python_tensor import PythonTensor
 
 
 class TestFirstMaxIndex(unittest.TestCase):

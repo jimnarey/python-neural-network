@@ -7,7 +7,7 @@ using it
 
 from typing import Protocol, runtime_checkable
 
-from src.tensors import TensorBackend
+from fnn.tensors import TensorBackend
 
 
 @runtime_checkable

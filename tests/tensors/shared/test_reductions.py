@@ -1,6 +1,6 @@
 import unittest
 
-from src.tensors.shared.reductions import (
+from fnn.tensors.shared.reductions import (
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
     get_reduction_target_shape,

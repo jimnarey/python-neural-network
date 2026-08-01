@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from src.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.python_backend.python_tensor import PythonTensor
 
 
 def require_non_empty_tensor_sequence(

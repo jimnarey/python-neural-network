@@ -9,8 +9,8 @@ for this implementation.
 import numpy as np
 from typing import Sequence
 
-from src.tensors.shared.types import Scalar
-from src.tensors.shared.validation import (
+from fnn.tensors.shared.types import Scalar
+from fnn.tensors.shared.validation import (
     parse_tensor_data,
     validate_tensor_has_values,
     validate_scalar_is_not_bool,

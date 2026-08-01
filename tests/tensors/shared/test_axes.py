@@ -1,5 +1,5 @@
 import unittest
-from src.tensors.shared.axes import (
+from fnn.tensors.shared.axes import (
     normalise_axis,
     normalise_axes,
 )

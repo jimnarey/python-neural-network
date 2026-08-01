@@ -16,7 +16,7 @@ the backend is constructed).
 import importlib.util
 import unittest
 
-from src.tensors.protocol import TensorBackend
+from fnn.tensors.protocol import TensorBackend
 from tests.tensors.contract.argmax import (
     BackendContractArgMaxAxisArgumentMixin,
     BackendContractArgMaxKeepdimsMixin,
@@ -114,8 +114,8 @@ class TestNumpyBackendProtocolConformance(unittest.TestCase):
     # It is essential to set the return type here if we want mypy to type check
     # the instantiation of NumpyBackend
     def test_numpy_backend_implements_tensor_backend_protocol(self) -> None:
-        from src.tensors import NumpyBackend
-        from src.tensors.numpy_backend import NumpyTensor
+        from fnn.tensors import NumpyBackend
+        from fnn.tensors.numpy_backend import NumpyTensor
 
         # mypy check
         backend: TensorBackend[NumpyTensor] = NumpyBackend()
@@ -127,7 +127,7 @@ class TestNumpyBackendProtocolConformance(unittest.TestCase):
 class NumpyBackendTestCase(unittest.TestCase):
 
     def make_backend(self, seed: int | None = None) -> TensorBackend:
-        from src.tensors import NumpyBackend
+        from fnn.tensors import NumpyBackend
 
         return NumpyBackend(seed=seed)
 

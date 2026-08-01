@@ -2,15 +2,15 @@ import math
 from array import array
 from typing import Callable, Iterable
 
-from src.tensors.python_backend.python_tensor import PythonTensor
-from src.tensors.shared.broadcasting import get_target_shape, get_target_strides
-from src.tensors.shared.matmul import get_matmul_result_index_parts
-from src.tensors.shared.reductions import (
+from fnn.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.shared.broadcasting import get_target_shape, get_target_strides
+from fnn.tensors.shared.matmul import get_matmul_result_index_parts
+from fnn.tensors.shared.reductions import (
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
 )
-from src.tensors.shared.types import Scalar
-from src.tensors.shared.validation import validate_scalar_is_not_bool
+from fnn.tensors.shared.types import Scalar
+from fnn.tensors.shared.validation import validate_scalar_is_not_bool
 
 
 def first_max_index(values: Iterable[Scalar]) -> int:

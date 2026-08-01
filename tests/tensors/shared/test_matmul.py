@@ -1,6 +1,6 @@
 import unittest
 
-from src.tensors.shared.matmul import (
+from fnn.tensors.shared.matmul import (
     get_matmul_leading_shape,
     get_matmul_result_index_parts,
     get_matmul_result_shape,

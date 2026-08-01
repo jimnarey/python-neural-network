@@ -1,6 +1,6 @@
 import unittest
 
-from src.tensors.shared.broadcasting import (
+from fnn.tensors.shared.broadcasting import (
     get_target_dimension,
     get_target_shape,
     get_target_stride,

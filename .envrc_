@@ -1,0 +1,3 @@
+# Copy this file to .envrc for use with direnv,
+# otherwise source it
+export UV_PYTHON=3.13t

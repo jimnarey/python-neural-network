@@ -1,6 +1,6 @@
-from src import activations
-from src.activations import Activation
-from src.tensors import TensorBackend
+from fnn import activations
+from fnn.activations import Activation
+from fnn.tensors import TensorBackend
 from typing import cast
 
 

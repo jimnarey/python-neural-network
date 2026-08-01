@@ -1,5 +1,5 @@
-from src.tensors.shared.axes import normalise_axes
-from src.tensors.shared.validation import validate_axes_are_unique
+from fnn.tensors.shared.axes import normalise_axes
+from fnn.tensors.shared.validation import validate_axes_are_unique
 
 
 def normalise_axis_argument(

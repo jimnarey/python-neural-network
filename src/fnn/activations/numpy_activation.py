@@ -4,8 +4,8 @@ Numpy was chosen as the reference for the same reason it is used
 as such for the tensor backends.
 """
 
-from src.activations.activation import Activation
-from src.tensors import TensorBackend
+from fnn.activations.activation import Activation
+from fnn.tensors import TensorBackend
 
 
 class ReLU[T](Activation[T]):

@@ -1,4 +1,4 @@
-from src.tensors.shared.broadcasting import get_target_shape
+from fnn.tensors.shared.broadcasting import get_target_shape
 
 
 def get_matmul_result_inner_shape(

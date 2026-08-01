@@ -2,8 +2,8 @@ import unittest
 import math
 from array import array
 
-from src.tensors.python_backend.python_tensor import PythonTensor
-from src.tensors.python_backend.validation import (
+from fnn.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.python_backend.validation import (
     require_non_empty_tensor_sequence,
     validate_stack_shapes,
 )

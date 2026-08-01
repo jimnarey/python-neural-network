@@ -48,7 +48,7 @@ properly in VSCode (and presumably other IDEs).
 
 from typing import TYPE_CHECKING
 
-from src.tensors.protocol import TensorBackend
+from fnn.tensors.protocol import TensorBackend
 
 if TYPE_CHECKING:
     import unittest

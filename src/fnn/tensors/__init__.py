@@ -9,7 +9,7 @@ being executed actually imports the NumpyBackend.
 
 from typing import TYPE_CHECKING
 
-from src.tensors.protocol import TensorBackend
+from fnn.tensors.protocol import TensorBackend
 
 # This is needed to deal with a subtle problem whereby importing
 # NumpyBackend using the __getattr__ approach below prevented mypy
@@ -18,7 +18,7 @@ from src.tensors.protocol import TensorBackend
 # rather than as a package attribute. However, the if TYPE_CHECKING
 # block handles this globally
 if TYPE_CHECKING:
-    from src.tensors.numpy_backend import NumpyBackend
+    from fnn.tensors.numpy_backend import NumpyBackend
 
 __all__ = ["TensorBackend", "NumpyBackend"]
 
@@ -26,7 +26,7 @@ __all__ = ["TensorBackend", "NumpyBackend"]
 def __getattr__(name: str):
     if name == "NumpyBackend":
         try:
-            from src.tensors.numpy_backend import NumpyBackend
+            from fnn.tensors.numpy_backend import NumpyBackend
         except ImportError as exc:
             raise RuntimeError("NumpyBackend requires numpy to be installed.") from exc
         return NumpyBackend

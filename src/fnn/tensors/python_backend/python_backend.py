@@ -5,8 +5,8 @@ It's purpose is to ensure the underlying tensor calculations are genuinely
 understood. It also serves as a basis for more performant custom backends.
 """
 
-from src.tensors.python_backend.python_tensor import PythonTensor
-from src.tensors.python_backend.operations import (
+from fnn.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.python_backend.operations import (
     argmax_to_scalar,
     argmax_to_tensor,
     concatenate_tensors,
@@ -19,21 +19,21 @@ from src.tensors.python_backend.operations import (
     reduce,
     stack_tensors,
 )
-from src.tensors.python_backend.validation import (
+from fnn.tensors.python_backend.validation import (
     require_non_empty_tensor_sequence,
     validate_stack_shapes,
 )
-from src.tensors.shared.axes import normalise_axis, normalise_axes
-from src.tensors.shared.matmul import get_matmul_result_shape
-from src.tensors.shared.reductions import get_reduction_axes_and_target_shape
-from src.tensors.shared.scalar_ops import (
+from fnn.tensors.shared.axes import normalise_axis, normalise_axes
+from fnn.tensors.shared.matmul import get_matmul_result_shape
+from fnn.tensors.shared.reductions import get_reduction_axes_and_target_shape
+from fnn.tensors.shared.scalar_ops import (
     divide_scalar,
     log_scalar,
     sign_scalar,
     sqrt_scalar,
 )
-from src.tensors.shared.types import Scalar
-from src.tensors.shared.validation import (
+from fnn.tensors.shared.types import Scalar
+from fnn.tensors.shared.validation import (
     parse_tensor_data,
     validate_tensor_has_values,
     validate_reduction_has_values,

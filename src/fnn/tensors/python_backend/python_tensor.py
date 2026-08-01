@@ -4,7 +4,7 @@ from typing import Iterator, Optional
 from array import array
 from itertools import product
 
-from src.tensors.shared.types import Scalar
+from fnn.tensors.shared.types import Scalar
 
 
 class PythonTensor:

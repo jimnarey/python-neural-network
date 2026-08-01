@@ -2,9 +2,9 @@ import unittest
 from array import array
 
 from tests.helpers.tensor_helpers import all_values_are_floats
-from src.tensors.protocol import TensorBackend
-from src.tensors.python_backend.python_backend import PythonBackend
-from src.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.protocol import TensorBackend
+from fnn.tensors.python_backend.python_backend import PythonBackend
+from fnn.tensors.python_backend.python_tensor import PythonTensor
 
 from tests.tensors.contract.argmax import (
     BackendContractArgMaxAxisArgumentMixin,

@@ -1,6 +1,6 @@
 import unittest
 from array import array
-from src.tensors.python_backend.python_tensor import PythonTensor
+from fnn.tensors.python_backend.python_tensor import PythonTensor
 
 
 class TestValidatedShape(unittest.TestCase):

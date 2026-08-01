@@ -1,5 +1,5 @@
 import unittest
-from src.tensors.shared.validation import (
+from fnn.tensors.shared.validation import (
     validate_tensor_has_values,
     validate_shapes_match_except_axis,
     validate_shape_not_rank_0,
