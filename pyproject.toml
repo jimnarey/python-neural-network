@@ -26,5 +26,6 @@ module-name = "fnn"
 [dependency-groups]
 dev = [
     "ipdb (>=0.13.13,<0.14.0)",
-    "ipython (>=9.11.0,<10.0.0)"
+    "ipython (>=9.11.0,<10.0.0)",
+    "pyperf>=2.10.0",
 ]
