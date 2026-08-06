@@ -9,9 +9,7 @@ from fnn.tensors.python_backend.operations import (
     copy_sequence_values,
     divide_reduction_result,
     first_max_index,
-    get_concatenate_shape,
     get_matmul_value,
-    get_stack_shape,
     map_binary,
     map_unary,
     matmul_tensors,
@@ -19,6 +17,7 @@ from fnn.tensors.python_backend.operations import (
     matmul_to_tensor,
     reduce_to_scalar,
     reduce_to_tensor,
+    require_non_empty_tensor_sequence,
     stack_tensors,
 )
 from fnn.tensors.python_backend.python_tensor import PythonTensor
@@ -201,93 +200,23 @@ class TestArgmaxToTensor(unittest.TestCase):
         self.assertEqual(result.data.tolist(), [1, 2])
 
 
-class TestGetConcatenateShape(unittest.TestCase):
+class TestRequireNonEmptyTensorSequence(unittest.TestCase):
 
-    def test_returns_1D_shape_with_axis_size_from_all_tensors(self):
-        """
-        The input tensors have shapes (2,), (3,) and (1,). Concatenating
-        them on their only axis gives one 1D result whose length is
-        2 + 3 + 1.
-        """
+    def test_returns_tuple_containing_tensors(self):
         first = PythonTensor((2,), array("d", [1.0, 2.0]))
-        second = PythonTensor((3,), array("d", [3.0, 4.0, 5.0]))
-        third = PythonTensor((1,), array("d", [6.0]))
-        result = get_concatenate_shape((first, second, third), 0)
-        self.assertEqual(result, (6,))
+        second = PythonTensor((2,), array("d", [3.0, 4.0]))
+        result = require_non_empty_tensor_sequence([first, second])
+        self.assertEqual(result, (first, second))
 
-    def test_returns_2D_shape_when_concatenating_axis_0(self):
-        """
-        The input tensors have shapes (2, 3) and (4, 3). Concatenating on
-        axis 0 combines the leading dimension and leaves the second
-        dimension unchanged.
-        """
-        first = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        second = PythonTensor(
-            (4, 3),
-            array(
-                "d",
-                [
-                    7.0,
-                    8.0,
-                    9.0,
-                    10.0,
-                    11.0,
-                    12.0,
-                    13.0,
-                    14.0,
-                    15.0,
-                    16.0,
-                    17.0,
-                    18.0,
-                ],
-            ),
-        )
-        result = get_concatenate_shape((first, second), 0)
-        self.assertEqual(result, (6, 3))
+    def test_accepts_non_list_sequence(self):
+        first = PythonTensor((2,), array("d", [1.0, 2.0]))
+        second = PythonTensor((2,), array("d", [3.0, 4.0]))
+        result = require_non_empty_tensor_sequence((first, second))
+        self.assertEqual(result, (first, second))
 
-    def test_returns_2D_shape_when_concatenating_axis_1(self):
-        """
-        The input tensors have shapes (2, 3) and (2, 4). Concatenating on
-        axis 1 keeps the leading dimension and combines the second
-        dimension.
-        """
-        first = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        second = PythonTensor(
-            (2, 4), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
-        )
-        result = get_concatenate_shape((first, second), 1)
-        self.assertEqual(result, (2, 7))
-
-    def test_returns_3D_shape_when_concatenating_middle_axis(self):
-        """
-        The input tensors have shapes (2, 3, 4) and (2, 5, 4).
-        Concatenating on axis 1 keeps the outer axes and combines the middle
-        axis, giving result shape (2, 8, 4).
-        """
-        first = PythonTensor((2, 3, 4), array("d", (float(i) for i in range(24))))
-        second = PythonTensor((2, 5, 4), array("d", (float(i) for i in range(40))))
-        result = get_concatenate_shape((first, second), 1)
-        self.assertEqual(result, (2, 8, 4))
-
-    def test_accepts_singleton_sequence(self):
-        """
-        A singleton sequence is still a valid concatenation. Because there
-        is only one source tensor, the result shape is the source shape.
-        """
-        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        result = get_concatenate_shape((tensor,), 1)
-        self.assertEqual(result, (2, 3))
-
-    def test_returns_shape_when_axis_lengths_include_zero(self):
-        """
-        Zero-length dimensions are included in the axis-size calculation.
-        Concatenating shapes (2, 0, 3) and (2, 4, 3) on axis 1 gives a
-        result shape whose middle axis has length 0 + 4.
-        """
-        first = PythonTensor((2, 0, 3), array("d"))
-        second = PythonTensor((2, 4, 3), array("d", (float(i) for i in range(24))))
-        result = get_concatenate_shape((first, second), 1)
-        self.assertEqual(result, (2, 4, 3))
+    def test_raises_when_sequence_is_empty(self):
+        with self.assertRaisesRegex(ValueError, "tensor sequence must not be empty"):
+            require_non_empty_tensor_sequence([])
 
 
 class TestCopySequenceValues(unittest.TestCase):
@@ -533,90 +462,6 @@ class TestConcatenateTensors(unittest.TestCase):
                 result = concatenate_tensors((first, second), axis, shape)
                 self.assertEqual(result.shape, shape)
                 self.assertEqual(result.data.tolist(), expected)
-
-
-class TestGetStackShape(unittest.TestCase):
-
-    def test_returns_shape_when_stacking_1D_tensors_on_axis_0(self):
-        """
-        Each input tensor has shape (3,), so each is a 1D tensor with three
-        values. Stacking two of them on axis 0 creates a new leading axis of
-        length 2, giving result shape (2, 3).
-        """
-        first = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
-        second = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
-        result = get_stack_shape((first, second), 0)
-        self.assertEqual(result, (2, 3))
-
-    def test_returns_shape_when_stacking_1D_tensors_on_axis_1(self):
-        """
-        Each input tensor has shape (3,). Stacking two of them on axis 1
-        keeps the original length-3 axis first and adds a new second axis of
-        length 2, giving result shape (3, 2).
-        """
-        first = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
-        second = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
-        result = get_stack_shape((first, second), 1)
-        self.assertEqual(result, (3, 2))
-
-    def test_returns_shape_when_stacking_2D_tensors_on_axis_0(self):
-        """
-        Each input tensor has shape (2, 3). Stacking two of them on axis 0
-        creates a new leading axis of length 2, followed by the original
-        axes, giving result shape (2, 2, 3).
-        """
-        first = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        second = PythonTensor((2, 3), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
-        result = get_stack_shape((first, second), 0)
-        self.assertEqual(result, (2, 2, 3))
-
-    def test_returns_shape_when_stacking_2D_tensors_on_axis_1(self):
-        """
-        Each input tensor has shape (2, 3). Stacking two of them on axis 1
-        keeps the original leading length-2 axis first, inserts a new axis
-        of length 2, and leaves the original length-3 axis last.
-        """
-        first = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        second = PythonTensor((2, 3), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
-        result = get_stack_shape((first, second), 1)
-        self.assertEqual(result, (2, 2, 3))
-
-    def test_returns_shape_when_stacking_2D_tensors_on_axis_2(self):
-        """
-        Each input tensor has shape (2, 3). Stacking two of them on axis 2
-        keeps both original axes first and adds a new trailing axis of
-        length 2, giving result shape (2, 3, 2).
-        """
-        first = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        second = PythonTensor((2, 3), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
-        result = get_stack_shape((first, second), 2)
-        self.assertEqual(result, (2, 3, 2))
-
-    def test_accepts_singleton_sequence(self):
-        """
-        A singleton sequence still creates a stack axis. Because there is
-        only one source tensor, the new axis has length 1.
-        """
-        tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        result = get_stack_shape((tensor,), 0)
-        self.assertEqual(result, (1, 2, 3))
-
-    def test_returns_shape_when_source_shape_has_zero_length_dimension(self):
-        """
-        A zero-length source dimension is preserved. Stacking still inserts
-        a new axis whose length is the number of source tensors.
-        """
-        cases = (
-            ((0,), 0, (2, 0)),
-            ((2, 0), 1, (2, 2, 0)),
-            ((2, 0, 3), 3, (2, 0, 3, 2)),
-        )
-        for source_shape, axis, expected in cases:
-            with self.subTest(source_shape=source_shape, axis=axis):
-                first = PythonTensor(source_shape, array("d"))
-                second = PythonTensor(source_shape, array("d"))
-                result = get_stack_shape((first, second), axis)
-                self.assertEqual(result, expected)
 
 
 class TestStackTensors(unittest.TestCase):

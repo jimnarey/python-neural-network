@@ -1,10 +1,14 @@
 import math
 from array import array
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Sequence
 
 from fnn.tensors.python_backend.python_tensor import PythonTensor
 from fnn.tensors.shared.broadcasting import get_target_shape, get_target_strides
-from fnn.tensors.shared.matmul import get_matmul_result_index_parts
+from fnn.tensors.shared.matmul import (
+    get_matmul_left_index,
+    get_matmul_result_index_parts,
+    get_matmul_right_index,
+)
 from fnn.tensors.shared.reductions import (
     get_reduction_axes_and_target_shape,
     get_reduction_target_index,
@@ -45,14 +49,13 @@ def argmax_to_tensor(
     return result
 
 
-def get_concatenate_shape(
-    xs: tuple[PythonTensor, ...], normalised_axis: int
-) -> tuple[int, ...]:
-    base_shape = xs[0].shape
-    axis_size = sum(x.shape[normalised_axis] for x in xs)
-    return (
-        base_shape[:normalised_axis] + (axis_size,) + base_shape[normalised_axis + 1 :]
-    )
+def require_non_empty_tensor_sequence(
+    xs: Sequence[PythonTensor],
+) -> tuple[PythonTensor, ...]:
+    tensors = tuple(xs)
+    if not tensors:
+        raise ValueError("tensor sequence must not be empty")
+    return tensors
 
 
 # TODO - this is probably slow. In many cases where it is used we can
@@ -87,13 +90,6 @@ def concatenate_tensors(
         + (source_index[normalised_axis] + axis_offsets[tensor_index],)
         + source_index[normalised_axis + 1 :],
     )
-
-
-def get_stack_shape(
-    xs: tuple[PythonTensor, ...], normalised_axis: int
-) -> tuple[int, ...]:
-    base_shape = xs[0].shape
-    return base_shape[:normalised_axis] + (len(xs),) + base_shape[normalised_axis:]
 
 
 def stack_tensors(
@@ -165,9 +161,9 @@ def get_matmul_value(
     total = 0.0
     for inner_index in range(a.shape[-1]):
         total += a.get_scalar(
-            _get_matmul_left_index(a_leading_index, row_index, inner_index, a.shape)
+            get_matmul_left_index(a_leading_index, row_index, inner_index, a.shape)
         ) * b.get_scalar(
-            _get_matmul_right_index(b_leading_index, column_index, inner_index, b.shape)
+            get_matmul_right_index(b_leading_index, column_index, inner_index, b.shape)
         )
     return total
 
@@ -191,32 +187,6 @@ def matmul_tensors(
     if result_shape == ():
         return matmul_to_scalar(a, b)
     return matmul_to_tensor(a, b, result_shape)
-
-
-def _get_matmul_left_index(
-    leading_index: tuple[int, ...],
-    row_index: int | None,
-    inner_index: int,
-    shape: tuple[int, ...],
-) -> tuple[int, ...]:
-    if len(shape) == 1:
-        return (inner_index,)
-    if row_index is None:
-        raise ValueError("row index is required for rank-2-or-higher left operand")
-    return leading_index + (row_index, inner_index)
-
-
-def _get_matmul_right_index(
-    leading_index: tuple[int, ...],
-    column_index: int | None,
-    inner_index: int,
-    shape: tuple[int, ...],
-) -> tuple[int, ...]:
-    if len(shape) == 1:
-        return (inner_index,)
-    if column_index is None:
-        raise ValueError("column index is required for rank-2-or-higher right operand")
-    return leading_index + (inner_index, column_index)
 
 
 def reduce_to_scalar(

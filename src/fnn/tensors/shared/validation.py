@@ -54,6 +54,13 @@ def validate_shapes_match_except_axis(
                 raise ValueError("shapes must match except along the chosen axis")
 
 
+def validate_stack_shapes(shapes: tuple[tuple[int, ...], ...]) -> None:
+    base_shape = shapes[0]
+    for shape in shapes[1:]:
+        if shape != base_shape:
+            raise ValueError("all tensors must have the same shape")
+
+
 def validate_matmul_operand_ranks(
     a_shape: tuple[int, ...], b_shape: tuple[int, ...]
 ) -> None:

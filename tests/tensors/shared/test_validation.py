@@ -9,6 +9,7 @@ from fnn.tensors.shared.validation import (
     validate_axes_are_unique,
     validate_axes_are_permutation,
     validate_tensor_conversion_root_is_sequence,
+    validate_stack_shapes,
     validate_matmul_operand_ranks,
     validate_matmul_core_dimensions,
     parse_tensor_data,
@@ -232,6 +233,51 @@ class TestValidateShapesMatchExceptAxis(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "match except"):
                     validate_shapes_match_except_axis(shapes, axis)
+
+
+class TestValidateStackShapes(unittest.TestCase):
+
+    def test_accepts_shapes_which_are_all_the_same(self):
+        cases = ((2,), (2, 3), (2, 1, 3), (2, 3, 4))
+        for shape in cases:
+            with self.subTest(shape=shape):
+                first_shape = shape
+                second_shape = tuple(dim for dim in shape)
+                self.assertIsNot(first_shape, second_shape)
+                result = validate_stack_shapes((first_shape, second_shape))
+                self.assertIsNone(result)
+
+    def test_accepts_single_shape(self):
+        cases = ((1,), (2, 3), (2, 1, 3), (2, 0))
+        for shape in cases:
+            with self.subTest(shape=shape):
+                result = validate_stack_shapes((shape,))
+                self.assertIsNone(result)
+
+    def test_accepts_matching_shapes_with_zero_length_dimension(self):
+        cases = ((0,), (2, 0), (0, 2), (2, 0, 3), (2, 3, 0))
+        for shape in cases:
+            with self.subTest(shape=shape):
+                first_shape = shape
+                second_shape = tuple(dim for dim in shape)
+                self.assertIsNot(first_shape, second_shape)
+                result = validate_stack_shapes((first_shape, second_shape))
+                self.assertIsNone(result)
+
+    def test_raises_when_shapes_differ(self):
+        cases = (
+            ((2,), (3,)),
+            ((2, 3), (3, 2)),
+            ((2, 3), (2, 3, 1)),
+            ((2, 1, 3), (2, 2, 3)),
+            ((2, 0), (2, 1)),
+        )
+        for first_shape, second_shape in cases:
+            with self.subTest(first_shape=first_shape, second_shape=second_shape):
+                with self.assertRaisesRegex(
+                    ValueError, "all tensors must have the same shape"
+                ):
+                    validate_stack_shapes((first_shape, second_shape))
 
 
 class TestValidateMatmulOperandRanks(unittest.TestCase):

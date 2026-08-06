@@ -2,9 +2,11 @@ import unittest
 
 from fnn.tensors.shared.matmul import (
     get_matmul_leading_shape,
+    get_matmul_left_index,
     get_matmul_result_index_parts,
     get_matmul_result_shape,
     get_matmul_result_inner_shape,
+    get_matmul_right_index,
 )
 
 
@@ -299,3 +301,63 @@ class TestGetMatmulResultIndexParts(unittest.TestCase):
             (1, 4, 3, 2),
         )
         self.assertEqual(result, ((2, 0), (0, 3), 0, 1))
+
+
+class TestGetMatmulLeftIndex(unittest.TestCase):
+
+    def test_returns_only_inner_index_for_1D_operand(self):
+        cases = (
+            ((), None, 0, (0,)),
+            ((9,), 7, 3, (3,)),
+            ((4, 2), 1, 6, (6,)),
+        )
+        for leading_index, row_index, inner_index, expected in cases:
+            with self.subTest(leading_index=leading_index, row_index=row_index):
+                result = get_matmul_left_index(
+                    leading_index, row_index, inner_index, (5,)
+                )
+                self.assertEqual(result, expected)
+
+    def test_returns_row_and_inner_index_for_2D_operand(self):
+        result = get_matmul_left_index((), 1, 2, (3, 4))
+        self.assertEqual(result, (1, 2))
+
+    def test_includes_leading_index_for_higher_rank_operand(self):
+        result = get_matmul_left_index((5, 2), 1, 3, (6, 5, 2, 3, 4))
+        self.assertEqual(result, (5, 2, 1, 3))
+
+    def test_raises_when_row_index_is_none_for_2D_or_higher_operand(self):
+        with self.assertRaisesRegex(
+            ValueError, "row index is required for rank-2-or-higher left operand"
+        ):
+            get_matmul_left_index((), None, 2, (3, 4))
+
+
+class TestGetMatmulRightIndex(unittest.TestCase):
+
+    def test_returns_inner_index_only_for_1D_operand(self):
+        cases = (
+            ((), None, 0, (0,)),
+            ((9,), 7, 3, (3,)),
+            ((4, 2), 1, 6, (6,)),
+        )
+        for leading_index, column_index, inner_index, expected in cases:
+            with self.subTest(leading_index=leading_index, column_index=column_index):
+                result = get_matmul_right_index(
+                    leading_index, column_index, inner_index, (5,)
+                )
+                self.assertEqual(result, expected)
+
+    def test_returns_inner_and_column_index_for_2D_operand(self):
+        result = get_matmul_right_index((), 2, 1, (3, 4))
+        self.assertEqual(result, (1, 2))
+
+    def test_includes_leading_index_for_higher_rank_operand(self):
+        result = get_matmul_right_index((5, 2), 3, 1, (6, 5, 2, 4, 3))
+        self.assertEqual(result, (5, 2, 1, 3))
+
+    def test_raises_when_column_index_is_none_for_2D_or_higher_operand(self):
+        with self.assertRaisesRegex(
+            ValueError, "column index is required for rank-2-or-higher right operand"
+        ):
+            get_matmul_right_index((), None, 2, (3, 4))

@@ -11,21 +11,20 @@ from fnn.tensors.python_backend.operations import (
     argmax_to_tensor,
     concatenate_tensors,
     divide_reduction_result,
-    get_concatenate_shape,
-    get_stack_shape,
     map_binary,
     matmul_tensors,
     map_unary,
     reduce,
+    require_non_empty_tensor_sequence,
     stack_tensors,
 )
-from fnn.tensors.python_backend.validation import (
-    require_non_empty_tensor_sequence,
-    validate_stack_shapes,
-)
 from fnn.tensors.shared.axes import normalise_axis, normalise_axes
+from fnn.tensors.shared.composition import get_concatenate_shape, get_stack_shape
 from fnn.tensors.shared.matmul import get_matmul_result_shape
-from fnn.tensors.shared.reductions import get_reduction_axes_and_target_shape
+from fnn.tensors.shared.reductions import (
+    get_reduction_axes_and_target_shape,
+    get_reduction_target_shape,
+)
 from fnn.tensors.shared.scalar_ops import (
     divide_scalar,
     log_scalar,
@@ -35,12 +34,14 @@ from fnn.tensors.shared.scalar_ops import (
 from fnn.tensors.shared.types import Scalar
 from fnn.tensors.shared.validation import (
     parse_tensor_data,
+    shape_size,
     validate_tensor_has_values,
     validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
     validate_shape_not_rank_0,
     validate_shapes_match_except_axis,
+    validate_stack_shapes,
     validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
     validate_matmul_core_dimensions,
@@ -187,7 +188,9 @@ class PythonBackend:
         if type(axis) is not int:
             raise TypeError("axis must be an int or None")
         normalised_axis = normalise_axes((axis,), x.ndim())[0]
-        target_shape = x.shape[:normalised_axis] + x.shape[normalised_axis + 1 :]
+        target_shape = get_reduction_target_shape(
+            x.shape, (normalised_axis,), keepdims=False
+        )
         if target_shape == ():
             return argmax_to_scalar(x)
         return argmax_to_tensor(x, normalised_axis, target_shape)
@@ -223,7 +226,7 @@ class PythonBackend:
             x, axis, keepdims, 0.0, lambda accumulator, value: accumulator + value
         )
         return divide_reduction_result(
-            total, float(math.prod(x.shape[axis] for axis in reduced_axes))
+            total, float(shape_size(tuple(x.shape[axis] for axis in reduced_axes)))
         )
 
     def min(
@@ -257,18 +260,18 @@ class PythonBackend:
 
     def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
         tensors = require_non_empty_tensor_sequence(xs)
+        shapes = tuple(tensor.shape for tensor in tensors)
         normalised_axis = normalise_axis(axis, tensors[0].ndim() + 1)
-        validate_stack_shapes(tensors)
-        shape = get_stack_shape(tensors, normalised_axis)
+        validate_stack_shapes(shapes)
+        shape = get_stack_shape(shapes, normalised_axis)
         return stack_tensors(tensors, normalised_axis, shape)
 
     def concatenate(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:
         tensors = require_non_empty_tensor_sequence(xs)
+        shapes = tuple(tensor.shape for tensor in tensors)
         normalised_axis = normalise_axis(axis, tensors[0].ndim())
-        validate_shapes_match_except_axis(
-            tuple(tensor.shape for tensor in tensors), normalised_axis
-        )
-        shape = get_concatenate_shape(tensors, normalised_axis)
+        validate_shapes_match_except_axis(shapes, normalised_axis)
+        shape = get_concatenate_shape(shapes, normalised_axis)
         return concatenate_tensors(tensors, normalised_axis, shape)
 
     def eye(self, n: int, m: int | None = None) -> PythonTensor:

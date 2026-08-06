@@ -164,3 +164,49 @@ def _get_source_leading_index(
         0 if dimension == 1 else target_index[offset + axis]
         for axis, dimension in enumerate(source_shape)
     )
+
+
+def get_matmul_left_index(
+    leading_index: tuple[int, ...],
+    row_index: int | None,
+    inner_index: int,
+    shape: tuple[int, ...],
+) -> tuple[int, ...]:
+    """
+    Return the index used to read the left operand for one step of matmul.
+
+    leading_index identifies which matrix is being used when the operands have
+    broadcast leading axes. inner_index is the position being summed across: for
+    a 1D left operand it is the only index needed, so the return value is
+    (inner_index,).
+
+    For a rank-2-or-higher left operand, row_index identifies the row of the
+    current matrix and inner_index identifies the value within that row. The
+    result is therefore leading_index + (row_index, inner_index).
+    """
+    if len(shape) == 1:
+        return (inner_index,)
+    if row_index is None:
+        raise ValueError("row index is required for rank-2-or-higher left operand")
+    return leading_index + (row_index, inner_index)
+
+
+def get_matmul_right_index(
+    leading_index: tuple[int, ...],
+    column_index: int | None,
+    inner_index: int,
+    shape: tuple[int, ...],
+) -> tuple[int, ...]:
+    """
+    Return the index used to read the right operand for one step of matmul.
+
+    For a rank-2-or-higher right operand, inner_index identifies the row and
+    column_index identifies the column. This is the reverse of the left
+    operand because matmul combines rows from the left operand with columns
+    from the right operand.
+    """
+    if len(shape) == 1:
+        return (inner_index,)
+    if column_index is None:
+        raise ValueError("column index is required for rank-2-or-higher right operand")
+    return leading_index + (inner_index, column_index)
