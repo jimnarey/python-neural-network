@@ -2,6 +2,12 @@ import argparse
 
 import pyperf
 
+from fnn.performance.records import (
+    benchmark_to_row,
+    get_git_state,
+    get_timestamp_utc,
+    write_benchmark_csv,
+)
 from fnn.performance.scenarios import BENCHMARK_SCENARIOS, BenchmarkScenario
 
 
@@ -41,13 +47,27 @@ def main() -> None:
         action="store_true",
         help="List available scenarios and exit.",
     )
+    runner.argparser.add_argument(
+        "--record",
+        action="store_true",
+        help="Write benchmark results to a timestamped CSV file.",
+    )
     args = runner.parse_args()
     if args.list:
         _list_scenarios()
         return
     scenarios = _selected_scenarios(args.scenarios)
+    rows = []
+    should_record = args.record and not args.worker
+    timestamp_utc = get_timestamp_utc() if should_record else ""
+    git_state = get_git_state() if should_record else None
     for scenario in scenarios:
-        runner.bench_func(scenario.name, scenario.make_callable())
+        benchmark = runner.bench_func(scenario.name, scenario.make_callable())
+        if should_record and benchmark is not None and git_state is not None:
+            rows.append(benchmark_to_row(benchmark, scenario, git_state, timestamp_utc))
+    if should_record and rows:
+        path = write_benchmark_csv(rows, timestamp_utc)
+        print(f"Benchmark results written to {path}")
 
 
 if __name__ == "__main__":
