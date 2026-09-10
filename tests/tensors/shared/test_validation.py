@@ -2,13 +2,11 @@ import unittest
 from fnn.tensors.shared.validation import (
     validate_tensor_has_values,
     validate_shapes_match_except_axis,
-    validate_shape_not_rank_0,
     validate_shape_has_no_negative_dimensions,
     validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_axes_are_unique,
     validate_axes_are_permutation,
-    validate_tensor_conversion_root_is_sequence,
     validate_stack_shapes,
     validate_matmul_operand_ranks,
     validate_matmul_core_dimensions,
@@ -19,33 +17,6 @@ from fnn.tensors.shared.validation import (
 # shape_size is untested. That's fine, given the callers are simple and
 # thoroughly tested.
 #
-
-
-class TestValidateShapeNotRank0(unittest.TestCase):
-
-    def test_validate_shape_not_rank_0_accepts_rank_1_or_higher_shape(self):
-        cases = (
-            (3,),
-            (2, 3),
-            (2, 3, 4),
-        )
-        for shape in cases:
-            with self.subTest():
-                validate_shape_not_rank_0(shape)
-
-    def test_validate_shape_not_rank_0_accepts_shape_with_zero_length_dimension(self):
-        cases = (
-            (0,),
-            (2, 0),
-            (2, 0, 3),
-        )
-        for shape in cases:
-            with self.subTest():
-                validate_shape_not_rank_0(shape)
-
-    def test_validate_shape_not_rank_0_raises_when_shape_is_empty_tuple(self):
-        with self.assertRaisesRegex(ValueError, "require a non-empty shape"):
-            validate_shape_not_rank_0(())
 
 
 class TestValidateShapeHasNoNegativeDimensions(unittest.TestCase):
@@ -572,36 +543,6 @@ class TestValidateTransposeAxesArePermutation(unittest.TestCase):
             with self.subTest():
                 with self.assertRaisesRegex(ValueError, "exactly once"):
                     validate_axes_are_permutation(axes, ndim)
-
-
-class TestValidateTensorConversionRootIsSequence(unittest.TestCase):
-
-    def test_validate_tensor_conversion_root_is_sequence_accepts_list_or_tuple(self):
-        cases = (
-            [],
-            (),
-            [1.0, 2.0],
-            (1.0, 2.0),
-        )
-        for data in cases:
-            with self.subTest():
-                validate_tensor_conversion_root_is_sequence(data)
-
-    def test_validate_tensor_conversion_root_is_sequence_raises_when_data_is_not_list_or_tuple(
-        self,
-    ):
-        cases = (
-            1.0,
-            "data",
-            True,
-            None,
-            dict(),
-            set(),
-        )
-        for data in cases:
-            with self.subTest():
-                with self.assertRaisesRegex(ValueError, "requires a list or tuple"):
-                    validate_tensor_conversion_root_is_sequence(data)
 
 
 class TestParseTensorData(unittest.TestCase):

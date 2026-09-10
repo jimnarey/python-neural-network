@@ -36,8 +36,6 @@ the relevant operations are carried out on them. This means the tests
 can be run against backends whether they are float- or int-based.
 """
 
-from collections.abc import Sequence
-
 from tests.tensors.contract.shared import BackendContractBase
 from tests.helpers.tensor_helpers import assert_nested_close
 from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
@@ -95,6 +93,30 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
     Result: [4.0, 12.0]
     """
 
+    def test_reduction_methods_return_rank_0_tensor_when_passed_rank_0_tensor(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(4.0)
+        reduction_methods = (
+            ("sum", backend.sum, 4.0),
+            ("mean", backend.mean, 4.0),
+            ("max", backend.max, 4.0),
+            ("min", backend.min, 4.0),
+            ("std", backend.std, 0.0),
+        )
+        for method_name, method, expected in reduction_methods:
+            calls = (
+                ("omitted_axis", lambda: method(tensor)),
+                ("axis_none", lambda: method(tensor, axis=None)),
+                ("empty_axes_tuple", lambda: method(tensor, axis=())),
+                ("keepdims_true", lambda: method(tensor, keepdims=True)),
+            )
+            for call_style, call in calls:
+                with self.subTest(method=method_name, call_style=call_style):
+                    result_tensor = call()
+                    result = backend.to_python(result_tensor)
+                    self.assertEqual(backend.shape(result_tensor), ())
+                    assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_reduction_methods_reduce_over_all_axes_with_2D_tensor(
         self,
     ):
@@ -132,8 +154,9 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
 
                 for call_style, call in calls:
                     with self.subTest(call_style=call_style):
-                        result = call()
-                        self.assertNotIsInstance(result, Sequence)
+                        result_tensor = call()
+                        result = backend.to_python(result_tensor)
+                        self.assertEqual(backend.shape(result_tensor), ())
                         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_reduction_methods_reduce_over_a_tuple_of_axes_with_2D_tensor(self):
@@ -231,8 +254,9 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
 
                 for call_style, call in calls:
                     with self.subTest(call_style=call_style):
-                        result = call()
-                        self.assertNotIsInstance(result, Sequence)
+                        result_tensor = call()
+                        result = backend.to_python(result_tensor)
+                        self.assertEqual(backend.shape(result_tensor), ())
                         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_reduction_methods_reduce_over_a_tuple_of_axes_with_3D_tensor(self):
@@ -378,8 +402,8 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
         - None as the axis argument
         - a tuple listing all four axes
 
-        In each case the result should be a scalar, because all the axes are
-        reduced.
+        In each case the result should be a rank-zero tensor containing one
+        value, because all the axes are reduced.
         """
         backend = self.make_backend()
         tensor = backend.to_tensor(
@@ -413,8 +437,9 @@ class BackendContractReductionBehaviourMixin(BackendContractBase):
 
                 for call_style, call in calls:
                     with self.subTest(call_style=call_style):
-                        result = call()
-                        self.assertNotIsInstance(result, Sequence)
+                        result_tensor = call()
+                        result = backend.to_python(result_tensor)
+                        self.assertEqual(backend.shape(result_tensor), ())
                         assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_reduction_methods_reduce_over_a_tuple_of_axes_with_4D_tensor(self):
@@ -1188,6 +1213,22 @@ class BackendContractReductionInvalidAxisMixin(BackendContractBase):
                         with self.assertRaises(ValueError):
                             method(tensor, axis=axis)
 
+    def test_reduction_methods_reject_integer_axis_for_rank_0_tensor(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(4.0)
+        reduction_methods = (
+            ("sum", backend.sum),
+            ("mean", backend.mean),
+            ("max", backend.max),
+            ("min", backend.min),
+            ("std", backend.std),
+        )
+        for method_name, method in reduction_methods:
+            for axis in (0, -1):
+                with self.subTest(method=method_name, axis=axis):
+                    with self.assertRaises(ValueError):
+                        method(tensor, axis=axis)
+
 
 class BackendContractReductionEmptyInputMixin(BackendContractBase):
     def test_sum_returns_zero_when_called_on_an_empty_tensor(self):
@@ -1201,9 +1242,9 @@ class BackendContractReductionEmptyInputMixin(BackendContractBase):
         for data in empty_inputs:
             with self.subTest(data=data):
                 tensor = backend.to_tensor(data)
-                result = backend.sum(tensor)
-
-                self.assertNotIsInstance(result, Sequence)
+                result_tensor = backend.sum(tensor)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
                 assert_nested_close(result, 0.0, rel_tol=0, abs_tol=0)
 
     def test_mean_max_min_and_std_raise_when_called_on_an_empty_tensor(self):

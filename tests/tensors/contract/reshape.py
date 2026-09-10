@@ -19,18 +19,57 @@ class BackendContractReshapeMixin(BackendContractBase):
     We test explicitly for shape too.
     """
 
-    def test_reshape_rejects_empty_shape(self):
+    def test_reshape_converts_single_element_tensors_to_rank_zero_tensor(self):
         """
-        Ensures that reshape cannot return a rank 0 tensor
+        A rank zero tensor has one element, so tensors with one element can
+        be reshaped to rank zero without changing their value.
         """
         backend = self.make_backend()
+        cases = (
+            ([7.0], (1,)),
+            ([[7.0]], (1, 1)),
+            ([[[7.0]]], (1, 1, 1)),
+        )
+        for values, original_shape in cases:
+            with self.subTest(original_shape=original_shape):
+                tensor = backend.to_tensor(values)
+                rank_zero_tensor = backend.reshape(tensor, ())
+                self.assertEqual(backend.shape(rank_zero_tensor), ())
+                restored_tensor = backend.reshape(rank_zero_tensor, original_shape)
+                result = backend.to_python(restored_tensor)
+                assert_nested_close(result, values, rel_tol=0, abs_tol=0)
 
-        with self.assertRaises(
-            ValueError,
-            msg="reshape accepted an empty shape when it should reject it",
-        ):
-            tensor = backend.to_tensor([1.0])
-            backend.reshape(tensor, ())
+    def test_reshape_converts_rank_zero_tensor_to_single_element_shapes(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(7.0)
+        cases = (
+            ((1,), [7.0]),
+            ((1, 1), [[7.0]]),
+            ((1, 1, 1), [[[7.0]]]),
+        )
+        for target_shape, expected in cases:
+            with self.subTest(target_shape=target_shape):
+                reshaped_tensor = backend.reshape(tensor, target_shape)
+                result = backend.to_python(reshaped_tensor)
+                self.assertEqual(backend.shape(reshaped_tensor), target_shape)
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_reshape_rejects_rank_zero_target_shape_when_input_does_not_have_one_element(
+        self,
+    ):
+        backend = self.make_backend()
+        cases = (
+            backend.to_tensor([]),
+            backend.to_tensor([1.0, 2.0]),
+            backend.to_tensor([[1.0, 2.0], [3.0, 4.0]]),
+        )
+        for tensor in cases:
+            with self.subTest(input_shape=backend.shape(tensor)):
+                with self.assertRaises(
+                    ValueError,
+                    msg="reshape accepted a rank zero target shape for a tensor whose size is not one",
+                ):
+                    backend.reshape(tensor, ())
 
     def test_reshape_converts_1D_tensor_to_2D_tensor_with_shape_2_by_2(self):
         backend = self.make_backend()

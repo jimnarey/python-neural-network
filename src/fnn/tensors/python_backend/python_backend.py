@@ -12,7 +12,7 @@ from fnn.tensors.python_backend.operations import (
     concatenate_tensors,
     divide_reduction_result,
     map_binary,
-    matmul_tensors,
+    matmul_to_tensor,
     map_unary,
     reduce,
     require_non_empty_tensor_sequence,
@@ -39,10 +39,8 @@ from fnn.tensors.shared.validation import (
     validate_reduction_has_values,
     validate_scalar_is_not_bool,
     validate_shape_has_no_negative_dimensions,
-    validate_shape_not_rank_0,
     validate_shapes_match_except_axis,
     validate_stack_shapes,
-    validate_tensor_conversion_root_is_sequence,
     validate_axes_are_permutation,
     validate_matmul_core_dimensions,
     validate_matmul_operand_ranks,
@@ -60,12 +58,13 @@ class PythonBackend:
 
     # PythonTensor supports a writable flag which is not currently
     # part of the Protocol class, so not used here.
-    def to_tensor(self, data: list[object] | tuple[object, ...]) -> PythonTensor:
-        validate_tensor_conversion_root_is_sequence(data)
+    def to_tensor(
+        self, data: Scalar | list[object] | tuple[object, ...]
+    ) -> PythonTensor:
         shape, values = parse_tensor_data(data)
         return PythonTensor(shape, array("d", values))
 
-    def to_python(self, tensor: PythonTensor) -> list:
+    def to_python(self, tensor: PythonTensor) -> Scalar | list:
         return tensor.to_list()
 
     def randn(self, shape: tuple[int, ...]) -> PythonTensor:
@@ -118,7 +117,6 @@ class PythonBackend:
     # and before attempting to implement any of the tougher backends, so we can
     # borrow the logic. This behaviour should be added to the contract and tested.
     def reshape(self, x: PythonTensor, shape: tuple[int, ...]) -> PythonTensor:
-        validate_shape_not_rank_0(shape)
         validate_shape_has_no_negative_dimensions(shape, "reshape")
         if x.size() != math.prod(shape):
             raise ValueError("reshape cannot change the number of tensor elements")
@@ -148,11 +146,11 @@ class PythonBackend:
     def divide(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
         return map_binary(a, b, divide_scalar)
 
-    def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor | float:
+    def matmul(self, a: PythonTensor, b: PythonTensor) -> PythonTensor:
         validate_matmul_operand_ranks(a.shape, b.shape)
         validate_matmul_core_dimensions(a.shape, b.shape)
         shape = get_matmul_result_shape(a.shape, b.shape)
-        return matmul_tensors(a, b, shape)
+        return matmul_to_tensor(a, b, shape)
 
     def maximum(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
         return map_binary(a, b, max)
@@ -165,7 +163,7 @@ class PythonBackend:
         x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> PythonTensor | float:
+    ) -> PythonTensor:
         return reduce(x, axis, keepdims, 0.0, lambda total, value: total + value)
 
     def max(
@@ -173,7 +171,7 @@ class PythonBackend:
         x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> PythonTensor | float:
+    ) -> PythonTensor:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
         validate_reduction_has_values(x.shape, reduced_axes)
         return reduce(x, axis, keepdims, -math.inf, max)
@@ -181,18 +179,16 @@ class PythonBackend:
     def minimum(self, a: PythonTensor, b: PythonTensor | Scalar) -> PythonTensor:
         return map_binary(a, b, min)
 
-    def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor | int:
+    def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor:
         validate_tensor_has_values(x.shape)
         if axis is None:
-            return argmax_to_scalar(x)
+            return PythonTensor((), array(PythonTensor.INT, [argmax_to_scalar(x)]))
         if type(axis) is not int:
             raise TypeError("axis must be an int or None")
         normalised_axis = normalise_axes((axis,), x.ndim())[0]
         target_shape = get_reduction_target_shape(
             x.shape, (normalised_axis,), keepdims=False
         )
-        if target_shape == ():
-            return argmax_to_scalar(x)
         return argmax_to_tensor(x, normalised_axis, target_shape)
 
     def log(self, x: PythonTensor) -> PythonTensor:
@@ -219,7 +215,7 @@ class PythonBackend:
         x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> PythonTensor | float:
+    ) -> PythonTensor:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
         validate_reduction_has_values(x.shape, reduced_axes)
         total = reduce(
@@ -234,7 +230,7 @@ class PythonBackend:
         x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> PythonTensor | float:
+    ) -> PythonTensor:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
         validate_reduction_has_values(x.shape, reduced_axes)
         return reduce(x, axis, keepdims, math.inf, min)
@@ -244,7 +240,7 @@ class PythonBackend:
         x: PythonTensor,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> PythonTensor | float:
+    ) -> PythonTensor:
         reduced_axes, _ = get_reduction_axes_and_target_shape(x.shape, axis, keepdims)
         validate_reduction_has_values(x.shape, reduced_axes)
         mean = self.mean(x, axis=reduced_axes, keepdims=True)
@@ -254,8 +250,6 @@ class PythonBackend:
             lambda value, mean_value: (value - mean_value) * (value - mean_value),
         )
         variance = self.mean(squared_deviations, axis=reduced_axes, keepdims=keepdims)
-        if isinstance(variance, float):
-            return math.sqrt(variance)
         return self.sqrt(variance)
 
     def stack(self, xs: Sequence[PythonTensor], axis: int = 0) -> PythonTensor:

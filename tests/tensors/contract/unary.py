@@ -119,6 +119,21 @@ class BackendContractUnaryShapeMixin(BackendContractBase):
                     result_tensor = method(tensor)
                     self.assertEqual(backend.shape(result_tensor), expected_shape)
 
+    def test_unary_methods_return_rank_0_tensor_when_passed_rank_0_tensor(self):
+        backend = self.make_backend()
+        cases = [
+            ("exp", lambda: backend.exp(backend.to_tensor(0.0))),
+            ("log", lambda: backend.log(backend.to_tensor(1.0))),
+            ("sqrt", lambda: backend.sqrt(backend.to_tensor(4.0))),
+            ("absolute", lambda: backend.absolute(backend.to_tensor(-4.0))),
+            ("sign", lambda: backend.sign(backend.to_tensor(-4.0))),
+            ("clip", lambda: backend.clip(backend.to_tensor(4.0), 1.0, 3.0)),
+        ]
+        for method_name, call in cases:
+            with self.subTest(method=method_name):
+                result_tensor = call()
+                self.assertEqual(backend.shape(result_tensor), ())
+
 
 @EnforceSharedNumericFixtures()
 class BackendContractSqrtSemanticsMixin(BackendContractBase):

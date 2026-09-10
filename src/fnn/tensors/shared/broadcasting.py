@@ -17,9 +17,9 @@ Cython) can reproduce the same logic without relying on a Python-specific
 convenience.
 
 Shapes are assumed to already be validated by the time they reach this
-module. In particular, rank-0 shapes are not guarded against here; elsewhere
-in this project scalars are represented as plain floats/ints rather than
-rank-0 tensors, so a shape of () is not expected to reach these functions.
+module. A rank-zero tensor has shape () and broadcasts like a single
+value. These functions handle that naturally: it has no axes of its own, so
+its shape and strides are padded to match the other tensor where necessary.
 """
 
 

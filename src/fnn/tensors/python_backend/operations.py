@@ -168,10 +168,6 @@ def get_matmul_value(
     return total
 
 
-def matmul_to_scalar(a: PythonTensor, b: PythonTensor) -> float:
-    return get_matmul_value(a, b, ())
-
-
 def matmul_to_tensor(
     a: PythonTensor, b: PythonTensor, result_shape: tuple[int, ...]
 ) -> PythonTensor:
@@ -179,25 +175,6 @@ def matmul_to_tensor(
     for result_index in result.indices():
         result.set_scalar(result_index, get_matmul_value(a, b, result_index))
     return result
-
-
-def matmul_tensors(
-    a: PythonTensor, b: PythonTensor, result_shape: tuple[int, ...]
-) -> PythonTensor | float:
-    if result_shape == ():
-        return matmul_to_scalar(a, b)
-    return matmul_to_tensor(a, b, result_shape)
-
-
-def reduce_to_scalar(
-    x: PythonTensor,
-    initial_value: float,
-    accumulate_fn: Callable[[float, float], float],
-) -> float:
-    accumulator = initial_value
-    for _, value in x.items():
-        accumulator = accumulate_fn(accumulator, value)
-    return accumulator
 
 
 def reduce_to_tensor(
@@ -208,8 +185,6 @@ def reduce_to_tensor(
     initial_value: float,
     accumulate_fn: Callable[[float, float], float],
 ) -> PythonTensor:
-    if target_shape == ():
-        raise ValueError("target shape must not be empty")
     result = PythonTensor(
         target_shape, array("d", [initial_value]) * math.prod(target_shape)
     )
@@ -227,22 +202,16 @@ def reduce(
     keepdims: bool,
     initial_value: float,
     accumulate_fn: Callable[[float, float], float],
-) -> PythonTensor | float:
+) -> PythonTensor:
     reduced_axes, target_shape = get_reduction_axes_and_target_shape(
         x.shape, axis, keepdims
     )
-    if target_shape == ():
-        return reduce_to_scalar(x, initial_value, accumulate_fn)
     return reduce_to_tensor(
         x, reduced_axes, target_shape, keepdims, initial_value, accumulate_fn
     )
 
 
-def divide_reduction_result(
-    result: PythonTensor | float, divisor: float
-) -> PythonTensor | float:
-    if isinstance(result, float):
-        return result / divisor
+def divide_reduction_result(result: PythonTensor, divisor: float) -> PythonTensor:
     for index, value in result.items():
         result.set_scalar(index, value / divisor)
     return result

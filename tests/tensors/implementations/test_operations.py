@@ -12,10 +12,7 @@ from fnn.tensors.python_backend.operations import (
     get_matmul_value,
     map_binary,
     map_unary,
-    matmul_tensors,
-    matmul_to_scalar,
     matmul_to_tensor,
-    reduce_to_scalar,
     reduce_to_tensor,
     require_non_empty_tensor_sequence,
     stack_tensors,
@@ -80,6 +77,13 @@ class TestArgmaxToScalar(unittest.TestCase):
 
 
 class TestArgmaxToTensor(unittest.TestCase):
+
+    def test_returns_rank_0_int_tensor_when_reducing_1D_tensor(self):
+        tensor = PythonTensor((3,), array("d", [3.0, 7.0, 5.0]))
+        result = argmax_to_tensor(tensor, 0, ())
+        self.assertEqual(result.shape, ())
+        self.assertEqual(result.data.typecode, PythonTensor.INT)
+        self.assertEqual(result.data.tolist(), [1])
 
     def test_returns_indices_when_reducing_2D_tensor_axis_0(self):
         """
@@ -899,7 +903,8 @@ class TestGetMatmulValue(unittest.TestCase):
         The right tensor is:
             [4.0, 5.0, 6.0]
 
-        A 1D @ 1D matmul returns a scalar, so result_index is ().
+        A 1D @ 1D matmul produces a rank-zero tensor, whose only index is ().
+        This helper calculates the single value stored at that index.
 
         The result is:
             (1.0 * 4.0) + (2.0 * 5.0) + (3.0 * 6.0) = 32.0
@@ -1081,38 +1086,39 @@ class TestGetMatmulValue(unittest.TestCase):
                 self.assertEqual(result, 0.0)
 
 
-class TestMatmulToScalar(unittest.TestCase):
+class TestMatmulToRank0Tensor(unittest.TestCase):
 
-    def test_returns_scalar_for_two_1D_tensors(self):
+    def test_returns_rank_0_tensor_for_two_1D_tensors(self):
         left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
         right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
-        result = matmul_to_scalar(left, right)
-        self.assertEqual(result, 32.0)
+        result = matmul_to_tensor(left, right, ())
+        self.assertEqual(result.shape, ())
+        self.assertEqual(result.data.tolist(), [32.0])
 
     def test_returns_float_result_when_calculation_uses_non_integer_values(self):
         left = PythonTensor((2,), array("d", [1.5, 2.5]))
         right = PythonTensor((2,), array("d", [3.0, 4.0]))
-        result = matmul_to_scalar(left, right)
-        self.assertEqual(result, 14.5)
+        result = matmul_to_tensor(left, right, ())
+        self.assertEqual(result.data.tolist(), [14.5])
 
     def test_returns_float_when_result_is_whole_number(self):
         left = PythonTensor((2,), array("d", [1.0, 3.0]))
         right = PythonTensor((2,), array("d", [2.0, 4.0]))
-        result = matmul_to_scalar(left, right)
-        self.assertIs(type(result), float)
+        result = matmul_to_tensor(left, right, ())
+        self.assertIs(type(result.get_scalar(())), float)
 
     def test_uses_left_tensor_layout_when_left_operand_is_view(self):
         parent = PythonTensor((5,), array("d", [1.0, 0.0, 2.0, 0.0, 3.0]))
         left = parent.view((3,), strides=(2,))
         right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
-        result = matmul_to_scalar(left, right)
-        self.assertEqual(result, 32.0)
+        result = matmul_to_tensor(left, right, ())
+        self.assertEqual(result.data.tolist(), [32.0])
 
     def test_returns_zero_when_contracted_dimension_is_empty(self):
         left = PythonTensor((0,), array("d"))
         right = PythonTensor((0,), array("d"))
-        result = matmul_to_scalar(left, right)
-        self.assertEqual(result, 0.0)
+        result = matmul_to_tensor(left, right, ())
+        self.assertEqual(result.data.tolist(), [0.0])
 
 
 class TestMatmulToTensor(unittest.TestCase):
@@ -1208,27 +1214,12 @@ class TestMatmulToTensor(unittest.TestCase):
         self.assertEqual(result.data.tolist(), [58.0, 64.0, 139.0, 154.0])
 
 
-class TestMatmulTensors(unittest.TestCase):
-
-    def test_returns_scalar_when_result_shape_is_empty_tuple(self):
-        left = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
-        right = PythonTensor((3,), array("d", [4.0, 5.0, 6.0]))
-        result = matmul_tensors(left, right, ())
-        self.assertEqual(result, 32.0)
-
-    def test_returns_tensor_when_result_shape_is_not_empty_tuple(self):
-        left = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))
-        right = PythonTensor((3, 2), array("d", [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]))
-        result = matmul_tensors(left, right, (2, 2))
-        self.assertIsInstance(result, PythonTensor)
-        self.assertEqual(result.data.tolist(), [58.0, 64.0, 139.0, 154.0])
-
-
 class TestDivideReductionResult(unittest.TestCase):
 
-    def test_divides_scalar_result(self):
-        result = divide_reduction_result(9.0, 3.0)
-        self.assertEqual(result, 3.0)
+    def test_divides_value_in_rank_0_tensor(self):
+        tensor = PythonTensor((), array("d", [9.0]))
+        result = divide_reduction_result(tensor, 3.0)
+        self.assertEqual(result.data.tolist(), [3.0])
 
     def test_divides_each_value_in_tensor_result(self):
         tensor = PythonTensor((2, 2), array("d", [2.0, 4.0, 6.0, 8.0]))
@@ -1236,22 +1227,26 @@ class TestDivideReductionResult(unittest.TestCase):
         self.assertIsInstance(result, PythonTensor)
         self.assertEqual(result.data.tolist(), [1.0, 2.0, 3.0, 4.0])
 
-    def test_returns_same_tensor_instance_when_result_is_tensor(self):
+    def test_returns_same_tensor_instance(self):
         tensor = PythonTensor((2, 2), array("d", [2.0, 4.0, 6.0, 8.0]))
         result = divide_reduction_result(tensor, 2.0)
         self.assertIs(result, tensor)
 
 
-class TestReduceToScalar(unittest.TestCase):
+class TestReduceToRank0Tensor(unittest.TestCase):
 
-    def test_accumulates_all_values_into_scalar(self):
+    def test_accumulates_all_values_into_rank_0_tensor(self):
         tensor = PythonTensor((2, 2), array("d", [1.0, 2.0, 3.0, 4.0]))
-        result = reduce_to_scalar(
+        result = reduce_to_tensor(
             tensor,
+            (0, 1),
+            (),
+            False,
             0.0,
             lambda total, value: total + value,
         )
-        self.assertEqual(result, 10.0)
+        self.assertEqual(result.shape, ())
+        self.assertEqual(result.data.tolist(), [10.0])
 
     def test_uses_initial_value_when_accumulating_values(self):
         """
@@ -1259,12 +1254,16 @@ class TestReduceToScalar(unittest.TestCase):
         so that value is included before any tensor values are combined.
         """
         tensor = PythonTensor((2, 2), array("d", [1.0, 2.0, 3.0, 4.0]))
-        result = reduce_to_scalar(
+        result = reduce_to_tensor(
             tensor,
+            (0, 1),
+            (),
+            False,
             10.0,
             lambda total, value: total + value,
         )
-        self.assertEqual(result, 20.0)
+        self.assertEqual(result.shape, ())
+        self.assertEqual(result.data.tolist(), [20.0])
 
     def test_accepts_non_sum_accumulation_function(self):
         cases = (
@@ -1283,12 +1282,16 @@ class TestReduceToScalar(unittest.TestCase):
         )
         for tensor, initial_value, accumulate_fn, expected in cases:
             with self.subTest():
-                result = reduce_to_scalar(
+                result = reduce_to_tensor(
                     tensor,
+                    (0, 1),
+                    (),
+                    False,
                     initial_value,
                     accumulate_fn,
                 )
-                self.assertEqual(result, expected)
+                self.assertEqual(result.shape, ())
+                self.assertEqual(result.data.tolist(), [expected])
 
 
 class TestReduceToTensor(unittest.TestCase):

@@ -2,22 +2,21 @@
 Tests the parts of the reduction reference design which go beyond the
 backend contract.
 
-These tests focus on float-valued outputs: plain Python floats when a
-reduction returns a scalar, and float-valued tensors when it returns a
-tensor. They also include a small number of arithmetic checks using
-non-integer float fixtures where the reference design is intentionally
-more specific than the backend contract.
+These tests check that reductions return float-valued tensors, including a
+rank-zero float tensor when a reduction produces one value. They also include
+a small number of arithmetic checks using non-integer float fixtures where
+the reference design is intentionally more specific than the backend contract.
 """
 
 from tests.tensors.contract.shared import BackendContractBase
 
 
 class BackendReferenceReductionFloatValueMixin(BackendContractBase):
-    def test_reduction_methods_return_float_scalars(self):
+    def test_reduction_methods_return_rank_0_float_tensors(self):
         backend = self.make_backend()
         tensor = backend.ones((2, 2))
 
-        scalar_methods = [
+        reduction_methods = [
             ("sum", lambda: backend.sum(tensor)),
             ("mean", lambda: backend.mean(tensor)),
             ("max", lambda: backend.max(tensor)),
@@ -25,9 +24,11 @@ class BackendReferenceReductionFloatValueMixin(BackendContractBase):
             ("std", lambda: backend.std(tensor)),
         ]
 
-        for method_name, call in scalar_methods:
+        for method_name, call in reduction_methods:
             with self.subTest(method=method_name):
-                result = call()
+                result_tensor = call()
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
                 self.assertIsInstance(
                     result,
                     float,
@@ -37,7 +38,7 @@ class BackendReferenceReductionFloatValueMixin(BackendContractBase):
     def test_reduction_methods_return_float_valued_tensors(self):
         """
         This tests that the reduction methods return float-valued tensors when
-        the result is not scalar.
+        the result has one axis.
 
         The reductions are chosen to produce a 1D tensor so that we can iterate
         through the returned values directly and check their types.
@@ -103,18 +104,22 @@ class BackendReferenceReductionArithmeticMixin(BackendContractBase):
     values for integer-valued inputs.
     """
 
-    def test_mean_returns_float_scalar_when_result_is_fractional(self):
+    def test_mean_returns_rank_0_float_tensor_when_result_is_fractional(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0])
-        result = backend.mean(tensor)
+        result_tensor = backend.mean(tensor)
+        result = backend.to_python(result_tensor)
 
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertIsInstance(result, float)
         self.assertEqual(result, 1.5)
 
-    def test_std_returns_float_scalar_when_result_is_fractional(self):
+    def test_std_returns_rank_0_float_tensor_when_result_is_fractional(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0])
-        result = backend.std(tensor)
+        result_tensor = backend.std(tensor)
+        result = backend.to_python(result_tensor)
 
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertIsInstance(result, float)
         self.assertEqual(result, 0.5)

@@ -75,6 +75,47 @@ class BackendContractElementwiseSemanticsMixin(BackendContractBase):
                 self.assertEqual(backend.shape(result_tensor), (3,))
                 assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
+    def test_elementwise_methods_return_rank_0_tensor_when_passed_two_rank_0_tensors(
+        self,
+    ):
+        backend = self.make_backend()
+        a = backend.to_tensor(6.0)
+        b = backend.to_tensor(3.0)
+        elementwise_methods = [
+            ("add", backend.add, 9.0),
+            ("subtract", backend.subtract, 3.0),
+            ("multiply", backend.multiply, 18.0),
+            ("divide", backend.divide, 2.0),
+            ("maximum", backend.maximum, 6.0),
+            ("minimum", backend.minimum, 3.0),
+        ]
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, b)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_elementwise_methods_return_rank_0_tensor_when_passed_rank_0_tensor_and_scalar(
+        self,
+    ):
+        backend = self.make_backend()
+        a = backend.to_tensor(6.0)
+        elementwise_methods = [
+            ("add", backend.add, 9.0),
+            ("subtract", backend.subtract, 3.0),
+            ("multiply", backend.multiply, 18.0),
+            ("divide", backend.divide, 2.0),
+            ("maximum", backend.maximum, 6.0),
+            ("minimum", backend.minimum, 3.0),
+        ]
+        for method_name, method, expected in elementwise_methods:
+            with self.subTest(method=method_name):
+                result_tensor = method(a, 3.0)
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_elementwise_methods_apply_elementwise_to_same_shape_2D_tensors(self):
         backend = self.make_backend()
         a = backend.to_tensor([[2.0, 6.0], [12.0, 20.0]])
@@ -736,6 +777,81 @@ class BackendContractElementwiseLeftPaddingBroadcastingMixin(BackendContractBase
     left-padding case, and can arise naturally after operations such as
     reshape or a reduction with keepdims=True.
     """
+
+    def test_elementwise_methods_broadcast_rank_0_tensor_on_either_side(self):
+        backend = self.make_backend()
+        rank_0_tensor = backend.to_tensor(2.0)
+        matrix = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        left_division_matrix = backend.to_tensor([[1.0, 2.0], [1.0, 2.0]])
+        right_division_matrix = backend.to_tensor([[2.0, 4.0], [6.0, 8.0]])
+        cases = [
+            (
+                "add_lhs",
+                lambda: backend.add(rank_0_tensor, matrix),
+                [[3.0, 4.0], [5.0, 6.0]],
+            ),
+            (
+                "add_rhs",
+                lambda: backend.add(matrix, rank_0_tensor),
+                [[3.0, 4.0], [5.0, 6.0]],
+            ),
+            (
+                "subtract_lhs",
+                lambda: backend.subtract(rank_0_tensor, matrix),
+                [[1.0, 0.0], [-1.0, -2.0]],
+            ),
+            (
+                "subtract_rhs",
+                lambda: backend.subtract(matrix, rank_0_tensor),
+                [[-1.0, 0.0], [1.0, 2.0]],
+            ),
+            (
+                "multiply_lhs",
+                lambda: backend.multiply(rank_0_tensor, matrix),
+                [[2.0, 4.0], [6.0, 8.0]],
+            ),
+            (
+                "multiply_rhs",
+                lambda: backend.multiply(matrix, rank_0_tensor),
+                [[2.0, 4.0], [6.0, 8.0]],
+            ),
+            (
+                "divide_lhs",
+                lambda: backend.divide(rank_0_tensor, left_division_matrix),
+                [[2.0, 1.0], [2.0, 1.0]],
+            ),
+            (
+                "divide_rhs",
+                lambda: backend.divide(right_division_matrix, rank_0_tensor),
+                [[1.0, 2.0], [3.0, 4.0]],
+            ),
+            (
+                "maximum_lhs",
+                lambda: backend.maximum(rank_0_tensor, matrix),
+                [[2.0, 2.0], [3.0, 4.0]],
+            ),
+            (
+                "maximum_rhs",
+                lambda: backend.maximum(matrix, rank_0_tensor),
+                [[2.0, 2.0], [3.0, 4.0]],
+            ),
+            (
+                "minimum_lhs",
+                lambda: backend.minimum(rank_0_tensor, matrix),
+                [[1.0, 2.0], [2.0, 2.0]],
+            ),
+            (
+                "minimum_rhs",
+                lambda: backend.minimum(matrix, rank_0_tensor),
+                [[1.0, 2.0], [2.0, 2.0]],
+            ),
+        ]
+        for case_name, call, expected in cases:
+            with self.subTest(case=case_name):
+                result_tensor = call()
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), (2, 2))
+                assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
 
     def test_elementwise_methods_broadcast_1D_tensor_across_2D_tensor(self):
         """

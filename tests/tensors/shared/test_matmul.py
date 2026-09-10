@@ -116,7 +116,7 @@ class TestGetMatmulResultShape(unittest.TestCase):
 
     def test_returns_empty_shape_for_two_1D_operands(self):
         """
-        Tells the matmul operation it needs to return a scalar
+        Tells the matmul operation to return a rank-zero tensor.
         """
         result = get_matmul_result_shape((3,), (3,))
         self.assertEqual(result, ())
@@ -212,7 +212,8 @@ class TestGetMatmulResultIndexParts(unittest.TestCase):
     def test_returns_parts_for_two_1D_operands(self):
         """
         The operands both have shape (3,), so this is a vector-vector
-        multiplication. The result is a scalar, so result_index is ().
+        multiplication. The result is a rank-zero tensor, so its only
+        result_index is ().
 
         Neither operand has leading axes, so both leading index tuples are
         (). Because both operands are 1D, there is no visible row or column

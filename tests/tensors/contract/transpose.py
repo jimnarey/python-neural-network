@@ -40,6 +40,21 @@ class BackendContractTransposeMixin(BackendContractBase):
     are set to zero.
     """
 
+    def test_transpose_returns_same_rank_0_tensor(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(3.0)
+        calls = (
+            ("omitted", lambda: backend.transpose(tensor)),
+            ("none", lambda: backend.transpose(tensor, axes=None)),
+            ("empty_tuple", lambda: backend.transpose(tensor, axes=())),
+        )
+        for mode, call in calls:
+            with self.subTest(mode=mode):
+                transposed_tensor = call()
+                result = backend.to_python(transposed_tensor)
+                self.assertEqual(backend.shape(transposed_tensor), ())
+                assert_nested_close(result, 3.0, rel_tol=0, abs_tol=0)
+
     def test_transpose_returns_same_1D_tensor_when_axes_is_none(self):
         backend = self.make_backend()
         tensor = backend.to_tensor([1.0, 2.0, 3.0])

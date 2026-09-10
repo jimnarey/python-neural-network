@@ -23,6 +23,11 @@ class BackendReferenceRandnMixin(BackendContractBase):
         for value in result:
             self.assertIsInstance(value, float)
 
+    def test_randn_returns_float_value_for_rank_0_shape(self):
+        backend = self.make_backend(seed=0)
+        result = backend.to_python(backend.randn(()))
+        self.assertIs(type(result), float)
+
     def test_backends_constructed_with_same_seed_produce_same_first_draw(self):
         first_backend = self.make_backend(seed=0)
         second_backend = self.make_backend(seed=0)

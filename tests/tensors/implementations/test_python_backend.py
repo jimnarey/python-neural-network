@@ -13,6 +13,8 @@ from tests.tensors.contract.argmax import (
     BackendContractArgMaxTieBehaviourMixin,
 )
 
+from tests.tensors.contract.chaining import BackendContractRank0ChainingMixin
+
 from tests.tensors.contract.composition import (
     BackendContractConcatenateSemanticsMixin,
     BackendContractStackSemanticsMixin,
@@ -20,7 +22,7 @@ from tests.tensors.contract.composition import (
 
 from tests.tensors.contract.creation import (
     BackendContractCopyMixin,
-    BackendContractCreationInputValidationMixin,
+    BackendContractCreationRankZeroShapeMixin,
     BackendContractCreationZeroLengthDimensionMixin,
     BackendContractEmptyMixin,
     BackendContractEyeMixin,
@@ -50,6 +52,15 @@ from tests.tensors.contract.reduction import (
 )
 
 from tests.tensors.contract.reshape import BackendContractReshapeMixin
+
+from tests.tensors.contract.to_python import BackendContractToPythonMixin
+
+from tests.tensors.contract.to_tensor import (
+    BackendContractToTensorShapeInputMixin,
+    BackendContractToTensorValidInputTypeMixin,
+    BackendContractToTensorInvalidInputTypeMixin,
+    BackendContractToTensorValueInputMixin,
+)
 
 from tests.tensors.contract.transpose import BackendContractTransposeMixin
 
@@ -124,12 +135,13 @@ class TestPythonBackendContract(
     BackendContractArgMaxKeepdimsMixin,
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
+    BackendContractRank0ChainingMixin,
     BackendContractAbsoluteSemanticsMixin,
     BackendContractClipSemanticsMixin,
     BackendContractConcatenateSemanticsMixin,
     BackendContractStackSemanticsMixin,
     BackendContractCopyMixin,
-    BackendContractCreationInputValidationMixin,
+    BackendContractCreationRankZeroShapeMixin,
     BackendContractCreationZeroLengthDimensionMixin,
     BackendContractEmptyMixin,
     BackendContractEyeMixin,
@@ -152,6 +164,11 @@ class TestPythonBackendContract(
     BackendContractReductionEmptyInputMixin,
     BackendContractReductionInvalidAxisMixin,
     BackendContractReductionKeepdimsMixin,
+    BackendContractToPythonMixin,
+    BackendContractToTensorShapeInputMixin,
+    BackendContractToTensorValidInputTypeMixin,
+    BackendContractToTensorInvalidInputTypeMixin,
+    BackendContractToTensorValueInputMixin,
 ):
     pass
 
@@ -219,6 +236,37 @@ class TestPythonBackendFloatValuedTensorCreation(PythonBackendTestCase):
 
 
 class TestPythonBackendToTensor(PythonBackendTestCase):
+
+    def test_to_tensor_converts_float_scalar_to_expected_rank_0_python_tensor(self):
+        backend = self.make_backend()
+        for data in (0.0, 3.5, -4.0):
+            with self.subTest(data=data):
+                result = backend.to_tensor(data)
+                self.assertIsInstance(result, PythonTensor)
+                self.assertEqual(result.shape, ())
+                self.assertEqual(result.strides, ())
+                self.assertEqual(result.offset, 0)
+                self.assertEqual(result.data.tolist(), [data])
+                self.assertIs(type(result.data[0]), float)
+
+    def test_to_tensor_normalises_int_scalar_in_rank_0_python_tensor(self):
+        backend = self.make_backend()
+        for data in (0, 3, -4):
+            with self.subTest(data=data):
+                result = backend.to_tensor(data)
+                self.assertIsInstance(result, PythonTensor)
+                self.assertEqual(result.shape, ())
+                self.assertEqual(result.strides, ())
+                self.assertEqual(result.offset, 0)
+                self.assertEqual(result.data.tolist(), [float(data)])
+                self.assertIs(type(result.data[0]), float)
+
+    def test_to_tensor_rejects_bool_and_non_numeric_scalar_input(self):
+        backend = self.make_backend()
+        for data in (True, "data", None):
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(ValueError, r"numeric values"):
+                    backend.to_tensor(data)
 
     def test_to_tensor_converts_1D_input_to_expected_python_tensor(self):
         backend = self.make_backend()

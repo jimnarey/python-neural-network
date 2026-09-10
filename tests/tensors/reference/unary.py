@@ -163,6 +163,21 @@ class BackendReferenceLogArithmeticMixin(BackendContractBase):
 
 
 class BackendReferenceUnaryValueTypeMixin(BackendContractBase):
+    def test_unary_methods_return_float_values_for_rank_0_input(self):
+        backend = self.make_backend()
+        unary_methods = [
+            ("exp", lambda: backend.exp(backend.to_tensor(0.0))),
+            ("log", lambda: backend.log(backend.to_tensor(1.0))),
+            ("sqrt", lambda: backend.sqrt(backend.to_tensor(4.0))),
+            ("absolute", lambda: backend.absolute(backend.to_tensor(-4.0))),
+            ("sign", lambda: backend.sign(backend.to_tensor(-4.0))),
+            ("clip", lambda: backend.clip(backend.to_tensor(4.0), 1.0, 3.0)),
+        ]
+        for method_name, call in unary_methods:
+            with self.subTest(method=method_name):
+                result = backend.to_python(call())
+                self.assertTrue(all_values_are_floats(result))
+
     def test_exp_log_and_sqrt_return_float_valued_tensors(self):
         backend = self.make_backend()
         unary_methods = [

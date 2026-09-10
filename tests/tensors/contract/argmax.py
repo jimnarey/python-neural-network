@@ -57,7 +57,7 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
     that was searched through is removed and replaced by a single index.
     """
 
-    def test_argmax_returns_expected_result_for_1D_tensor(self):
+    def test_argmax_returns_expected_rank_0_tensor_for_1D_tensor(self):
         """
         Tests that argmax returns the index of the largest value in a 1D tensor.
 
@@ -66,12 +66,34 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
         backend = self.make_backend()
         tensor = backend.to_tensor([3.0, 7.0, 5.0])
 
-        result = backend.argmax(tensor)
+        calls = (
+            ("omitted_axis", lambda: backend.argmax(tensor)),
+            ("axis_0", lambda: backend.argmax(tensor, axis=0)),
+        )
+        for call_style, call in calls:
+            with self.subTest(call_style=call_style):
+                result_tensor = call()
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
+                self.assertEqual(result, 1)
+                self.assertIs(type(result), int)
 
-        self.assertEqual(result, 1)
-        self.assertIsInstance(result, int)
+    def test_argmax_returns_rank_0_tensor_when_passed_rank_0_tensor(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(4.0)
+        calls = (
+            ("omitted_axis", lambda: backend.argmax(tensor)),
+            ("axis_none", lambda: backend.argmax(tensor, axis=None)),
+        )
+        for call_style, call in calls:
+            with self.subTest(call_style=call_style):
+                result_tensor = call()
+                result = backend.to_python(result_tensor)
+                self.assertEqual(backend.shape(result_tensor), ())
+                self.assertEqual(result, 0)
+                self.assertIs(type(result), int)
 
-    def test_argmax_returns_int_when_called_without_axis_on_3D_tensor(self):
+    def test_argmax_returns_rank_0_tensor_when_called_without_axis_on_3D_tensor(self):
         """
         Tests argmax without an axis argument on a 3D tensor.
 
@@ -82,7 +104,7 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
         [1.0, 5.0, 7.0, 2.0, 3.0, 9.0, 4.0, 6.0]
 
         The largest value is 9.0, which is at index 5 in this sequence,
-        so the result should be the scalar 5.
+        so the result should be a rank-zero integer tensor containing 5.
         """
         backend = self.make_backend()
         tensor = backend.to_tensor(
@@ -92,10 +114,11 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
             ]
         )
 
-        result = backend.argmax(tensor)
-
+        result_tensor = backend.argmax(tensor)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertEqual(result, 5)
-        self.assertIsInstance(result, int)
+        self.assertIs(type(result), int)
 
     def test_argmax_returns_1D_tensor_when_called_on_2D_tensor_with_axis_0(self):
         """
@@ -119,7 +142,7 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(result_tensor), (3,))
         self.assertEqual(result, [1, 0, 1])
         for value in result:
-            self.assertIsInstance(value, int)
+            self.assertIs(type(value), int)
 
     def test_argmax_returns_1D_tensor_when_called_on_2D_tensor_with_axis_1(self):
         """
@@ -142,7 +165,7 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
         self.assertEqual(backend.shape(result_tensor), (2,))
         self.assertEqual(result, [1, 2])
         for value in result:
-            self.assertIsInstance(value, int)
+            self.assertIs(type(value), int)
 
     def test_argmax_returns_2D_tensor_when_called_on_3D_tensor_with_axis_1(self):
         """
@@ -175,7 +198,7 @@ class BackendContractArgMaxSemanticsMixin(BackendContractBase):
         self.assertEqual(result, [[1, 2], [1, 2]])
         for row in result:
             for value in row:
-                self.assertIsInstance(value, int)
+                self.assertIs(type(value), int)
 
     def test_argmax_raises_when_input_tensor_has_no_values(self):
         backend = self.make_backend()
@@ -214,9 +237,11 @@ class BackendContractArgMaxAxisArgumentMixin(BackendContractBase):
                 [[3.0, 9.0], [4.0, 6.0]],
             ]
         )
-        result = backend.argmax(tensor, axis=None)
+        result_tensor = backend.argmax(tensor, axis=None)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertEqual(result, 5)
-        self.assertIsInstance(result, int)
+        self.assertIs(type(result), int)
 
     def test_argmax_accepts_zero_and_positive_axis_arguments(self):
         backend = self.make_backend()
@@ -261,6 +286,14 @@ class BackendContractArgMaxAxisArgumentMixin(BackendContractBase):
         tensor = backend.to_tensor([[1.0, 5.0], [7.0, 2.0]])
         invalid_axes = [2, -3]
         for axis in invalid_axes:
+            with self.subTest(axis=axis):
+                with self.assertRaises(ValueError):
+                    backend.argmax(tensor, axis=axis)
+
+    def test_argmax_rejects_integer_axis_for_rank_0_tensor(self):
+        backend = self.make_backend()
+        tensor = backend.to_tensor(4.0)
+        for axis in (0, -1):
             with self.subTest(axis=axis):
                 with self.assertRaises(ValueError):
                     backend.argmax(tensor, axis=axis)
@@ -311,7 +344,8 @@ class BackendContractArgMaxTieBehaviourMixin(BackendContractBase):
         backend = self.make_backend()
         tensor = backend.to_tensor([3.0, 7.0, 7.0, 5.0])
 
-        result = backend.argmax(tensor)
-
+        result_tensor = backend.argmax(tensor)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertEqual(result, 1)
-        self.assertIsInstance(result, int)
+        self.assertIs(type(result), int)

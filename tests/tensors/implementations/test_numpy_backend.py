@@ -23,6 +23,7 @@ from tests.tensors.contract.argmax import (
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
 )
+from tests.tensors.contract.chaining import BackendContractRank0ChainingMixin
 from tests.tensors.contract.composition import (
     BackendContractConcatenateSemanticsMixin,
     BackendContractStackSemanticsMixin,
@@ -30,7 +31,7 @@ from tests.tensors.contract.composition import (
 
 from tests.tensors.contract.creation import (
     BackendContractCopyMixin,
-    BackendContractCreationInputValidationMixin,
+    BackendContractCreationRankZeroShapeMixin,
     BackendContractCreationZeroLengthDimensionMixin,
     BackendContractEmptyMixin,
     BackendContractEyeMixin,
@@ -59,7 +60,9 @@ from tests.tensors.contract.shared import BackendContractConstructionMixin
 from tests.tensors.contract.to_python import BackendContractToPythonMixin
 from tests.tensors.contract.to_tensor import (
     BackendContractToTensorShapeInputMixin,
-    BackendContractToTensorTypeInputMixin,
+    BackendContractToTensorValidInputTypeMixin,
+    BackendContractToTensorInvalidInputTypeMixin,
+    BackendContractToTensorValueInputMixin,
 )
 from tests.tensors.contract.transpose import BackendContractTransposeMixin
 
@@ -139,13 +142,14 @@ class TestNumpyBackendContract(
     BackendContractArgMaxKeepdimsMixin,
     BackendContractArgMaxSemanticsMixin,
     BackendContractArgMaxTieBehaviourMixin,
+    BackendContractRank0ChainingMixin,
     BackendContractConcatenateSemanticsMixin,
     BackendContractStackSemanticsMixin,
     BackendContractAbsoluteSemanticsMixin,
     BackendContractClipSemanticsMixin,
     BackendContractConstructionMixin,
     BackendContractCopyMixin,
-    BackendContractCreationInputValidationMixin,
+    BackendContractCreationRankZeroShapeMixin,
     BackendContractCreationZeroLengthDimensionMixin,
     BackendContractElementwiseDualBroadcastingMixin,
     BackendContractElementwiseLeftPaddingBroadcastingMixin,
@@ -166,7 +170,9 @@ class TestNumpyBackendContract(
     BackendContractSqrtSemanticsMixin,
     BackendContractToPythonMixin,
     BackendContractToTensorShapeInputMixin,
-    BackendContractToTensorTypeInputMixin,
+    BackendContractToTensorValidInputTypeMixin,
+    BackendContractToTensorInvalidInputTypeMixin,
+    BackendContractToTensorValueInputMixin,
     BackendContractTransposeMixin,
     BackendContractUnaryShapeMixin,
     BackendContractUnaryZeroLengthDimensionMixin,
@@ -256,11 +262,12 @@ class TestNumpyBackendFloatValuedTensorCreation(NumpyBackendTestCase):
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
-    def test_scalar_returning_methods_do_not_return_rank_0_tensors(self):
+    def test_argmax_returns_rank_0_int_ndarray_when_called_without_axis(self):
         """
-        This ensures that the NumPy backend methods which return a single value
-        do not do so in the form of a rank 0 array. We're looking for a specific
-        NumPy type here, so this is the right place for this test.
+        This ensures that the NumPy backend returns a rank-zero ndarray rather
+        than a NumPy or Python scalar when argmax produces one index. We're
+        looking for a specific NumPy representation here, so this is the right
+        place for this test.
         """
         # Some of the assertions here are arguably duplicative of assertions in
         # the (still WIP) backend contract tests. This is fine for now and probably
@@ -270,113 +277,181 @@ class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
 
         backend = self.make_backend()
 
-        scalar_methods = [
-            ("argmax", lambda: backend.argmax(np.array([[1.0, 4.0], [3.0, 2.0]]))),
-            ("sum", lambda: backend.sum(np.array([[1.0, 2.0], [3.0, 4.0]]))),
-            ("mean", lambda: backend.mean(np.array([[1.0, 2.0], [3.0, 4.0]]))),
-            ("max", lambda: backend.max(np.array([[1.0, 2.0], [3.0, 4.0]]))),
-            ("min", lambda: backend.min(np.array([[1.0, 2.0], [3.0, 4.0]]))),
-            ("std", lambda: backend.std(np.array([[1.0, 2.0], [3.0, 4.0]]))),
-        ]
+        result = backend.argmax(np.array([[1.0, 4.0], [3.0, 2.0]]))
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, ())
+        self.assertTrue(np.issubdtype(result.dtype, np.integer))
+        self.assertEqual(result.item(), 1)
 
-        for method_name, call in scalar_methods:
-            with self.subTest(method=method_name):
-                result = call()
-                self.assertNotIsInstance(
-                    result,
-                    np.ndarray,
-                    msg=f"{method_name} returned a rank 0 ndarray: {result!r}",
-                )
-                self.assertIsInstance(
-                    result,
-                    (int, float),
-                    msg=(
-                        f"{method_name} returned {result!r} of type "
-                        f"{type(result).__name__}, not a plain Python scalar"
-                    ),
-                )
-
-    def test_tensor_input_methods_reject_rank_0_tensors(self):
-        """
-        This test ensures that the methods in the NumPy backend do not
-        accept NumPy rank 0 types. This a risk particular to the NumPy
-        backend, so the tests go here rather than in the backend contract
-        tests.
-        """
+    def test_reduction_methods_return_rank_0_ndarrays(self):
         import numpy as np
 
         backend = self.make_backend()
-        rank_0 = np.array(1.0)
-        matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
-
-        single_tensor_methods = [
-            ("zeros_like", lambda: backend.zeros_like(rank_0)),
-            ("ones_like", lambda: backend.ones_like(rank_0)),
-            ("full_like", lambda: backend.full_like(rank_0, 7)),
-            ("empty_like", lambda: backend.empty_like(rank_0)),
-            ("copy", lambda: backend.copy(rank_0)),
-            ("shape", lambda: backend.shape(rank_0)),
-            ("reshape", lambda: backend.reshape(rank_0, (1, 1))),
-            ("transpose", lambda: backend.transpose(rank_0)),
-            ("argmax", lambda: backend.argmax(rank_0)),
-            ("exp", lambda: backend.exp(rank_0)),
-            ("log", lambda: backend.log(rank_0)),
-            ("sqrt", lambda: backend.sqrt(rank_0)),
-            ("absolute", lambda: backend.absolute(rank_0)),
-            ("sign", lambda: backend.sign(rank_0)),
-            ("clip", lambda: backend.clip(rank_0, 0, 1)),
-            ("sum", lambda: backend.sum(rank_0)),
-            ("mean", lambda: backend.mean(rank_0)),
-            ("max", lambda: backend.max(rank_0)),
-            ("min", lambda: backend.min(rank_0)),
-            ("std", lambda: backend.std(rank_0)),
-        ]
-
-        for method_name, call in single_tensor_methods:
+        tensor = np.array([[1.0, 1.0], [7.0, 7.0]])
+        cases = (
+            ("sum", lambda: backend.sum(tensor), 16.0),
+            ("mean", lambda: backend.mean(tensor), 4.0),
+            ("max", lambda: backend.max(tensor), 7.0),
+            ("min", lambda: backend.min(tensor), 1.0),
+            ("std", lambda: backend.std(tensor), 3.0),
+        )
+        for method_name, call, expected in cases:
             with self.subTest(method=method_name):
-                with self.assertRaises(
-                    ValueError,
-                    msg=f"{method_name} accepted a rank 0 array when it should reject it",
-                ):
-                    call()
+                result = call()
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
 
-        binary_tensor_methods = [
-            ("add_lhs", lambda: backend.add(rank_0, matrix)),
-            ("add_rhs", lambda: backend.add(matrix, rank_0)),
-            ("subtract_lhs", lambda: backend.subtract(rank_0, matrix)),
-            ("subtract_rhs", lambda: backend.subtract(matrix, rank_0)),
-            ("multiply_lhs", lambda: backend.multiply(rank_0, matrix)),
-            ("multiply_rhs", lambda: backend.multiply(matrix, rank_0)),
-            ("divide_lhs", lambda: backend.divide(rank_0, matrix)),
-            ("divide_rhs", lambda: backend.divide(matrix, rank_0)),
-            ("matmul_lhs", lambda: backend.matmul(rank_0, matrix)),
-            ("matmul_rhs", lambda: backend.matmul(matrix, rank_0)),
-            ("maximum_lhs", lambda: backend.maximum(rank_0, matrix)),
-            ("maximum_rhs", lambda: backend.maximum(matrix, rank_0)),
-            ("minimum_lhs", lambda: backend.minimum(rank_0, matrix)),
-            ("minimum_rhs", lambda: backend.minimum(matrix, rank_0)),
+    def test_matmul_returns_rank_0_float_ndarray_for_two_1D_tensors(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        left = np.array([1.0, 2.0, 3.0])
+        right = np.array([4.0, 5.0, 6.0])
+        result = backend.matmul(left, right)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, ())
+        self.assertIs(result.dtype.type, np.float64)
+        self.assertEqual(result.item(), 32.0)
+
+    def test_like_creation_methods_accept_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.array(3.0)
+        cases = [
+            ("zeros_like", lambda: backend.zeros_like(tensor), 0.0),
+            ("ones_like", lambda: backend.ones_like(tensor), 1.0),
+            ("full_like", lambda: backend.full_like(tensor, 7), 7.0),
         ]
-
-        for method_name, call in binary_tensor_methods:
+        for method_name, call, expected in cases:
             with self.subTest(method=method_name):
-                with self.assertRaises(
-                    ValueError,
-                    msg=f"{method_name} accepted a rank 0 array when it should reject it",
-                ):
-                    call()
+                result = call()
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
 
-        sequence_tensor_methods = [
-            ("stack", lambda: backend.stack([rank_0, matrix])),
-            ("concatenate", lambda: backend.concatenate([rank_0, matrix])),
+    def test_empty_like_accepts_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        result = backend.empty_like(np.array(3.0))
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, ())
+        self.assertIs(result.dtype.type, np.float64)
+
+    def test_copy_accepts_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.array(3.0)
+        result = backend.copy(tensor)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, ())
+        self.assertIs(result.dtype.type, np.float64)
+        self.assertEqual(result.item(), 3.0)
+        self.assertIsNot(result, tensor)
+
+    def test_unary_methods_return_rank_0_tensor_when_passed_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.array(4.0)
+        cases = [
+            ("exp", lambda: backend.exp(tensor), np.exp(4.0).item()),
+            ("log", lambda: backend.log(tensor), np.log(4.0).item()),
+            ("sqrt", lambda: backend.sqrt(tensor), 2.0),
+            ("absolute", lambda: backend.absolute(np.array(-4.0)), 4.0),
+            ("sign", lambda: backend.sign(np.array(-4.0)), -1.0),
+            ("clip", lambda: backend.clip(tensor, 1.0, 3.0), 3.0),
         ]
-
-        for method_name, call in sequence_tensor_methods:
+        for method_name, call, expected in cases:
             with self.subTest(method=method_name):
-                with self.assertRaises(
-                    ValueError,
-                    msg=f"{method_name} accepted a rank 0 array when it should reject it",
-                ):
-                    call()
+                result = call()
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
+
+    def test_argmax_returns_rank_0_int_ndarray_when_passed_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.array(4.0)
+        result = backend.argmax(tensor)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, ())
+        self.assertTrue(np.issubdtype(result.dtype, np.integer))
+        self.assertEqual(result.item(), 0)
+
+    def test_reduction_methods_return_rank_0_ndarrays_when_passed_rank_0_tensor(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        tensor = np.array(4.0)
+        reduction_cases = [
+            ("sum", lambda: backend.sum(tensor), 4.0),
+            ("mean", lambda: backend.mean(tensor), 4.0),
+            ("max", lambda: backend.max(tensor), 4.0),
+            ("min", lambda: backend.min(tensor), 4.0),
+            ("std", lambda: backend.std(tensor), 0.0),
+        ]
+        for method_name, call, expected in reduction_cases:
+            with self.subTest(method=method_name):
+                result = call()
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
+
+    def test_elementwise_methods_return_rank_0_tensor_when_passed_two_rank_0_tensors(
+        self,
+    ):
+        import numpy as np
+
+        backend = self.make_backend()
+        a = np.array(6.0)
+        b = np.array(3.0)
+        cases = [
+            ("add", backend.add, 9.0),
+            ("subtract", backend.subtract, 3.0),
+            ("multiply", backend.multiply, 18.0),
+            ("divide", backend.divide, 2.0),
+            ("maximum", backend.maximum, 6.0),
+            ("minimum", backend.minimum, 3.0),
+        ]
+        for method_name, method, expected in cases:
+            with self.subTest(method=method_name):
+                result = method(a, b)
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
+
+    def test_elementwise_methods_return_rank_0_tensor_when_passed_rank_0_tensor_and_scalar(
+        self,
+    ):
+        import numpy as np
+
+        backend = self.make_backend()
+        a = np.array(6.0)
+        cases = [
+            ("add", backend.add, 9.0),
+            ("subtract", backend.subtract, 3.0),
+            ("multiply", backend.multiply, 18.0),
+            ("divide", backend.divide, 2.0),
+            ("maximum", backend.maximum, 6.0),
+            ("minimum", backend.minimum, 3.0),
+        ]
+        for method_name, method, expected in cases:
+            with self.subTest(method=method_name):
+                result = method(a, 3.0)
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertIs(result.dtype.type, np.float64)
+                self.assertEqual(result.item(), expected)
 
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
@@ -396,6 +471,42 @@ class TestNumpyBackendToTensor(NumpyBackendTestCase):
     declared within a test method tells us we have the right
     shape but it doesn't hurt to be explicit.
     """
+
+    def test_to_tensor_converts_float_scalar_to_expected_rank_0_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        for data in (0.0, 3.5, -4.0):
+            with self.subTest(data=data):
+                result = backend.to_tensor(data)
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertEqual(result.ndim, 0)
+                self.assertEqual(result.size, 1)
+                self.assertTrue(np.issubdtype(result.dtype, np.floating))
+                self.assertEqual(result.item(), data)
+
+    def test_to_tensor_normalises_int_scalar_in_rank_0_ndarray(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        for data in (0, 3, -4):
+            with self.subTest(data=data):
+                result = backend.to_tensor(data)
+                self.assertIsInstance(result, np.ndarray)
+                self.assertEqual(result.shape, ())
+                self.assertEqual(result.ndim, 0)
+                self.assertEqual(result.size, 1)
+                self.assertTrue(np.issubdtype(result.dtype, np.floating))
+                self.assertEqual(result.item(), float(data))
+                self.assertIs(type(result.item()), float)
+
+    def test_to_tensor_rejects_bool_and_non_numeric_scalar_input(self):
+        backend = self.make_backend()
+        for data in (True, "data", None):
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(ValueError, r"numeric values"):
+                    backend.to_tensor(data)
 
     def test_to_tensor_converts_1D_input_to_expected_ndarray(self):
         import numpy as np
@@ -435,8 +546,8 @@ class TestNumpyBackendToTensor(NumpyBackendTestCase):
     def test_to_tensor_does_not_return_rank_0_ndarray_when_given_empty_list_input(self):
         """
         Confirm that when we pass a single, empty list to to_tensor we
-        get a rank 1 array with zero elements and not an empty rank 0
-        ndarray.
+        get a rank 1 array with zero elements rather than a rank-zero
+        ndarray, which would contain one value.
         """
         import numpy as np
 
@@ -571,10 +682,28 @@ class TestNumpyBackendToTensor(NumpyBackendTestCase):
             with self.subTest(data_type=type(data).__name__):
                 with self.assertRaisesRegex(
                     ValueError,
-                    r"list or tuple input",
+                    r"numeric values",
                     msg=(
                         "to_tensor did not raise ValueError when given a NumPy array-like input"
                     ),
+                ):
+                    backend.to_tensor(data)
+
+    def test_to_tensor_rejects_numpy_scalar_input(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        invalid_inputs = [
+            np.float64(1.0),
+            np.int64(2),
+            np.bool_(True),
+        ]
+        for data in invalid_inputs:
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    r"numeric values",
+                    msg="to_tensor did not raise ValueError when given a NumPy scalar",
                 ):
                     backend.to_tensor(data)
 
@@ -695,23 +824,18 @@ class TestNumpyBackendToPython(NumpyBackendTestCase):
             with self.subTest(value=value):
                 self.assertIs(type(value), float)
 
-    def test_to_python_rejects_rank_0_arrays(self):
+    def test_to_python_converts_rank_0_array_to_python_float(self):
         import numpy as np
 
         backend = self.make_backend()
-
-        with self.assertRaisesRegex(
-            ValueError,
-            r"rank 0 arrays",
-            msg=("to_python did not raise ValueError when given a rank 0 ndarray"),
-        ):
-            backend.to_python(np.array(1.0))
+        result = backend.to_python(np.array(1.0))
+        self.assertIs(type(result), float)
+        self.assertEqual(result, 1.0)
 
     def test_to_python_rejects_numpy_scalar_values(self):
         """
-        This test checks that we do not get a Python (nested) list
-        containing e.g. np.float64 values. This doesn't test for
-        non-numpy types.
+        This test checks that to_python rejects NumPy scalar values,
+        which are not tensors. This doesn't test for non-NumPy types.
         """
         import numpy as np
 
@@ -720,7 +844,6 @@ class TestNumpyBackendToPython(NumpyBackendTestCase):
             np.float64(1.0),
             np.int64(2),
         ]
-
         for data in invalid_inputs:
             with self.subTest(data_type=type(data).__name__):
                 with self.assertRaisesRegex(
@@ -740,10 +863,9 @@ class TestNumpyBackendShape(NumpyBackendTestCase):
     Test the NumPy backend's shape method since it is relied upon
     in the backend contract tests.
 
-    We can be pretty certain that the NumPy backend's shape method
-    works because it just returns np.array.shape following a simple
-    rank 0 check. This class really exists as a template for future
-    tensor backends.
+    We can be pretty certain that the NumPy backend's shape method works
+    because it simply returns ``np.ndarray.shape``. This class also serves
+    as a template for implementation-level shape tests in future backends.
     """
 
     def test_shape_returns_expected_tuple_for_1D_tensor(self):
@@ -811,19 +933,18 @@ class TestNumpyBackendShape(NumpyBackendTestCase):
                 result = backend.shape(tensor)
                 self.assertEqual(result, expected_shape)
 
-    def test_shape_rejects_rank_0_tensor(self):
+    def test_shape_returns_empty_tuple_for_rank_0_tensor(self):
         import numpy as np
 
         backend = self.make_backend()
         test_cases = [
-            ("rank_0_float", np.empty((), dtype=float), True, None),
-            ("rank_0_int", np.empty((), dtype=int), True, None),
+            ("rank_0_float", np.empty((), dtype=float)),
+            ("rank_0_int", np.empty((), dtype=int)),
         ]
-        for case_name, tensor, should_raise, expected_shape in test_cases:
+        for case_name, tensor in test_cases:
             with self.subTest(case=case_name):
-                if should_raise:
-                    with self.assertRaises(ValueError):
-                        backend.shape(tensor)
+                result = backend.shape(tensor)
+                self.assertEqual(result, ())
 
     # This is now covered in test_shape_returns_expected_tuple_for_1D_tensor
     # and can probably be removed.

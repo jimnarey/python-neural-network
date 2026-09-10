@@ -27,16 +27,21 @@ from fnn.tensors.shared.types import Scalar
 @runtime_checkable
 class TensorBackend[T](Protocol):
 
-    def to_tensor(self, data: list[object] | tuple[object, ...]) -> T:
+    def to_tensor(self, data: Scalar | list[object] | tuple[object, ...]) -> T:
         """
-        Convert a (nested) list or tuple to the backend's native tensor
-        representation, normalising numeric values to floats. Use of
-        floats has to be enforced at the implementation level.
+        Convert a Python scalar or a (nested) list or tuple to the backend's
+        native tensor representation, normalising numeric values to floats.
+        A scalar produces a rank-zero tensor. Use of floats has to be enforced
+        at the implementation level.
         """
 
-    def to_python(self, tensor: T) -> list:
+    def to_python(self, tensor: T) -> Scalar | list:
         """
-        Convert a native tensor representation to a (nested) list.
+        Convert a native tensor to plain Python values.
+
+        A rank-zero tensor becomes a Python float or int. A tensor
+        with one or more axes becomes a Python list. Nesting represents its
+        axes, although empty dimensions can hide the dimensions after them.
         """
 
     def randn(self, shape: tuple[int, ...]) -> T:
@@ -187,7 +192,7 @@ class TensorBackend[T](Protocol):
                                          [4, 5]]
         """
 
-    def matmul(self, a: T, b: T) -> T | float:
+    def matmul(self, a: T, b: T) -> T:
         # These docstrings were added early to ensure each of the tensor
         # operations were completely understood. This was the hardest
         # operation to understand by far. Specifically, the need to match
@@ -235,6 +240,10 @@ class TensorBackend[T](Protocol):
         batch of samples, or with inputs that have extra leading dimensions
         such as time steps.
 
+        Multiplying two 1D tensors produces one value. That value is returned
+        in a rank-zero tensor, so it can be passed directly to another tensor
+        operation.
+
         Example:
         matmul([[1, 2], [3, 4]], [[5, 6], [7, 8]]) -> [[19, 22],
                                                        [43, 50]]
@@ -256,9 +265,15 @@ class TensorBackend[T](Protocol):
         between each element of a tensor and a scalar.
         """
 
-    def argmax(self, x: T, axis: int | None = None) -> T | int:
+    def argmax(self, x: T, axis: int | None = None) -> T:
         """
-        Return the indices of the maximum values in ``x``.
+        Return the positions of the maximum values in x as an
+        integer-valued tensor.
+
+        If axis is None, search the whole tensor and return one index
+        in a rank-zero tensor. If an axis is given, search separately along
+        that axis and remove it from the result shape. A rank-zero tensor has
+        no axis, so only axis=None is valid for one.
 
         Example:
         argmax([[1, 4], [3, 2]], axis=1) -> [1, 0]
@@ -303,14 +318,16 @@ class TensorBackend[T](Protocol):
         x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> T | float:
+    ) -> T:
         """
         Compute the sum of all elements in the tensor, or along one or more
         specific axes.
-        If `keepdims` is True, the reduced dimensions are kept with size 1.
+        If keepdims is True, the reduced dimensions are kept with size 1.
+        If all axes are removed, the single result is returned in a rank-zero
+        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
 
         Example:
-        sum([[1, 2], [3, 4]]) -> 10  # Total sum
+        sum([[1, 2], [3, 4]]) -> rank-zero tensor containing 10
         sum([[1, 2], [3, 4]], axis=0) -> [4, 6]  # Column-wise sum
         """
 
@@ -319,9 +336,12 @@ class TensorBackend[T](Protocol):
         x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> T | float:
+    ) -> T:
         """
         Compute the mean of all elements in the tensor, or along one or more axes.
+
+        If all axes are removed, the single result is returned in a rank-zero
+        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def max(
@@ -329,14 +349,16 @@ class TensorBackend[T](Protocol):
         x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> T | float:
+    ) -> T:
         """
         Compute the maximum value of all elements in the tensor, or along one
         or more specific axes.
-        If `keepdims` is True, the reduced dimensions are kept with size 1.
+        If keepdims is True, the reduced dimensions are kept with size 1.
+        If all axes are removed, the single result is returned in a rank-zero
+        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
 
         Example:
-        max([[1, 2], [3, 4]]) -> 4  # Maximum value
+        max([[1, 2], [3, 4]]) -> rank-zero tensor containing 4
         max([[1, 2], [3, 4]], axis=1) -> [2, 4]  # Row-wise maximum
         """
 
@@ -345,10 +367,13 @@ class TensorBackend[T](Protocol):
         x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> T | float:
+    ) -> T:
         """
         Compute the minimum value of all elements in the tensor, or along one
         or more specific axes.
+
+        If all axes are removed, the single result is returned in a rank-zero
+        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def std(
@@ -356,9 +381,12 @@ class TensorBackend[T](Protocol):
         x: T,
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
-    ) -> T | float:
+    ) -> T:
         """
         Compute the standard deviation of the tensor, or along one or more axes.
+
+        If all axes are removed, the single result is returned in a rank-zero
+        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def stack(self, xs: Sequence[T], axis: int = 0) -> T:

@@ -1,22 +1,21 @@
-"""Test classes for the conversion of native tensors to Python lists
+"""Test classes for converting native tensors to plain Python values
 
 The backend contract requires that all backend implementations have a method
 (to_python) for converting a tensor in the native representation used by that
-backend to a Python list structure containing scalar values represented
-by built-in Python types.
-
-This module has several classes which, together, enforce the backend
+backend. A rank-zero tensor becomes a built-in Python scalar. A tensor with
+one or more axes becomes a Python list containing values represented by
+built-in Python types. Nesting represents its axes where the structure is
+visible. This module has several classes which, together, enforce the backend
 contract for the to_python method.
 
-The shared to_python tests in this module cover only behaviour which can
-be expressed and checked using plain Python list structures.
-This includes, for example, ordinary 1D/2D/3D tensors and those empty
-tensors whose structure is still visible in Python, such as [] and
-[[], []].
+The shared to_python tests in this module cover behaviour which can be
+expressed and checked using plain Python scalars and list structures. This
+includes rank-zero tensors, ordinary 1D/2D/3D tensors and those empty tensors
+whose structure is still visible in Python, such as [] and [[], []].
 
 This means that we need complementary tests at the implementation level
 for each backend. These can inspect the backend's native tensor
-representation before conversion to lists and more meaningfully
+representation before conversion to Python values and more meaningfully
 compare the input (native) and expected (Python) values/tensors.
 
 This is particularly important for empty tensors. Some empty shapes,
@@ -173,7 +172,7 @@ class BackendContractToPythonMixin(BackendContractBase):
                 result = backend.to_python(backend.to_tensor(data))
                 self.assertEqual(result, expected)
 
-    def test_to_python_returns_builtin_python_scalar_values(self):
+    def test_to_python_returns_builtin_python_scalar_values_within_lists(self):
         backend = self.make_backend()
         test_cases = [
             [1.0, 2.0, 3.0],
@@ -187,3 +186,9 @@ class BackendContractToPythonMixin(BackendContractBase):
                 self.assertEqual(len(result), len(data))
                 for value in result:
                     self.assertIn(type(value), (int, float))
+
+    def test_to_python_converts_rank_0_tensor_to_builtin_python_float(self):
+        backend = self.make_backend()
+        result = backend.to_python(backend.to_tensor(3.0))
+        self.assertIs(type(result), float)
+        self.assertEqual(result, 3.0)

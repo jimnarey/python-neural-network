@@ -34,6 +34,26 @@ from tests.helpers.tensor_helpers import assert_nested_close
 
 @EnforceSharedNumericFixtures()
 class BackendContractConcatenateSemanticsMixin(BackendContractBase):
+    def test_concatenate_rejects_rank_0_tensors(self):
+        backend = self.make_backend()
+        test_cases = (
+            ("singleton_sequence", [backend.to_tensor(1.0)]),
+            (
+                "multiple_tensors",
+                [backend.to_tensor(1.0), backend.to_tensor(2.0)],
+            ),
+        )
+        for case_name, tensors in test_cases:
+            calls = (
+                ("omitted", lambda: backend.concatenate(tensors)),
+                ("axis_0", lambda: backend.concatenate(tensors, axis=0)),
+                ("axis_minus_1", lambda: backend.concatenate(tensors, axis=-1)),
+            )
+            for mode, call in calls:
+                with self.subTest(case=case_name, mode=mode):
+                    with self.assertRaises(ValueError):
+                        call()
+
     def test_concatenate_joins_1D_tensors_along_axis_0(self):
         """
         Tests that concatenate joins two 1D tensors end-to-end along axis 0.
@@ -435,13 +455,27 @@ class BackendContractConcatenateSemanticsMixin(BackendContractBase):
 
     def test_concatenate_rejects_rank_mismatch(self):
         backend = self.make_backend()
-        tensors = [
-            backend.to_tensor([[1.0, 2.0], [3.0, 4.0]]),
-            backend.to_tensor([[[5.0, 6.0], [7.0, 8.0]]]),
-        ]
-
-        with self.assertRaises(ValueError):
-            backend.concatenate(tensors, axis=0)
+        test_cases = (
+            (
+                "2D_then_3D",
+                [
+                    backend.to_tensor([[1.0, 2.0], [3.0, 4.0]]),
+                    backend.to_tensor([[[5.0, 6.0], [7.0, 8.0]]]),
+                ],
+            ),
+            (
+                "rank_0_then_1D",
+                [backend.to_tensor(1.0), backend.to_tensor([2.0])],
+            ),
+            (
+                "1D_then_rank_0",
+                [backend.to_tensor([1.0]), backend.to_tensor(2.0)],
+            ),
+        )
+        for case_name, tensors in test_cases:
+            with self.subTest(case=case_name):
+                with self.assertRaises(ValueError):
+                    backend.concatenate(tensors, axis=0)
 
     def test_concatenate_rejects_shape_mismatch_outside_chosen_axis(self):
         backend = self.make_backend()
@@ -472,6 +506,33 @@ class BackendContractConcatenateSemanticsMixin(BackendContractBase):
 
 @EnforceSharedNumericFixtures()
 class BackendContractStackSemanticsMixin(BackendContractBase):
+    def test_stack_joins_rank_0_tensors(self):
+        backend = self.make_backend()
+        test_cases = (
+            ("singleton_sequence", [backend.to_tensor(1.0)], [1.0]),
+            (
+                "multiple_tensors",
+                [
+                    backend.to_tensor(1.0),
+                    backend.to_tensor(2.0),
+                    backend.to_tensor(3.0),
+                ],
+                [1.0, 2.0, 3.0],
+            ),
+        )
+        for case_name, tensors, expected in test_cases:
+            calls = (
+                ("omitted", lambda: backend.stack(tensors)),
+                ("axis_0", lambda: backend.stack(tensors, axis=0)),
+                ("axis_minus_1", lambda: backend.stack(tensors, axis=-1)),
+            )
+            for mode, call in calls:
+                with self.subTest(case=case_name, mode=mode):
+                    result_tensor = call()
+                    result = backend.to_python(result_tensor)
+                    self.assertEqual(backend.shape(result_tensor), (len(tensors),))
+                    assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
     def test_stack_joins_1D_tensors_along_axis_0(self):
         """
         Tests that stack joins two 1D tensors by inserting a new leading axis.
@@ -1018,13 +1079,27 @@ class BackendContractStackSemanticsMixin(BackendContractBase):
         identical shapes. A rank mismatch is therefore always invalid.
         """
         backend = self.make_backend()
-        tensors = [
-            backend.to_tensor([[1.0, 2.0], [3.0, 4.0]]),
-            backend.to_tensor([[[5.0, 6.0], [7.0, 8.0]]]),
-        ]
-
-        with self.assertRaises(ValueError):
-            backend.stack(tensors, axis=0)
+        test_cases = (
+            (
+                "2D_then_3D",
+                [
+                    backend.to_tensor([[1.0, 2.0], [3.0, 4.0]]),
+                    backend.to_tensor([[[5.0, 6.0], [7.0, 8.0]]]),
+                ],
+            ),
+            (
+                "rank_0_then_1D",
+                [backend.to_tensor(1.0), backend.to_tensor([2.0])],
+            ),
+            (
+                "1D_then_rank_0",
+                [backend.to_tensor([1.0]), backend.to_tensor(2.0)],
+            ),
+        )
+        for case_name, tensors in test_cases:
+            with self.subTest(case=case_name):
+                with self.assertRaises(ValueError):
+                    backend.stack(tensors, axis=0)
 
     def test_stack_rejects_shape_mismatch(self):
         """

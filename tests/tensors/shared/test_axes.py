@@ -9,10 +9,6 @@ class TestAxesNormalisation(unittest.TestCase):
     """
     Tests the shared helpers for converting axis arguments to
     non-negative indices.
-
-    We do not test ndim == 0 because the backend contract does
-    not allow rank-0 tensors, so axis normalisation should only
-    be needed for tensors with one or more axes.
     """
 
     def test_normalise_axis_returns_positive_axis_unchanged_when_axis_in_bounds(self):

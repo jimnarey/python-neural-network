@@ -19,9 +19,9 @@ class TestValidatedShape(unittest.TestCase):
                 result = PythonTensor._validated_shape(shape)
                 self.assertEqual(shape, result)
 
-    def test_raises_on_empty_shape(self):
-        with self.assertRaisesRegex(ValueError, "non-empty"):
-            PythonTensor._validated_shape(())
+    def test_accepts_rank_zero_shape(self):
+        result = PythonTensor._validated_shape(())
+        self.assertEqual(result, ())
 
     def test_raises_on_negative_dimension(self):
         shapes = ((-1,), (2, -20))
@@ -204,6 +204,11 @@ class TestValidateBufferBounds(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "buffer is too small"):
                     PythonTensor._validate_buffer_bounds(strides, shape, data, offset)
 
+    def test_raises_if_offset_one_past_end_when_passed_rank_0_tensor(self):
+        data = array("d", [0.0, 0.0])
+        with self.assertRaisesRegex(ValueError, "buffer is too small"):
+            PythonTensor._validate_buffer_bounds((), (), data, 2)
+
     def test_returns_none_if_max_index_in_bounds_when_passed_non_empty_tensor(self):
         cases = (
             ((3, 1), (2, 3), array("d", [0.0] * 7), 1),
@@ -384,6 +389,14 @@ class TestConstructor(unittest.TestCase):
 
 class TestNdimAndSize(unittest.TestCase):
 
+    def test_ndim_returns_zero_for_rank_0_tensor(self):
+        tensor = PythonTensor(())
+        self.assertEqual(tensor.ndim(), 0)
+
+    def test_size_returns_one_for_rank_0_tensor(self):
+        tensor = PythonTensor(())
+        self.assertEqual(tensor.size(), 1)
+
     def test_ndim_returns_number_of_dimensions(self):
         cases = (
             ((3,), 1),
@@ -422,6 +435,11 @@ class TestGetScalar(unittest.TestCase):
         result = tensor.get_scalar((1, 2))
         self.assertEqual(result, 6.0)
 
+    def test_returns_value_from_rank_0_tensor(self):
+        tensor = PythonTensor((), array("d", [3.0]))
+        result = tensor.get_scalar(())
+        self.assertEqual(result, 3.0)
+
     def test_returns_int_value_from_int_valued_tensor(self):
         tensor = PythonTensor((2, 3), array("q", [1, 2, 3, 4, 5, 6]))
         result = tensor.get_scalar((1, 2))
@@ -450,6 +468,12 @@ class TestSetScalar(unittest.TestCase):
         tensor = PythonTensor((2, 3), data)
         tensor.set_scalar((1, 1), 100.0)
         self.assertEqual(data[4], 100.0)
+
+    def test_updates_value_in_rank_0_tensor(self):
+        data = array("d", [3.0])
+        tensor = PythonTensor((), data)
+        tensor.set_scalar((), 7.0)
+        self.assertEqual(data[0], 7.0)
 
     def test_updates_int_value_at_indices_for_int_valued_tensor(self):
         data = array("q", [1, 2, 3, 4, 5, 6])
@@ -500,6 +524,11 @@ class TestSetScalar(unittest.TestCase):
 
 
 class TestIndicesAndItems(unittest.TestCase):
+
+    def test_indices_returns_empty_index_for_rank_0_tensor(self):
+        tensor = PythonTensor(())
+        result = list(tensor.indices())
+        self.assertEqual(result, [()])
 
     def test_indices_returns_1D_indices_in_order(self):
         tensor = PythonTensor((3,))
@@ -562,6 +591,11 @@ class TestIndicesAndItems(unittest.TestCase):
             ],
         )
 
+    def test_items_returns_single_value_for_rank_0_tensor(self):
+        tensor = PythonTensor((), array("d", [3.0]))
+        result = list(tensor.items())
+        self.assertEqual(result, [((), 3.0)])
+
     def test_items_uses_tensor_layout_when_reading_values(self):
         tensor = PythonTensor(
             (2, 2),
@@ -587,6 +621,18 @@ class TestIndicesAndItems(unittest.TestCase):
 
 
 class TestToList(unittest.TestCase):
+
+    def test_returns_float_for_rank_0_float_tensor(self):
+        tensor = PythonTensor((), array("d", [3.0]))
+        result = tensor.to_list()
+        self.assertIs(type(result), float)
+        self.assertEqual(result, 3.0)
+
+    def test_returns_int_for_rank_0_int_tensor(self):
+        tensor = PythonTensor((), array("q", [3]))
+        result = tensor.to_list()
+        self.assertIs(type(result), int)
+        self.assertEqual(result, 3)
 
     def test_returns_1D_list(self):
         tensor = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
@@ -692,6 +738,31 @@ class TestToList(unittest.TestCase):
 
 
 class TestView(unittest.TestCase):
+
+    def test_returns_rank_0_view_at_each_valid_offset(self):
+        tensor = PythonTensor((3,), array("d", [1.0, 2.0, 3.0]))
+        test_cases = (
+            (0, 1.0),
+            (1, 2.0),
+            (2, 3.0),
+        )
+        for offset, expected in test_cases:
+            calls = (
+                ("strides_omitted", lambda: tensor.view((), offset=offset)),
+                (
+                    "empty_strides",
+                    lambda: tensor.view((), offset=offset, strides=()),
+                ),
+            )
+            for mode, call in calls:
+                with self.subTest(offset=offset, mode=mode):
+                    view = call()
+                    self.assertEqual(view.shape, ())
+                    self.assertEqual(view.strides, ())
+                    self.assertEqual(view.offset, offset)
+                    self.assertIs(view.data, tensor.data)
+                    self.assertEqual(view.get_scalar(()), expected)
+                    self.assertEqual(view.to_list(), expected)
 
     def test_returns_new_tensor_sharing_same_data_buffer(self):
         tensor = PythonTensor((2, 3), array("d", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]))

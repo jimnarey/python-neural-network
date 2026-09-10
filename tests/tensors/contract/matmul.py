@@ -94,6 +94,22 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
     A.
     """
 
+    def test_matmul_rejects_rank_0_tensor_on_either_side(self):
+        backend = self.make_backend()
+        rank_0_tensor = backend.to_tensor(1.0)
+        matrix = backend.to_tensor([[1.0, 2.0], [3.0, 4.0]])
+        cases = (
+            ("left", lambda: backend.matmul(rank_0_tensor, matrix)),
+            ("right", lambda: backend.matmul(matrix, rank_0_tensor)),
+        )
+        for side, call in cases:
+            with self.subTest(side=side):
+                with self.assertRaises(
+                    ValueError,
+                    msg=f"matmul accepted a rank 0 tensor on the {side}",
+                ):
+                    call()
+
     def test_matmul_multiplies_two_square_2D_tensors(self):
         """
         This tests matrix multiplication for the simplest case.
@@ -309,12 +325,11 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
         A 1D array can also be multiplied by another 1D array if they have the
         same length.
 
-        In this case the result is a single scalar value rather than another
-        array.
+        In this case the result contains a single value and has no axes.
 
         For the calculation, the left-hand array is treated as a single-row
         matrix and the right-hand array as a single-column matrix. The temporary
-        1 x 1 result is then returned as a scalar.
+        1 x 1 result is then returned as a rank-zero tensor.
         """
         backend = self.make_backend()
 
@@ -323,10 +338,19 @@ class BackendContractMatmulSemanticsMixin(BackendContractBase):
 
         expected = 32.0
         # This is a scalar value already so we do not need to convert it with to_python
-        result = backend.matmul(a, b)
-        self.assertNotIsInstance(result, (list, tuple))
-        self.assertIsInstance(result, (int, float))
-        self.assertEqual(result, expected)
+        result_tensor = backend.matmul(a, b)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
+        assert_nested_close(result, expected, rel_tol=0, abs_tol=0)
+
+    def test_matmul_returns_rank_0_zero_valued_tensor_for_empty_1D_tensors(self):
+        backend = self.make_backend()
+        a = backend.to_tensor([])
+        b = backend.to_tensor([])
+        result_tensor = backend.matmul(a, b)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
+        assert_nested_close(result, 0.0, rel_tol=0, abs_tol=0)
 
     def test_matmul_multiplies_1D_tensor_by_each_matrix_in_a_3D_stack(self):
         """

@@ -5,6 +5,41 @@ from tests.helpers.tensor_helpers import assert_nested_close, all_values_are_flo
 
 
 class BackendReferenceElementwiseFloatValueMixin(BackendContractBase):
+    def test_elementwise_methods_return_float_values_for_two_rank_0_inputs(self):
+        backend = self.make_backend()
+        a = backend.to_tensor(6.0)
+        b = backend.to_tensor(3.0)
+        elementwise_methods = [
+            ("add", backend.add),
+            ("subtract", backend.subtract),
+            ("multiply", backend.multiply),
+            ("divide", backend.divide),
+            ("maximum", backend.maximum),
+            ("minimum", backend.minimum),
+        ]
+        for method_name, method in elementwise_methods:
+            with self.subTest(method=method_name):
+                result = backend.to_python(method(a, b))
+                self.assertTrue(all_values_are_floats(result))
+
+    def test_elementwise_methods_return_float_values_for_rank_0_input_and_scalar(
+        self,
+    ):
+        backend = self.make_backend()
+        a = backend.to_tensor(6.0)
+        elementwise_methods = [
+            ("add", backend.add),
+            ("subtract", backend.subtract),
+            ("multiply", backend.multiply),
+            ("divide", backend.divide),
+            ("maximum", backend.maximum),
+            ("minimum", backend.minimum),
+        ]
+        for method_name, method in elementwise_methods:
+            with self.subTest(method=method_name):
+                result = backend.to_python(method(a, 3.0))
+                self.assertTrue(all_values_are_floats(result))
+
     def test_elementwise_methods_return_float_valued_tensors_for_same_shape_inputs(
         self,
     ):

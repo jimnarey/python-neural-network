@@ -36,20 +36,23 @@ The backend contract enforces the following:
 
 #### Types and Values
 
-- Methods which return an index return an `int` and methods which take an index as an argument may be passed an `int`. TODO - should this be 'must'? Probably
-- Backend methods only receive and return standard Python types for scalar values (`float`, `int`) and never implementation-specific types (`np.float64`).
-- No arrays of rank 0 are returned or can be passed as arguments. Methods will return either at least a 1D array (including an empty array) or a scalar.
+- Index values stored in tensors use an integer representation. Methods which take an axis or other index as an argument may be passed a Python `int`. TODO - should this be 'must'? Probably
+- Python scalar arguments and scalar values returned by `to_python` use the standard Python types `float` and `int`, never implementation-specific scalar types such as `np.float64`.
+- Tensor operations always return the backend's native tensor type. This includes operations which naturally produce a single result, such as reducing all axes, finding one maximum index, or multiplying two vectors. A single result is represented by a rank-zero tensor with shape `()`, rather than by a Python scalar.
+- The result shape is determined by the operation, not merely by the number of elements. A tensor with shape `(1,)` or `(1, 1)` retains that shape even though it contains only one element.
+- Methods which return metadata rather than tensor data return the documented Python metadata type. In particular, `shape` returns a Python `tuple`.
 - Backend methods only guarantee support for tensors in the native tensor representation used by that backend.
-- Each backend must provide a method for converting a rectangular Python nested/un-nested `list` or `tuple` representing at least a tensor of rank 1 or greater into its native tensor type. This method must reject plain scalar values.
+- Each backend must provide a method for converting a built-in Python `int` or `float`, or a rectangular Python nested/un-nested `list` or `tuple`, into its native tensor type.
+- A scalar input creates a rank-zero tensor with shape `()` and one value. Nesting determines rank: `[value]` creates shape `(1,)`, `[[value]]` creates shape `(1, 1)` etc.
 - This method must raise `TypeError` or `ValueError` if passed non-numeric values within the `list` or `tuple` (nested `list`s and `tuple`s are fine, as long as the resulting object conforms to the rules on shape).
 - The conversion method must accept only Python's built in `int` and `float` types for values.
-- Each backend must provide a method for converting an instance of its native tensor type to a nested/un-nested `list`. It cannot return a rank 0 tensor or a scalar because the contract does not allow tensors to represent these.
-- The values returned by this method (within the `list`) must be `float`s or `int`s.
+- `to_python` is the explicit boundary for converting tensor data into Python values. It converts a rank-zero tensor to a Python `float` or `int`, because a Python scalar does not carry tensor shape. It converts a tensor with one or more axes to nested or unnested Python lists.
+- Scalar values returned by this method, either directly or within a `list`, must be Python `float`s or `int`s.
 
 #### Numeric operations
 
 - The backend contract does not currently prescribe the behaviour of conventionally forbidden floating-point operations such as division by zero, taking the logarithm of zero or a negative value, or taking the square root of a negative value.
-- When `sum` is called on an empty tensor it returns `0.0`, so code which totals values can continue without special handling.
+- When `sum` is called on an empty tensor it returns a tensor containing `0.0`, so code which totals values can continue without special handling. Its shape is determined by the usual reduction and `keepdims` rules.
 - Other reductions such as `mean`, `max`, `min` and `std` must raise `ValueError` on an empty tensor, because there is no single, obvious value these might sensibly return.
 - `argmax` must raise `ValueError` on an empty tensor, because there is no maximum value whose index could be returned.
 
@@ -66,7 +69,7 @@ The backend contract enforces the following:
 
 - `transpose` must accept either `None` or a full axes `tuple`. When an axes `tuple` is provided, it gives the new order of the axes.
 - `sum`, `mean`, `max`, `min` and `std` must accept `None`, a single `int`, or a `tuple` of `int`s for the axis argument. For these reduction methods, `axis=1` and `axis=(1,)` are equivalent.
-- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a plain Python scalar rather than a rank 0 tensor.
+- When `keepdims=False`, the reduced axes are removed. If this removes all axes, the method returns a rank-zero tensor.
 - When `keepdims=True`, the reduced axes are kept with length `1`, so the result remains a tensor.
 - Where a method takes an axes `tuple` to reorder axes, the order of the axes in the `tuple` is part of the contract and must be followed exactly.
 - Where a method takes an axes `tuple` to identify which axes to operate on, the `tuple` identifies the set of axes to use; the order of those axes is not part of the contract.
@@ -118,30 +121,30 @@ The reference design enforces the following, in addition to the requirements of 
 
 #### Types And Values
 
-- Tensor values are represented as `float`s internally.
+- Data produced by arithmetic operations is stored as `float`s. Data representing indices, such as the output of `argmax`, is stored as integers.
 - Python `int` values may be accepted at the contract boundary where this is convenient, but they are normalised to `float` values inside tensors.
 - Methods which create tensors with values, such as `zeros`, `ones`, `full`, `eye` and `randn`, return float-valued tensors.
-- Methods which return scalar numeric results, other than index-returning methods, return plain Python `float`s.
-- Methods which return indices return plain Python `int`s.
+- Operations which naturally produce one arithmetic result return a rank-zero float tensor.
+- Operations which produce one index return a rank-zero integer tensor. Operations which produce multiple indices return an integer tensor of the appropriate shape.
 
 #### Numeric Operations
 
 - Elementwise arithmetic methods such as `add`, `subtract`, `multiply`, `divide`, `maximum` and `minimum` must return float-valued tensors.
 - Unary methods such as `exp`, `log`, `sqrt`, `absolute`, `sign` and `clip` must return float-valued tensors.
-- Where conventionally forbidden floating-point operations produce special values, scalar-returning methods may return those values and `to_python` may include them within returned Python lists.
-- At the Python boundary, reference backends may surface special numeric values only as `float("inf")`, `float("-inf")` and `float("nan")`, whether returned directly as scalar results or appearing inside the Python lists produced by to_python.
+- Tensors may contain the special floating-point values `inf`, `-inf`, and `nan`. When `to_python` converts a rank-zero tensor containing one of these values, it returns the corresponding Python `float`. When it converts a tensor with one or more axes, those Python values may appear within the returned lists.
+- At the Python boundary, reference backends may surface special numeric values only as `float("inf")`, `float("-inf")` and `float("nan")`.
 
 #### Conversion
 
 - `to_tensor` converts acceptable Python numeric values to the backend's native `float`-valued tensor representation.
-- `to_python` converts native tensors back to Python lists containing `float`s.
+- `to_python` converts a rank-zero tensor to a Python `float` or `int`, because a Python scalar does not carry tensor shape. It converts a tensor with one or more axes to nested or unnested Python lists containing values of the corresponding type.
 
 #### Arithmetic
 
 - Arithmetic follows ordinary floating-point behaviour, subject to the tolerances used in the backend contract tests.
 - Tests using non-integer `float` values are reference-design tests. They are not expected to be reusable unchanged for quantised or integer-valued backends.
 - Conventionally forbidden floating-point operations complete rather than raising in reference-design backends, which must surface the resulting special values at the Python boundary using ordinary Python `float` values, namely `float("nan")`, `float("inf")` and `float("-inf")`.
-- Reduction methods return float-valued tensors when the result is not scalar.
+- Reduction methods always return float-valued tensors, including rank-zero tensors when all axes are removed.
 
 #### Creation Methods
 
@@ -171,7 +174,7 @@ The reference design enforces the following, in addition to the requirements of 
 
 - The network will always be orchestrated and described in Python.
 - Tensor representations will be native to their respective backend.
-- Only scalar values and other narrow interface points should normally cross the boundary.
+- Tensor data should normally remain in the backend's native representation. Conversion to Python scalar values or lists should happen explicitly through narrow interface points such as `to_python`.
 - The tensor backends are concerned only with tensors and operations on them.
 - Other concepts present in the NNfSiP book, such as input handling, batching orchestration, sample loading, image preprocessing, serialisation, and labelling, are not considered part of the backend. These should be handled separately and remain pluggable.
 - No assumptions are made about the eventual use of the network beyond the need for the core tensor and network logic to remain adaptable.
@@ -210,7 +213,7 @@ The tensor-backend design is intended to leave room for future backends with dif
 - The C implementation should favour a flat contiguous buffer plus shape metadata over nested arrays.
 - Maximising code reuse across float and quantized arithmetic, x86 CPU execution, possible later CUDA support, CPython extension integration, and MicroPython extension integration is a central design goal. This means, in particular, separating shape, indexing, axis, and other structural logic from the arithmetic core wherever practical, so that later work on quantized inference can reuse as much non-arithmetic code as possible.
 - Low-level arithmetic code must be as pure and dependency-light as possible
-- It is important to avoid tensors crossing the Python or MicroPython boundary any more than strictly necessary. This has already informed the Protocol-based design.
+- It is important to avoid tensor values crossing the Python or MicroPython boundary as individual Python objects unless explicitly requested. This has already informed the Protocol-based design.
 
 #### Testing
 
@@ -228,7 +231,7 @@ The tensor-backend design is intended to leave room for future backends with dif
 
 ##### to_python and to_tensor
 
-The backend contract tests are designed to be implementation-agnostic, so their inputs, expected values and observed results need to be expressed using plain Python types. For this reason each backend provides `to_tensor` and `to_python` methods for, respectively, converting Python `list`/`tuple` structures to the backend's tensor representation and from those to `list`s.
+The backend contract tests are designed to be implementation-agnostic, so their inputs, expected values and observed results need to be expressed using plain Python types. For this reason each backend provides `to_tensor` and `to_python` methods for, respectively, converting Python scalars or `list`/`tuple` structures to the backend's tensor representation and converting native tensors to Python scalars or lists.
 
 This creates a tension in the test design. We want the tests to remain independent of backend-specific dependencies such as NumPy, but we also want to avoid implementing and maintaining separate conversion logic inside the test suite.
 

@@ -11,6 +11,22 @@ from tests.helpers.shared_tests_enforcement import EnforceSharedNumericFixtures
 
 @EnforceSharedNumericFixtures()
 class BackendContractZerosOnesAndFullMixin(BackendContractBase):
+    def test_zeros_ones_and_full_return_requested_rank_0_tensors_with_expected_values(
+        self,
+    ):
+        backend = self.make_backend()
+        creation_methods = [
+            ("zeros", lambda: backend.zeros(()), 0.0),
+            ("ones", lambda: backend.ones(()), 1.0),
+            ("full", lambda: backend.full((), 7.0), 7.0),
+        ]
+        for method_name, call, expected in creation_methods:
+            with self.subTest(method=method_name):
+                tensor = call()
+                result = backend.to_python(tensor)
+                self.assertEqual(backend.shape(tensor), ())
+                self.assertEqual(result, expected)
+
     def test_zeros_ones_and_full_return_requested_1D_tensors_with_expected_values(
         self,
     ):
@@ -135,6 +151,23 @@ class BackendContractLikeCreationMixin(BackendContractBase):
     The value-returning *_like methods each take a tensor as an argument and
     return a tensor with the same shape but with zeros, ones or a specified value.
     """
+
+    def test_like_creation_methods_return_expected_values_with_same_shape_as_rank_0_input(
+        self,
+    ):
+        backend = self.make_backend()
+        source_tensor = backend.to_tensor(3.0)
+        creation_methods = [
+            ("zeros_like", lambda: backend.zeros_like(source_tensor), 0.0),
+            ("ones_like", lambda: backend.ones_like(source_tensor), 1.0),
+            ("full_like", lambda: backend.full_like(source_tensor, 7.0), 7.0),
+        ]
+        for method_name, call, expected in creation_methods:
+            with self.subTest(method=method_name):
+                tensor = call()
+                result = backend.to_python(tensor)
+                self.assertEqual(backend.shape(tensor), ())
+                self.assertEqual(result, expected)
 
     def test_like_creation_methods_return_expected_values_with_same_shape_as_input_for_1D_tensor(
         self,
@@ -322,6 +355,14 @@ class BackendContractEmptyMixin(BackendContractBase):
                 tensor = backend.empty(requested_shape)
                 self.assertEqual(backend.shape(tensor), requested_shape)
 
+
+@EnforceSharedNumericFixtures()
+class BackendContractEmptyLikeMixin(BackendContractBase):
+    """
+    This tests that empty_like returns tensors with the requested shapes,
+    as per empty.
+    """
+
     def test_empty_like_returns_tensor_with_same_shape_as_input(self):
         backend = self.make_backend()
         source_tensor = backend.to_tensor(
@@ -333,9 +374,24 @@ class BackendContractEmptyMixin(BackendContractBase):
         tensor = backend.empty_like(source_tensor)
         self.assertEqual(backend.shape(tensor), (2, 1, 4))
 
+    def test_empty_like_returns_rank_0_tensor_when_input_is_rank_0(self):
+        backend = self.make_backend()
+        source_tensor = backend.to_tensor(3.0)
+        tensor = backend.empty_like(source_tensor)
+        self.assertEqual(backend.shape(tensor), ())
+
 
 @EnforceSharedNumericFixtures()
 class BackendContractCopyMixin(BackendContractBase):
+    def test_copy_returns_distinct_rank_0_tensor_with_same_value(self):
+        backend = self.make_backend()
+        source_tensor = backend.to_tensor(7.0)
+        tensor = backend.copy(source_tensor)
+        result = backend.to_python(tensor)
+        self.assertEqual(backend.shape(tensor), ())
+        self.assertEqual(result, 7.0)
+        self.assertNotEqual(id(tensor), id(source_tensor))
+
     def test_copy_returns_tensor_with_same_shape_as_input(self):
         backend = self.make_backend()
         source_tensor = backend.to_tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
@@ -490,8 +546,8 @@ class BackendContractCreationZeroLengthDimensionMixin(BackendContractBase):
 
 
 @EnforceSharedNumericFixtures()
-class BackendContractCreationInputValidationMixin(BackendContractBase):
-    def test_shape_based_creation_methods_reject_empty_shape(self):
+class BackendContractCreationRankZeroShapeMixin(BackendContractBase):
+    def test_shape_based_creation_methods_accept_rank_zero_shape(self):
         backend = self.make_backend()
 
         creation_methods = [
@@ -504,8 +560,5 @@ class BackendContractCreationInputValidationMixin(BackendContractBase):
 
         for method_name, call in creation_methods:
             with self.subTest(method=method_name):
-                with self.assertRaises(
-                    ValueError,
-                    msg=f"{method_name} accepted an empty shape when it should reject it",
-                ):
-                    call()
+                result = call()
+                self.assertEqual(backend.shape(result), ())

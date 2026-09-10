@@ -7,11 +7,6 @@ def shape_size(shape: tuple[int, ...]) -> int:
     return math.prod(shape)
 
 
-def validate_shape_not_rank_0(shape: tuple[int, ...]) -> None:
-    if not shape:
-        raise ValueError("Tensor creation methods require a non-empty shape.")
-
-
 def validate_shape_has_no_negative_dimensions(
     shape: tuple[int, ...], method_name: str
 ) -> None:
@@ -100,18 +95,14 @@ def validate_axes_are_permutation(axes: tuple[int, ...], ndim: int) -> None:
         raise ValueError("axes must include every tensor axis exactly once")
 
 
-def validate_tensor_conversion_root_is_sequence(data: object) -> None:
-    if not isinstance(data, (list, tuple)):
-        raise ValueError("Tensor conversion requires a list or tuple input.")
-
-
 def parse_tensor_data(data: object) -> tuple[tuple[int, ...], list[float]]:
     """
-    Validate nested tensor input and return its shape with flat float values.
+    Validate tensor input and return its shape with flat float values.
 
-    The input must be a rectangular nested list/tuple structure whose leaf
-    values are plain Python ints or floats. The returned values are ordered
-    by walking the nested structure from left to right.
+    The input must be a plain Python int or float, or a rectangular nested
+    list/tuple structure whose leaf values are plain Python ints or floats.
+    A scalar input has shape (). The returned values are ordered by walking
+    the nested structure from left to right.
 
     The Python backend requires the returned values in order to instantiate
     PythonTensor. The NumPy backend just needs this function to not raise.

@@ -2,11 +2,10 @@
 Tests the parts of the matmul reference design which go beyond the backend
 contract.
 
-These tests focus on float-valued outputs, in both of the forms matmul can
-return them: float-valued tensors, and a plain Python float when the result
-is a scalar. They also include a small arithmetic check using non-integer
-float fixtures where the reference design is intentionally more specific
-than the backend contract.
+These tests check that matmul returns float-valued tensors. This includes a
+rank-zero tensor when multiplying two 1D tensors produces one value. They
+also include a small arithmetic check using non-integer float fixtures where
+the reference design is intentionally more specific than the backend contract.
 """
 
 from tests.tensors.contract.shared import BackendContractBase
@@ -29,17 +28,19 @@ class BackendReferenceMatmulFloatValueMixin(BackendContractBase):
         result = backend.to_python(tensor)
         self.assertTrue(all_values_are_floats(result))
 
-    def test_matmul_returns_float_scalar_when_result_is_a_scalar(self):
+    def test_matmul_returns_rank_0_float_tensor_for_two_1D_tensors(self):
         """
-        Test that matmul returns a plain Python float, not an int, when
-        multiplying two 1D tensors of whole numbers together produces a
-        scalar result.
+        Test that matmul returns a rank-zero float tensor when multiplying
+        two 1D tensors produces one value. After conversion by to_python,
+        that value must be a Python float rather than an int.
         """
         backend = self.make_backend()
         a = backend.to_tensor([1, 2, 3])
         b = backend.to_tensor([4, 5, 6])
 
-        result = backend.matmul(a, b)
+        result_tensor = backend.matmul(a, b)
+        result = backend.to_python(result_tensor)
+        self.assertEqual(backend.shape(result_tensor), ())
         self.assertIsInstance(result, float)
 
 

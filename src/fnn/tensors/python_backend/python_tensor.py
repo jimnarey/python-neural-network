@@ -16,8 +16,6 @@ class PythonTensor:
     def _validated_shape(shape: tuple[int, ...]) -> tuple[int, ...]:
         # TODO - consider whether these guards should be at the backend class
         # level (for all backends)
-        if not shape:
-            raise ValueError("shape must be non-empty")
         for dimension in shape:
             if dimension < 0:
                 raise ValueError("shape dimensions must be non-negative")
@@ -210,7 +208,9 @@ class PythonTensor:
         for indices in self.indices():
             yield indices, self.get_scalar(indices)
 
-    def to_list(self) -> list:
+    # Change the name of this eventually, since it's not just returning
+    # lists
+    def to_list(self) -> Scalar | list:
         def build(indices):
             if len(indices) == len(self.shape):
                 return self.get_scalar(indices)
