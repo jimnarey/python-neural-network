@@ -120,7 +120,9 @@ class PythonBackend:
         validate_shape_has_no_negative_dimensions(shape, "reshape")
         if x.size() != math.prod(shape):
             raise ValueError("reshape cannot change the number of tensor elements")
-        return PythonTensor(shape, array("d", (value for _, value in x.items())))
+        return PythonTensor(
+            shape, array(x.data.typecode, (value for _, value in x.items()))
+        )
 
     def transpose(
         self, x: PythonTensor, axes: tuple[int, ...] | None = None

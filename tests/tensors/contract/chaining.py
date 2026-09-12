@@ -36,3 +36,6 @@ class BackendContractRank0ChainingMixin(BackendContractBase):
         result = backend.to_python(result_tensor)
         self.assertEqual(backend.shape(result_tensor), (1,))
         assert_nested_close(result, [1], rel_tol=0, abs_tol=0)
+        # reshape must preserve argmax's integer-valued result, not silently
+        # widen it to float.
+        self.assertIs(type(result[0]), int)

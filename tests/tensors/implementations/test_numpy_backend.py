@@ -453,6 +453,72 @@ class TestNumpyBackendRank0Handling(NumpyBackendTestCase):
                 self.assertIs(result.dtype.type, np.float64)
                 self.assertEqual(result.item(), expected)
 
+    def test_tensor_taking_methods_reject_numpy_scalar_tensor_argument(self):
+        """
+        Allowing rank-0 ndarrays as tensor arguments must not also allow raw
+        NumPy scalars (e.g. np.float64) through: those are not a supported
+        tensor or Python scalar representation.
+        """
+        import numpy as np
+
+        backend = self.make_backend()
+        numpy_scalar = np.float64(4.0)
+        rank_0_tensor = np.array(4.0)
+        cases = [
+            ("zeros_like", lambda x: backend.zeros_like(x)),
+            ("ones_like", lambda x: backend.ones_like(x)),
+            ("full_like", lambda x: backend.full_like(x, 1.0)),
+            ("empty_like", lambda x: backend.empty_like(x)),
+            ("copy", lambda x: backend.copy(x)),
+            ("shape", lambda x: backend.shape(x)),
+            ("reshape", lambda x: backend.reshape(x, ())),
+            ("transpose", lambda x: backend.transpose(x)),
+            ("add", lambda x: backend.add(x, rank_0_tensor)),
+            ("subtract", lambda x: backend.subtract(x, rank_0_tensor)),
+            ("multiply", lambda x: backend.multiply(x, rank_0_tensor)),
+            ("divide", lambda x: backend.divide(x, rank_0_tensor)),
+            ("matmul", lambda x: backend.matmul(x, rank_0_tensor)),
+            ("maximum", lambda x: backend.maximum(x, rank_0_tensor)),
+            ("minimum", lambda x: backend.minimum(x, rank_0_tensor)),
+            ("argmax", lambda x: backend.argmax(x)),
+            ("exp", lambda x: backend.exp(x)),
+            ("log", lambda x: backend.log(x)),
+            ("sqrt", lambda x: backend.sqrt(x)),
+            ("absolute", lambda x: backend.absolute(x)),
+            ("sign", lambda x: backend.sign(x)),
+            ("clip", lambda x: backend.clip(x, 1.0, 3.0)),
+            ("sum", lambda x: backend.sum(x)),
+            ("mean", lambda x: backend.mean(x)),
+            ("max", lambda x: backend.max(x)),
+            ("min", lambda x: backend.min(x)),
+            ("std", lambda x: backend.std(x)),
+            ("stack", lambda x: backend.stack([x, rank_0_tensor])),
+            ("concatenate", lambda x: backend.concatenate([x, rank_0_tensor])),
+        ]
+        for method_name, call in cases:
+            with self.subTest(method=method_name):
+                with self.assertRaisesRegex(ValueError, r"NumPy scalar values"):
+                    call(numpy_scalar)
+
+    def test_elementwise_methods_reject_numpy_scalar_as_scalar_operand(self):
+        import numpy as np
+
+        backend = self.make_backend()
+        a = np.array(6.0)
+        numpy_scalar = np.float64(3.0)
+        cases = [
+            ("add", backend.add),
+            ("subtract", backend.subtract),
+            ("multiply", backend.multiply),
+            ("divide", backend.divide),
+            ("maximum", backend.maximum),
+            ("minimum", backend.minimum),
+        ]
+        for method_name, method in cases:
+            with self.subTest(method=method_name):
+                with self.assertRaisesRegex(ValueError, r"NumPy scalar values"):
+                    method(a, numpy_scalar)
+
 
 @unittest.skipUnless(NUMPY_AVAILABLE, "numpy is not installed")
 class TestNumpyBackendToTensor(NumpyBackendTestCase):

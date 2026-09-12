@@ -65,6 +65,12 @@ class NumpyBackend:
         if isinstance(x, np.generic):
             raise ValueError("Backend methods do not accept NumPy scalar values.")
 
+    def _validate_tensors_in_sequence_not_numpy_scalar(
+        self, xs: Sequence[NumpyTensor]
+    ) -> None:
+        for x in xs:
+            self._validate_tensor_not_numpy_scalar(x)
+
     def to_tensor(
         self, data: Scalar | list[object] | tuple[object, ...]
     ) -> NumpyTensor:
@@ -89,9 +95,11 @@ class NumpyBackend:
         return np.ones(shape, dtype=float)
 
     def ones_like(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return np.ones_like(x, dtype=float)
 
     def zeros_like(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return np.zeros_like(x, dtype=float)
 
     def full(self, shape: tuple[int, ...], fill_value: Scalar) -> NumpyTensor:
@@ -99,6 +107,7 @@ class NumpyBackend:
         return np.full(shape, fill_value, dtype=float)
 
     def full_like(self, x: NumpyTensor, fill_value: Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         validate_scalar_is_not_bool(fill_value)
         return np.full_like(x, fill_value, dtype=float)
 
@@ -106,51 +115,71 @@ class NumpyBackend:
         return np.empty(shape, dtype=float)
 
     def empty_like(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return np.empty_like(x, dtype=float)
 
     def copy(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return np.array(x, dtype=float, copy=True)
 
     def shape(self, x: NumpyTensor) -> tuple[int, ...]:
+        self._validate_tensor_not_numpy_scalar(x)
         return x.shape
 
     def reshape(self, x: NumpyTensor, shape: tuple[int, ...]) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         validate_shape_has_no_negative_dimensions(shape, "reshape")
         return np.reshape(x, shape)
 
     def transpose(
         self, x: NumpyTensor, axes: tuple[int, ...] | None = None
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return np.transpose(x, axes=axes)
 
     def add(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.add(a, b), float)
 
     def subtract(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.subtract(a, b), float)
 
     def multiply(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.multiply(a, b), float)
 
     def divide(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.divide(a, b), float)
 
     def matmul(self, a: NumpyTensor, b: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         return self._normalise_tensor_result(np.matmul(a, b), float)
 
     def maximum(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.maximum(a, b), float)
 
     def minimum(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(a)
+        self._validate_tensor_not_numpy_scalar(b)
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.minimum(a, b), float)
 
     def argmax(self, x: NumpyTensor, axis: int | None = None) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         validate_tensor_has_values(x.shape)
         if axis is not None:
             if type(axis) is not int:
@@ -159,21 +188,27 @@ class NumpyBackend:
         return self._normalise_tensor_result(np.argmax(x, axis=axis), int)
 
     def exp(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return self._normalise_tensor_result(np.exp(x), float)
 
     def log(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return self._normalise_tensor_result(np.log(x), float)
 
     def sqrt(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return self._normalise_tensor_result(np.sqrt(x), float)
 
     def absolute(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return self._normalise_tensor_result(np.absolute(x), float)
 
     def sign(self, x: NumpyTensor) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         return self._normalise_tensor_result(np.sign(x), float)
 
     def clip(self, x: NumpyTensor, min_value: Scalar, max_value: Scalar) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         validate_scalar_is_not_bool(min_value)
         validate_scalar_is_not_bool(max_value)
         return self._normalise_tensor_result(np.clip(x, min_value, max_value), float)
@@ -184,6 +219,7 @@ class NumpyBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         self._validate_reduction_axes(x, axis, keepdims)
         return self._normalise_tensor_result(
             np.sum(x, axis=axis, keepdims=keepdims), float
@@ -195,6 +231,7 @@ class NumpyBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         self._validate_reduction_axes(x, axis, keepdims)
         self._validate_not_empty(x)
         return self._normalise_tensor_result(
@@ -207,6 +244,7 @@ class NumpyBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         self._validate_reduction_axes(x, axis, keepdims)
         self._validate_not_empty(x)
         return self._normalise_tensor_result(
@@ -219,6 +257,7 @@ class NumpyBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         self._validate_reduction_axes(x, axis, keepdims)
         self._validate_not_empty(x)
         return self._normalise_tensor_result(
@@ -231,6 +270,7 @@ class NumpyBackend:
         axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> NumpyTensor:
+        self._validate_tensor_not_numpy_scalar(x)
         self._validate_reduction_axes(x, axis, keepdims)
         self._validate_not_empty(x)
         return self._normalise_tensor_result(
@@ -238,9 +278,11 @@ class NumpyBackend:
         )
 
     def stack(self, xs: Sequence[NumpyTensor], axis: int = 0) -> NumpyTensor:
+        self._validate_tensors_in_sequence_not_numpy_scalar(xs)
         return np.stack(xs, axis=axis)
 
     def concatenate(self, xs: Sequence[NumpyTensor], axis: int = 0) -> NumpyTensor:
+        self._validate_tensors_in_sequence_not_numpy_scalar(xs)
         return np.concatenate(xs, axis=axis)
 
     def eye(self, n: int, m: int | None = None) -> NumpyTensor:
