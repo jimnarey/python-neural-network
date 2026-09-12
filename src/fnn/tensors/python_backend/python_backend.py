@@ -18,7 +18,11 @@ from fnn.tensors.python_backend.operations import (
     require_non_empty_tensor_sequence,
     stack_tensors,
 )
-from fnn.tensors.shared.axes import normalise_axis, normalise_axes
+from fnn.tensors.shared.axes import (
+    normalise_axis,
+    normalise_axes,
+    validate_axis_is_int_or_none,
+)
 from fnn.tensors.shared.composition import get_concatenate_shape, get_stack_shape
 from fnn.tensors.shared.matmul import get_matmul_result_shape
 from fnn.tensors.shared.reductions import (
@@ -183,10 +187,9 @@ class PythonBackend:
 
     def argmax(self, x: PythonTensor, axis: int | None = None) -> PythonTensor:
         validate_tensor_has_values(x.shape)
+        validate_axis_is_int_or_none(axis)
         if axis is None:
             return PythonTensor((), array(PythonTensor.INT, [argmax_to_scalar(x)]))
-        if type(axis) is not int:
-            raise TypeError("axis must be an int or None")
         normalised_axis = normalise_axes((axis,), x.ndim())[0]
         target_shape = get_reduction_target_shape(
             x.shape, (normalised_axis,), keepdims=False

@@ -185,6 +185,15 @@ def reduce_to_tensor(
     initial_value: float,
     accumulate_fn: Callable[[float, float], float],
 ) -> PythonTensor:
+    """
+    General reduction path: for each source element, work out which result
+    index it contributes to and accumulate into that index.
+
+    This handles any target_shape, including (). It is not used for that
+    case in practice (see reduce_to_rank_0_tensor) because target_index is
+    constant across the whole loop when target_shape is (), making the
+    per-element index lookup and tensor read/write pure overhead.
+    """
     result = PythonTensor(
         target_shape, array("d", [initial_value]) * math.prod(target_shape)
     )
@@ -196,6 +205,32 @@ def reduce_to_tensor(
     return result
 
 
+def reduce_to_rank_0_tensor(
+    x: PythonTensor,
+    initial_value: float,
+    accumulate_fn: Callable[[float, float], float],
+) -> PythonTensor:
+    """
+    Fast path for a full reduction (every axis removed, keepdims=False).
+
+    reduce_to_tensor's general algorithm still works for this case, but
+    target_index is always () and never changes, so its per-element
+    get_reduction_target_index call and its read/write through
+    PythonTensor.get_scalar/set_scalar (each doing an index/bounds
+    computation, and set_scalar additionally checking writable and bool
+    type) add up to real, measurable overhead for no benefit. Accumulating
+    into a plain Python float and wrapping it in a rank-zero tensor once at
+    the end avoids all of that per element, at the cost of this special
+    case existing alongside the general path. Do not remove this thinking
+    it is redundant with reduce_to_tensor: it measurably is not (~2.5x
+    slower without it for a full reduction).
+    """
+    accumulator = initial_value
+    for _, value in x.items():
+        accumulator = accumulate_fn(accumulator, value)
+    return PythonTensor((), array("d", [accumulator]))
+
+
 def reduce(
     x: PythonTensor,
     axis: int | tuple[int, ...] | None,
@@ -203,9 +238,17 @@ def reduce(
     initial_value: float,
     accumulate_fn: Callable[[float, float], float],
 ) -> PythonTensor:
+    """
+    Reduce x along axis (or every axis, if None), returning a rank-zero
+    tensor when every axis is removed and a tensor with the reduced shape
+    otherwise. Dispatches to reduce_to_rank_0_tensor for the former case
+    purely as a performance optimisation; see its docstring for why.
+    """
     reduced_axes, target_shape = get_reduction_axes_and_target_shape(
         x.shape, axis, keepdims
     )
+    if target_shape == ():
+        return reduce_to_rank_0_tensor(x, initial_value, accumulate_fn)
     return reduce_to_tensor(
         x, reduced_axes, target_shape, keepdims, initial_value, accumulate_fn
     )

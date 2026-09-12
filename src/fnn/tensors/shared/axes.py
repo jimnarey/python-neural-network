@@ -1,6 +1,11 @@
 """Shared axes manipulation/handling"""
 
 
+def validate_axis_is_int_or_none(axis: object) -> None:
+    if axis is not None and type(axis) is not int:
+        raise TypeError("axis must be an int or None")
+
+
 def normalise_axis(axis: int, ndim: int) -> int:
     """
     Convert a negative axis value to its positive equivalent.

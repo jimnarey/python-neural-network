@@ -9,7 +9,7 @@ for this implementation.
 import numpy as np
 from typing import Sequence
 
-from fnn.tensors.shared.axes import normalise_axis
+from fnn.tensors.shared.axes import normalise_axis, validate_axis_is_int_or_none
 from fnn.tensors.shared.reductions import get_reduction_axes_and_target_shape
 from fnn.tensors.shared.types import Scalar
 from fnn.tensors.shared.validation import (
@@ -32,15 +32,9 @@ class NumpyBackend:
         # as a Python float.
         self._random = np.random.default_rng(seed)
 
-    def _normalise_scalar_result(self, x: NumpyTensor | Scalar) -> NumpyTensor | Scalar:
-        if isinstance(x, np.ndarray) and x.shape == ():
+    def _normalise_scalar_result(self, x: NumpyTensor) -> NumpyTensor | Scalar:
+        if x.shape == ():
             # Convert zero rank arrays containing a scalar to a simple scalar
-            return x.item()
-        if isinstance(x, np.generic):
-            # There is a small performance cost here as this forces conversion to a
-            # Python type from a C/NumPy type (e.g. np.int64) which could be avoided
-            # if subsequent operations only use NumPy. But it can't be avoided if we
-            # want a consistent backend contract
             return x.item()
         return x
 
@@ -138,52 +132,44 @@ class NumpyBackend:
         return np.transpose(x, axes=axes)
 
     def add(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.add(a, b), float)
 
     def subtract(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.subtract(a, b), float)
 
     def multiply(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.multiply(a, b), float)
 
     def divide(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.divide(a, b), float)
 
     def matmul(self, a: NumpyTensor, b: NumpyTensor) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         return self._normalise_tensor_result(np.matmul(a, b), float)
 
     def maximum(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.maximum(a, b), float)
 
     def minimum(self, a: NumpyTensor, b: NumpyTensor | Scalar) -> NumpyTensor:
-        self._validate_tensor_not_numpy_scalar(a)
-        self._validate_tensor_not_numpy_scalar(b)
+        self._validate_tensors_in_sequence_not_numpy_scalar((a, b))
         validate_scalar_is_not_bool(b)
         return self._normalise_tensor_result(np.minimum(a, b), float)
 
     def argmax(self, x: NumpyTensor, axis: int | None = None) -> NumpyTensor:
         self._validate_tensor_not_numpy_scalar(x)
         validate_tensor_has_values(x.shape)
+        validate_axis_is_int_or_none(axis)
         if axis is not None:
-            if type(axis) is not int:
-                raise TypeError("axis must be an int or None")
             axis = normalise_axis(axis, len(x.shape))
         return self._normalise_tensor_result(np.argmax(x, axis=axis), int)
 

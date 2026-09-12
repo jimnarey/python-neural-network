@@ -17,6 +17,10 @@ number of dimensions, where possible.
 The price for the flexibility this approach provides is that we need
 additional testing to pin down the interface's contract, since we can't
 rely on static, nominal typing to do this for us.
+
+A reduction (sum, mean, max, min, std) that removes every axis returns
+its single result in a rank-zero tensor. A rank-zero tensor has no axes,
+so passing an axis to a further reduction on that result is invalid.
 """
 
 from typing import Protocol, Sequence, runtime_checkable
@@ -323,8 +327,6 @@ class TensorBackend[T](Protocol):
         Compute the sum of all elements in the tensor, or along one or more
         specific axes.
         If keepdims is True, the reduced dimensions are kept with size 1.
-        If all axes are removed, the single result is returned in a rank-zero
-        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
 
         Example:
         sum([[1, 2], [3, 4]]) -> rank-zero tensor containing 10
@@ -339,9 +341,6 @@ class TensorBackend[T](Protocol):
     ) -> T:
         """
         Compute the mean of all elements in the tensor, or along one or more axes.
-
-        If all axes are removed, the single result is returned in a rank-zero
-        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def max(
@@ -354,8 +353,6 @@ class TensorBackend[T](Protocol):
         Compute the maximum value of all elements in the tensor, or along one
         or more specific axes.
         If keepdims is True, the reduced dimensions are kept with size 1.
-        If all axes are removed, the single result is returned in a rank-zero
-        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
 
         Example:
         max([[1, 2], [3, 4]]) -> rank-zero tensor containing 4
@@ -371,9 +368,6 @@ class TensorBackend[T](Protocol):
         """
         Compute the minimum value of all elements in the tensor, or along one
         or more specific axes.
-
-        If all axes are removed, the single result is returned in a rank-zero
-        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def std(
@@ -384,9 +378,6 @@ class TensorBackend[T](Protocol):
     ) -> T:
         """
         Compute the standard deviation of the tensor, or along one or more axes.
-
-        If all axes are removed, the single result is returned in a rank-zero
-        tensor. A rank-zero tensor has no axes, so any integer axis is invalid.
         """
 
     def stack(self, xs: Sequence[T], axis: int = 0) -> T:
