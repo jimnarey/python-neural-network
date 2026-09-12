@@ -36,6 +36,7 @@ themselves, thoroughly tested.
 
 import functools
 from dataclasses import dataclass
+from inspect import unwrap
 from typing import Any, Callable
 
 from fnn.tensors.protocol import TensorBackend
@@ -138,15 +139,16 @@ def _patch_assert_nested_close(
         had_original=True,
         original_value=tensor_helpers.assert_nested_close,
     )
+    test_method_globals = unwrap(test_method).__globals__
     globals_patch_state = PatchState[AssertNestedClose | None](
-        had_original="assert_nested_close" in test_method.__globals__,
-        original_value=test_method.__globals__.get("assert_nested_close"),
+        had_original="assert_nested_close" in test_method_globals,
+        original_value=test_method_globals.get("assert_nested_close"),
     )
 
     try:
         setattr(tensor_helpers, "assert_nested_close", wrapped_assert_nested_close)
         if globals_patch_state.had_original:
-            test_method.__globals__["assert_nested_close"] = wrapped_assert_nested_close
+            test_method_globals["assert_nested_close"] = wrapped_assert_nested_close
     except Exception as exc:
         raise RuntimeError(
             "shared_tests_enforcement failed while patching "
@@ -262,11 +264,12 @@ def _restore_assert_nested_close(
     before patching, and whether each copy was present at all. That lets the
     restore step put things back exactly as they were.
     """
+    test_method_globals = unwrap(method).__globals__
     setattr(tensor_helpers, "assert_nested_close", module_patch_state.original_value)
     if globals_patch_state.had_original:
-        method.__globals__["assert_nested_close"] = globals_patch_state.original_value
+        test_method_globals["assert_nested_close"] = globals_patch_state.original_value
     else:
-        method.__globals__.pop("assert_nested_close", None)
+        test_method_globals.pop("assert_nested_close", None)
 
 
 def _patch_make_backend(

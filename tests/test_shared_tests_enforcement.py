@@ -771,3 +771,110 @@ class TestEnforceSharedNumericFixtures(TestCase):
             "non-integer-valued float",
         ):
             DecoratedDummy().test_example()
+
+    def test_enforce_shared_numeric_fixtures_applies_value_check_regardless_of_import_format(
+        self,
+    ):
+        @EnforceSharedNumericFixtures()
+        class DecoratedDummy:
+            def make_backend(self):
+                pass
+
+            def test_example(self, import_format):
+                if import_format == "module":
+                    tensor_helpers.assert_nested_close(
+                        2.5,
+                        2.5,
+                        rel_tol=0,
+                        abs_tol=0,
+                    )
+                    return
+                assert_nested_close(
+                    2.5,
+                    2.5,
+                    rel_tol=0,
+                    abs_tol=0,
+                )
+
+        for import_format in ("module", "direct"):
+            with self.subTest(import_format=import_format):
+                with self.assertRaises(AssertionError):
+                    DecoratedDummy().test_example(import_format)
+
+    def test_enforce_shared_numeric_fixtures_applies_tolerance_check_regardless_of_import_format(
+        self,
+    ):
+        @EnforceSharedNumericFixtures()
+        class DecoratedDummy:
+            def make_backend(self):
+                pass
+
+            def test_example(self, import_format):
+                if import_format == "module":
+                    tensor_helpers.assert_nested_close(2.0, 2.0)
+                    return
+                assert_nested_close(2.0, 2.0)
+
+        for import_format in ("module", "direct"):
+            with self.subTest(import_format=import_format):
+                with self.assertRaises(AssertionError):
+                    DecoratedDummy().test_example(import_format)
+
+    def test_enforce_shared_numeric_fixtures_restores_patches_after_wrapped_test_method_raises_for_each_import_format(
+        self,
+    ):
+        class TensorBackendDummy:
+            def to_tensor(self, data):
+                return data
+
+        module_assert_nested_close = tensor_helpers.assert_nested_close
+        direct_assert_nested_close = assert_nested_close
+
+        @EnforceSharedNumericFixtures()
+        class DecoratedDummy:
+            def make_backend(self):
+                return TensorBackendDummy()
+
+            def test_example(self, import_format):
+                backend = self.make_backend()
+                try:
+                    backend.to_tensor(1.5)
+                except AssertionError:
+                    pass
+                else:
+                    raise AssertionError("to_tensor input check was not applied")
+                if import_format == "module":
+                    assertion_helper = tensor_helpers.assert_nested_close
+                else:
+                    assertion_helper = assert_nested_close
+                try:
+                    assertion_helper(2.5, 2.5, rel_tol=0, abs_tol=0)
+                except AssertionError:
+                    pass
+                else:
+                    raise AssertionError(
+                        "assert_nested_close value check was not applied"
+                    )
+                try:
+                    assertion_helper(2.0, 2.0)
+                except AssertionError:
+                    pass
+                else:
+                    raise AssertionError(
+                        "assert_nested_close tolerance check was not applied"
+                    )
+                raise RuntimeError("wrapped test method failed")
+
+        for import_format in ("module", "direct"):
+            with self.subTest(import_format=import_format):
+                decorated_dummy = DecoratedDummy()
+                with self.assertRaisesRegex(RuntimeError, "wrapped test method failed"):
+                    decorated_dummy.test_example(import_format)
+                self.assertNotIn("make_backend", decorated_dummy.__dict__)
+                if import_format == "module":
+                    self.assertIs(
+                        tensor_helpers.assert_nested_close,
+                        module_assert_nested_close,
+                    )
+                else:
+                    self.assertIs(assert_nested_close, direct_assert_nested_close)
